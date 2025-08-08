@@ -1,0 +1,1 @@
+# NovaTech-OpenHackU2025-KANAZAWA
