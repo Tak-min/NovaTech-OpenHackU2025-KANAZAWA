@@ -1,0 +1,32 @@
+services:
+  # APIサーバー (Node.js)
+  api:
+    build: ./backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules # node_modulesをマウント対象から除外
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # データベース (PostGIS)
+  db:
+    image: postgis/postgis:15-3.4
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
