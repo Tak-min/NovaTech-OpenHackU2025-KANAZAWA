@@ -89,32 +89,29 @@
     <main class="flex-grow overflow-y-auto p-4">
       
       <section id="page-login">
-        <div class="flex flex-col space-y-4">
-          <input type="email" placeholder="メールアドレス" class="p-3 border rounded-lg">
-          <input type="password" placeholder="パスワード" class="p-3 border rounded-lg">
-          <button class="bg-yellow-400 text-white font-bold py-3 rounded-lg">ログイン</button>
-          <button id="show-register-button" class="text-blue-500 text-sm">新規登録はこちら</button>
-        </div>
+        <form id="login-form" class="flex flex-col space-y-4">
+          <input id="login-email" type="email" placeholder="メールアドレス" class="p-3 border rounded-lg" required>
+          <input id="login-password" type="password" placeholder="パスワード" class="p-3 border rounded-lg" required>
+          <button type="submit" class="bg-yellow-400 text-white font-bold py-3 rounded-lg">ログイン</button>
+          <button id="show-register-button" type="button" class="text-blue-500 text-sm">新規登録はこちら</button>
+        </form>
       </section>
 
       <section id="page-register" class="hidden">
-        <div class="flex flex-col space-y-4">
-          <input type="text" placeholder="ユーザー名" class="p-3 border rounded-lg">
-          <input type="email" placeholder="メールアドレス" class="p-3 border rounded-lg">
-          <input type="password" placeholder="パスワード" class="p-3 border rounded-lg">
-          <div class="flex justify-around">
-            <label><input type="radio" name="gender"> 男性</label>
-            <label><input type="radio" name="gender"> 女性</label>
-          </div>
-          <button class="bg-yellow-400 text-white font-bold py-3 rounded-lg">新規登録</button>
-          <button id="show-login-button" class="text-blue-500 text-sm">ログインはこちら</button>
-        </div>
+        <form id="register-form" class="flex flex-col space-y-4">
+          <input id="register-username" type="text" placeholder="ユーザー名" class="p-3 border rounded-lg" required>
+          <input id="register-email" type="email" placeholder="メールアドレス" class="p-3 border rounded-lg" required>
+          <input id="register-password" type="password" placeholder="パスワード" class="p-3 border rounded-lg" required>
+
+          <button type="submit" class="bg-yellow-400 text-white font-bold py-3 rounded-lg">新規登録</button>
+          <button id="show-login-button" type="button" class="text-blue-500 text-sm">ログインはこちら</button>
+        </form>
       </section>
 
       <section id="page-home" class="hidden text-center">
         <p>あなたは今・・・</p>
-        <h2 class="text-4xl font-bold my-4">晴れ男です</h2>
-        <img src="https://placehold.jp/150x150.png?text=☀️" alt="晴れ男イラスト" class="mx-auto">
+        <h2 id="status-text" class="text-4xl font-bold my-4">判定中...</h2>
+        <img id="status-image" src="https://placehold.jp/150x150.png?text=..." alt="判定イラスト" class="mx-auto">
       </section>
 
       <section id="page-map" class="hidden">
