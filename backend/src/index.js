@@ -45,10 +45,10 @@ const createTables = async () => {
                 recorded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log('tables created succussfully or already exist.');
-    }catch(err){
+        console.log('tables created successfully or already exist.');
+    } catch (err) {
         console.error("error creating tables:", err.stack);
-    }finally{
+    } finally {
         client.release();
     }
 };
@@ -58,6 +58,7 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN" の形式
 
+<<<<<<< HEAD
   if (token == null) {
     return res.sendStatus(401); // Unauthorized
   }
@@ -65,6 +66,19 @@ const authenticateToken = (req, res, next) => {
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
       return res.sendStatus(403); // Forbidden
+=======
+app.listen(PORT, async () => {
+    console.log(`server is running on port ${PORT}`);
+
+    try {
+        const client = await pool.connect();
+        console.log("database connection successful!");
+        client.release();
+
+        await createTables();
+    } catch (err) {
+        console.error("database connection error:", err.stack);
+>>>>>>> 1cfdfbc4bc9986814cd34723196247a2b5fe8504
     }
     req.user = user; // リクエストオブジェクトにユーザー情報を付与
     next(); // 次の処理へ
@@ -243,13 +257,13 @@ app.listen(PORT, async () => {
   }
 });
 
-app.get('/', async (req,res) => {
+app.get('/', async (req, res) => {
     try {
         const client = await pool.connect();
         const result = await client.query('SELECT NOW()');
-        res.send('hello world! DB time is: ${result.rows[0].now}');
+        res.send(`hello world! DB time is: ${result.rows[0].now}`);
         client.release();
-    }catch(err){
+    } catch (err) {
         res.status(500).send('database connection error');
     }
 });
