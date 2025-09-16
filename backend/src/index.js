@@ -93,10 +93,20 @@ app.post('/log-location', authenticateToken, async (req, res) => {
     // https://openweathermap.org/weather-conditions
     const weatherCode = weatherData.weather[0].id;
     let weather;
-    if (weatherCode >= 200 && weatherCode < 600) { // Thunderstorm, Drizzle, Rain
-      weather = 'rainy';
-    } else { // Atmosphere, Clear, Clouds, etc.
-      weather = 'sunny';
+    if (weatherCode >= 200 && weatherCode < 300) {
+      weather = 'thunderstorm'; // 雷
+    } else if (weatherCode >= 300 && weatherCode < 600) {
+      weather = 'rainy'; // 雨・霧雨
+    } else if (weatherCode >= 600 && weatherCode < 700) {
+      weather = 'snowy'; // 雪
+    } else if (weatherCode >= 700 && weatherCode < 800) {
+      weather = 'stormy'; // 嵐・霧など
+    } else if (weatherCode === 800) {
+      weather = 'sunny'; // 快晴
+    } else if (weatherCode > 800) {
+      weather = 'cloudy'; // 曇り
+    } else {
+      weather = 'unknown'; // 不明
     }
     
     // データベースに位置情報と天気を保存
@@ -125,42 +135,48 @@ app.post('/log-location', authenticateToken, async (req, res) => {
 // [GET] /status - ユーザーの現在の晴れ/雨判定を取得
 app.get('/status', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id; // 認証ミドルウェアからユーザーIDを取得
+    const userId = req.user.id;
 
-    // データベースから、そのユーザーの天気記録をすべて取得
     const weatherRecords = await pool.query(
-      'SELECT weather FROM locations WHERE user_id = $1',
+      'SELECT weather, COUNT(*) as count FROM locations WHERE user_id = $1 GROUP BY weather',
       [userId]
     );
 
-    // 晴れと雨の回数をカウント
-    let sunnyCount = 0;
-    let rainyCount = 0;
+    // 天気ごとのスコアを定義
+    const scores = {
+      'sunny': 1,
+      'cloudy': 0.5,
+      'rainy': -1,
+      'snowy': 2, // 雪は少しレアなので高めのプラススコア
+      'thunderstorm': -3, // 雷は影響が大きいのでマイナススコア
+      'stormy': -2,
+    };
+
+    // 合計スコアを計算
+    let totalScore = 0;
+    const counts = {};
     for (const record of weatherRecords.rows) {
-      if (record.weather === 'sunny') {
-        sunnyCount++;
-      } else if (record.weather === 'rainy') {
-        rainyCount++;
+      const weather = record.weather;
+      const count = parseInt(record.count, 10);
+      counts[weather] = count;
+      if (scores[weather]) {
+        totalScore += scores[weather] * count;
       }
     }
-
-    // 判定ロジック (ハッカソン用シンプル版)
-    // 記録がなければ「凡人」
-    // 晴れの回数が雨以上なら「晴れ男」
-    // それ以外は「雨男」
+    
+    // スコアに応じた称号を決定
     let status = '凡人';
     if (weatherRecords.rows.length > 0) {
-      if (sunnyCount >= rainyCount) {
-        status = '晴れ男';
-      } else {
-        status = '雨男';
-      }
+      if (totalScore > 5) status = '太陽神';
+      else if (totalScore > 0) status = '晴れ男'; // ここは性別に応じて「晴れ女」と変えても良い
+      else if (totalScore < -5) status = '嵐を呼ぶ者';
+      else if (totalScore < 0) status = '雨男'; // 同上
     }
     
     res.json({
       status: status,
-      sunnyCount: sunnyCount,
-      rainyCount: rainyCount
+      score: totalScore,
+      counts: counts // 各天気の回数も返す
     });
 
   } catch (error) {
@@ -168,6 +184,7 @@ app.get('/status', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'サーバーエラーが発生しました' });
   }
 });
+
 
 // [POST] /register - 新規ユーザー登録
 app.post('/register', async (req, res) => {
