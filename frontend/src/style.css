@@ -2,43 +2,60 @@
 /* Converted TailwindCSS styles to plain CSS */
 
 body {
-  background-color: #bfdbfe; /* bg-sky-200 */
-  font-family: sans-serif; /* font-sans */
+  background-color: #bfdbfe;
+  /* bg-sky-200 */
+  font-family: sans-serif;
+  /* font-sans */
 }
 
 #app {
-  max-width: 28rem; /* max-w-md */
-  margin: 0 auto; /* mx-auto */
-  height: 100vh; /* h-screen */
-  background-color: #ffffff; /* bg-white */
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* shadow-lg */
-  border-bottom-left-radius: 1.5rem; /* rounded-b-3xl */
-  border-bottom-right-radius: 1.5rem; /* rounded-b-3xl */
+  max-width: 28rem;
+  /* max-w-md */
+  margin: 0 auto;
+  /* mx-auto */
+  height: 100vh;
+  /* h-screen */
+  background-color: #ffffff;
+  /* bg-white */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  /* shadow-lg */
+  border-bottom-left-radius: 1.5rem;
+  /* rounded-b-3xl */
+  border-bottom-right-radius: 1.5rem;
+  /* rounded-b-3xl */
   display: flex;
   flex-direction: column;
 }
 
 header {
-  text-align: center; /* text-center */
-  padding: 1rem 0; /* py-4 */
+  text-align: center;
+  /* text-center */
+  padding: 1rem 0;
+  /* py-4 */
   position: relative;
 }
 
 #header-title {
-  font-size: 1.5rem; /* text-2xl */
-  font-weight: bold; /* font-bold */
-  color: #4b5563; /* text-gray-700 */
+  font-size: 1.5rem;
+  /* text-2xl */
+  font-weight: bold;
+  /* font-bold */
+  color: #4b5563;
+  /* text-gray-700 */
 }
 
 .header-home-img {
   position: absolute;
   left: 0;
   top: 0;
-  width: 100%;         /* #appの幅に合わせる */
-  max-width: 28rem;    /* #appのmax-widthと同じ */
+  width: 100%;
+  /* #appの幅に合わせる */
+  max-width: 28rem;
+  /* #appのmax-widthと同じ */
   margin: 0 auto;
   z-index: 2;
-  transform: none;     /* 中央寄せ不要 */
+  transform: none;
+  /* 中央寄せ不要 */
 }
 
 .header-home-img img {
@@ -48,85 +65,107 @@ header {
 }
 
 main {
-  flex-grow: 1; /* flex-grow */
-  overflow-y: auto; /* overflow-y-auto */
-  padding: 1rem; /* p-4 */
+  flex-grow: 1;
+  /* flex-grow */
+  overflow-y: auto;
+  /* overflow-y-auto */
+  padding: 1rem;
+  /* p-4 */
 }
 
 /* Login Page */
 #page-login input,
 #page-register input {
-  padding: 0.75rem; /* p-3 */
-  border: 1px solid #d1d5db; /* border */
-  border-radius: 0.5rem; /* rounded-lg */
+  padding: 0.75rem;
+  /* p-3 */
+  border: 1px solid #d1d5db;
+  /* border */
+  border-radius: 0.5rem;
+  /* rounded-lg */
 }
 
 #page-login button,
 #page-register button {
-  padding: 0.75rem; /* py-3 */
-  border-radius: 0.5rem; /* rounded-lg */
-  font-weight: bold; /* font-bold */
+  padding: 0.75rem;
+  /* py-3 */
+  border-radius: 0.5rem;
+  /* rounded-lg */
+  font-weight: bold;
+  /* font-bold */
 }
 
 #page-login .bg-yellow-400,
 #page-register .bg-yellow-400 {
-  background-color: #facc15; /* bg-yellow-400 */
-  color: #ffffff; /* text-white */
+  background-color: #facc15;
+  /* bg-yellow-400 */
+  color: #ffffff;
+  /* text-white */
 }
 
 #page-login .text-blue-500,
 #page-register .text-blue-500 {
-  color: #3b82f6; /* text-blue-500 */
-  font-size: 0.875rem; /* text-sm */
+  color: #3b82f6;
+  /* text-blue-500 */
+  font-size: 0.875rem;
+  /* text-sm */
 }
 
 /* Home Page */
 #page-home {
-  text-align: center; /* text-center */
+  text-align: center;
+  /* text-center */
 }
 
 #page-home h2 {
-  font-size: 2.25rem; /* text-4xl */
-  font-weight: bold; /* font-bold */
-  margin: 1rem 0; /* my-4 */
+  font-size: 2.25rem;
+  /* text-4xl */
+  font-weight: bold;
+  /* font-bold */
+  margin: 1rem 0;
+  /* my-4 */
 }
 
 #page-home img {
-  margin: 0 auto; /* mx-auto */
+  margin: 0 auto;
+  /* mx-auto */
 }
 
-/* Map Page */
-#page-map div {
-  width: 100%; /* w-full */
-  height: 24rem; /* h-96 */
-  background-color: #d1d5db; /* bg-gray-300 */
-}
+
 
 /* Ranking Page */
 #page-ranking li {
-  padding: 0.5rem; /* p-2 */
-  border-bottom: 1px solid #d1d5db; /* border-b */
+  padding: 0.5rem;
+  /* p-2 */
+  border-bottom: 1px solid #d1d5db;
+  /* border-b */
 }
 
 /* Footer */
 footer {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* grid-cols-3 */
-  text-align: center; /* text-center */
-  padding: 0.5rem 0; /* py-2 */
-  border-top: 1px solid #d1d5db; /* border-t */
+  grid-template-columns: repeat(3, 1fr);
+  /* grid-cols-3 */
+  text-align: center;
+  /* text-center */
+  padding: 0.5rem 0;
+  /* py-2 */
+  border-top: 1px solid #d1d5db;
+  /* border-t */
 }
 
 footer button {
-  padding: 0.5rem; /* p-2 */
+  padding: 0.5rem;
+  /* p-2 */
 }
 
 footer .text-yellow-500 {
-  color: #facc15; /* text-yellow-500 */
+  color: #facc15;
+  /* text-yellow-500 */
 }
 
 footer .text-gray-500 {
-  color: #6b7280; /* text-gray-500 */
+  color: #6b7280;
+  /* text-gray-500 */
 }
 
 .hidden {
