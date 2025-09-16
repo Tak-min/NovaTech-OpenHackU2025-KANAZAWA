@@ -82,7 +82,7 @@ function startLocationTracking() {
         console.error('位置情報の取得に失敗:', error.message);
       }
     );
-  }, 10000); // 3600000ミリ秒 = 1h
+  }, 3600000); // 3600000ミリ秒 = 1h
 }
 
 // [新機能] 位置情報の追跡を停止する関数
@@ -226,7 +226,7 @@ navButtons.forEach(button => {
     // ボタンのアクティブ表示を切り替え
     navButtons.forEach(btn => btn.classList.remove('text-yellow-500'));
     button.classList.add('text-yellow-500');
-    if(button.dataset.page ==- "home"){
+    if (button.dataset.page === "home") {
       updateHomePageStatus();
     }
   });

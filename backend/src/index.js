@@ -2,6 +2,7 @@
 
 // ライブラリのインポート
 const express = require('express');
+const axios = require('axios');
 const cors = require('cors');
 require('dotenv').config();
 const { Pool } = require('pg');
@@ -72,35 +73,50 @@ const authenticateToken = (req, res, next) => {
 };
 
 // [POST] /log-location - ユーザーの位置情報と天気を記録
-// authenticateTokenミドルウェアを間に挟むことで、認証が必要なルートになる
 app.post('/log-location', authenticateToken, async (req, res) => {
   try {
     const { latitude, longitude } = req.body;
-    const userId = req.user.id; // ミドルウェアが付与したユーザー情報
+    const userId = req.user.id;
 
     if (latitude == null || longitude == null) {
       return res.status(400).json({ message: '緯度と経度が必要です' });
     }
 
-    // --- 天気情報の取得 ---
-    // 💡ハッカソンTIPS: ここでは外部APIを叩かず、一旦ランダムな天気を返す
-    // 本来はOpenWeatherMapなどのAPIを呼び出す
-    const weather = Math.random() < 0.7 ? 'sunny' : 'rainy'; // 70%の確率で晴れ
+    // --- 実際の天気情報を取得 ---
+    const apiKey = process.env.WEATHER_API_KEY;
+    const apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}`;
+    
+    const weatherResponse = await axios.get(apiUrl);
+    const weatherData = weatherResponse.data;
 
+    // OpenWeatherMapの天候コードから、アプリ内のカテゴリに変換
+    // https://openweathermap.org/weather-conditions
+    const weatherCode = weatherData.weather[0].id;
+    let weather;
+    if (weatherCode >= 200 && weatherCode < 600) { // Thunderstorm, Drizzle, Rain
+      weather = 'rainy';
+    } else { // Atmosphere, Clear, Clouds, etc.
+      weather = 'sunny';
+    }
+    
     // データベースに位置情報と天気を保存
-    // PostGISのST_MakePoint関数を使って緯度経度を地理空間データに変換
     const logQuery = `
       INSERT INTO locations (user_id, geom, weather, recorded_at)
       VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), $4, NOW())
     `;
     await pool.query(logQuery, [userId, longitude, latitude, weather]);
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: '位置情報を記録しました',
-      weather: weather 
+      weather: weather,
+      city: weatherData.name // APIから取得した都市名も返してみる
     });
 
   } catch (error) {
+    if (axios.isAxiosError(error)) {
+        console.error('Weather API error:', error.response.data);
+        return res.status(502).json({ message: '天気情報の取得に失敗しました' });
+    }
     console.error(error);
     res.status(500).json({ message: 'サーバーエラーが発生しました' });
   }
