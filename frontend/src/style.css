@@ -2,26 +2,40 @@
 /* Converted TailwindCSS styles to plain CSS */
 
 body {
-  background-color: #bfdbfe; /* bg-sky-200 */
   font-family: sans-serif; /* font-sans */
+  /*
+  background-image: url('/img/background-sky.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;*/
 }
 
 #app {
   max-width: 28rem; /* max-w-md */
   margin: 0 auto; /* mx-auto */
   height: 100vh; /* h-screen */
-  background-color: #ffffff; /* bg-white */
+  /*background-color: #ffffff;  bg-white */
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* shadow-lg */
   border-bottom-left-radius: 1.5rem; /* rounded-b-3xl */
   border-bottom-right-radius: 1.5rem; /* rounded-b-3xl */
   display: flex;
   flex-direction: column;
+
+  background-image: url('/img/background-sky.png'); /* 背景画像を設定 */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 header {
   text-align: center; /* text-center */
   padding: 1rem 0; /* py-4 */
   position: relative;
+  height: 90px; /* ヘッダーの高さ固定 */
+}
+
+.header-img-container {
+  display: none;
 }
 
 #header-title {
@@ -53,7 +67,26 @@ main {
   padding: 1rem; /* p-4 */
 }
 
+section {
+  /* background-color: #fff; */ /* 削除 */
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
 /* Login Page */
+/* ログイン・新規登録ページ */
+#page-login,
+#page-register {
+  background-color: white; /* 背景を白にする */
+  padding: 1rem; /* 内側の余白 */
+  border-radius: 0.5rem; /* 角丸 */
+  margin: 0 auto; /* 中央寄せ */
+  max-width: 80%; /* 幅を制限 */
+
+  background-image: none;
+}
+
 #page-login input,
 #page-register input {
   padding: 0.75rem; /* p-3 */
@@ -106,6 +139,17 @@ main {
 #page-ranking li {
   padding: 0.5rem; /* p-2 */
   border-bottom: 1px solid #d1d5db; /* border-b */
+}
+
+/* ホーム・マップ・ランキングページ */
+#page-home,
+#page-map,
+#page-ranking {
+  background-color: white; /* 背景を白にする */
+  padding: 1rem; /* 内側の余白 */
+  border-radius: 0.5rem; /* 角丸 */
+  margin: 0 auto; /* 中央寄せ */
+  max-width: 80%; /* 幅を制限 */
 }
 
 /* Footer */

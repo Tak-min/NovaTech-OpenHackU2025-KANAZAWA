@@ -18,6 +18,16 @@ function showPage(pageId) {
     targetPage.classList.remove('hidden');
   }
 
+  if (pageId === 'page-home') {
+    showHeaderImage('home');
+  } else if (pageId === 'page-map') {
+    showHeaderImage('map');
+  } else if (pageId === 'page-ranking') {
+    showHeaderImage('ranking');
+  } else {
+    showHeaderImage(null);
+  }
+
   // ヘッダーのタイトルを更新
   const titles = {
     'page-login': 'ログイン',
@@ -27,6 +37,33 @@ function showPage(pageId) {
     'page-ranking': 'ランキング',
   };
   headerTitle.textContent = titles[pageId] || 'Hare/Ame';
+}
+
+// 画像切り替え用の要素取得
+const headerImgContainer = document.getElementById('header-img-container');
+const headerImg = document.getElementById('header-img');
+
+// 画像切り替え関数
+function showHeaderImage(type) {
+  if (type === 'home') {
+    headerImg.src = '/img/header-home.png';
+    headerImg.alt = 'ホームヘッダー';
+    headerImgContainer.style.display = 'block';
+    headerTitle.style.display = 'none';
+  } else if (type === 'map') {
+    headerImg.src = '/img/header-map.png';
+    headerImg.alt = 'マップヘッダー';
+    headerImgContainer.style.display = 'block';
+    headerTitle.style.display = 'none';
+  } else if (type === 'ranking') {
+    headerImg.src = '/img/header-ranking.png';
+    headerImg.alt = 'ランキングヘッダー';
+    headerImgContainer.style.display = 'block';
+    headerTitle.style.display = 'none';
+  } else {
+    headerImgContainer.style.display = 'none';
+    headerTitle.style.display = 'block';
+  }
 }
 
 let locationIntervalId = null; // 位置情報送信を管理するためのID
