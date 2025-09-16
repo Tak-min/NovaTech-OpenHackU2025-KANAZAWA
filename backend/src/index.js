@@ -31,17 +31,17 @@ const createTables = async () => {
                 recorded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log('tables created succussfully or already exist.');
-    }catch(err){
+        console.log('tables created successfully or already exist.');
+    } catch (err) {
         console.error("error creating tables:", err.stack);
-    }finally{
+    } finally {
         client.release();
     }
 };
 
 
 app.listen(PORT, async () => {
-    console.log("server us running on port ${PORT}");
+    console.log(`server is running on port ${PORT}`);
 
     try {
         const client = await pool.connect();
@@ -49,19 +49,19 @@ app.listen(PORT, async () => {
         client.release();
 
         await createTables();
-    }catch(err){
+    } catch (err) {
         console.error("database connection error:", err.stack);
     }
 });
 
 
-app.get('/', async (req,res) => {
+app.get('/', async (req, res) => {
     try {
         const client = await pool.connect();
         const result = await client.query('SELECT NOW()');
-        res.send('hello world! DB time is: ${result.rows[0].now}');
+        res.send(`hello world! DB time is: ${result.rows[0].now}`);
         client.release();
-    }catch(err){
+    } catch (err) {
         res.status(500).send('database connection error');
     }
 });
