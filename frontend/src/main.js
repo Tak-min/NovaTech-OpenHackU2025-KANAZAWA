@@ -170,7 +170,7 @@ registerForm.addEventListener('submit', async (event) => {
   }
 });
 
-// ホームページの表示を更新する関数
+// ホームページの表示を更新する関数 (改良版)
 async function updateHomePageStatus() {
   const token = localStorage.getItem('token');
   if (!token) return;
@@ -185,21 +185,27 @@ async function updateHomePageStatus() {
 
     if (response.ok) {
       const data = await response.json();
-
-      // HTML要素に判定結果を反映
+      
       const statusTextElement = document.getElementById('status-text');
       const statusImageElement = document.getElementById('status-image');
-
+      
+      // バックエンドから受け取った称号を表示
       statusTextElement.textContent = `${data.status}です`;
+      
+      // 称号に応じた画像と絵文字のマップ
+      const statusVisuals = {
+        '太陽神': '☀️',
+        '晴れ男': '😊',
+        '凡人': '😐',
+        '雨男': '☔',
+        '嵐を呼ぶ者': '⚡️',
+        'デフォルト': '🤔'
+      };
 
-      // 判定結果に応じて画像も切り替える
-      if (data.status === '晴れ男') {
-        statusImageElement.src = 'https://placehold.jp/150x150.png?text=☀️';
-      } else if (data.status === '雨男') {
-        statusImageElement.src = 'https://placehold.jp/150x150.png?text=☔';
-      } else {
-        statusImageElement.src = 'https://placehold.jp/150x150.png?text=😐';
-      }
+      // 称号に対応する絵文字を取得（なければデフォルト）
+      const emoji = statusVisuals[data.status] || statusVisuals['デフォルト'];
+      statusImageElement.src = `https://placehold.jp/150x150.png?text=${emoji}`;
+
     }
   } catch (error) {
     console.error('ステータスの取得に失敗:', error);
