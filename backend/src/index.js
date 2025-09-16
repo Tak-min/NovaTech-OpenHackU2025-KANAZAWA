@@ -58,7 +58,6 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN" の形式
 
-<<<<<<< HEAD
   if (token == null) {
     return res.sendStatus(401); // Unauthorized
   }
@@ -66,19 +65,6 @@ const authenticateToken = (req, res, next) => {
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
       return res.sendStatus(403); // Forbidden
-=======
-app.listen(PORT, async () => {
-    console.log(`server is running on port ${PORT}`);
-
-    try {
-        const client = await pool.connect();
-        console.log("database connection successful!");
-        client.release();
-
-        await createTables();
-    } catch (err) {
-        console.error("database connection error:", err.stack);
->>>>>>> 1cfdfbc4bc9986814cd34723196247a2b5fe8504
     }
     req.user = user; // リクエストオブジェクトにユーザー情報を付与
     next(); // 次の処理へ
