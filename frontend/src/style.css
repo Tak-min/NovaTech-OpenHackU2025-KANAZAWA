@@ -21,12 +21,30 @@ body {
 header {
   text-align: center; /* text-center */
   padding: 1rem 0; /* py-4 */
+  position: relative;
 }
 
 #header-title {
   font-size: 1.5rem; /* text-2xl */
   font-weight: bold; /* font-bold */
   color: #4b5563; /* text-gray-700 */
+}
+
+.header-home-img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;         /* #appの幅に合わせる */
+  max-width: 28rem;    /* #appのmax-widthと同じ */
+  margin: 0 auto;
+  z-index: 2;
+  transform: none;     /* 中央寄せ不要 */
+}
+
+.header-home-img img {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 main {
