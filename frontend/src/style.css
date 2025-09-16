@@ -128,3 +128,7 @@ footer .text-yellow-500 {
 footer .text-gray-500 {
   color: #6b7280; /* text-gray-500 */
 }
+
+.hidden {
+  display: none;
+}
