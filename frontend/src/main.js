@@ -66,7 +66,7 @@ function startLocationTracking() {
             },
             body: JSON.stringify({ latitude, longitude })
           });
-          
+
           const data = await response.json();
           if (response.ok) {
             console.log('サーバーに位置情報を記録しました:', data);
@@ -234,6 +234,13 @@ navButtons.forEach(button => {
     button.classList.add('text-yellow-500');
     if (button.dataset.page === "home") {
       updateHomePageStatus();
+    } else if (button.dataset.page === "map") {
+      console.log('マップページが表示されました');
+      // マップページが表示されたときに地図を初期化
+      setTimeout(() => {
+        console.log('地図初期化のタイマーが実行されました');
+        initializeMap();
+      }, 100);
     }
   });
 });
@@ -244,3 +251,89 @@ document.getElementById('show-login-button').addEventListener('click', () => sho
 
 // 初期表示ページを設定
 showPage('page-login');
+
+// 地図関連の変数
+let map = null;
+
+// 最低限の地図表示機能
+function initializeMap() {
+  console.log('initializeMap関数が呼ばれました');
+
+  // 地図コンテナが存在するかチェック
+  const mapContainer = document.getElementById('map');
+  if (!mapContainer) {
+    console.error('地図コンテナが見つかりません');
+    return;
+  }
+  console.log('地図コンテナが見つかりました');
+
+  // 地図コンテナのサイズを確認
+  const containerRect = mapContainer.getBoundingClientRect();
+  console.log('地図コンテナのサイズ:', containerRect.width, 'x', containerRect.height);
+
+  // コンテナが表示されているかチェック
+  const mapPage = document.getElementById('page-map');
+  if (mapPage && mapPage.classList.contains('hidden')) {
+    console.error('地図ページが隠れています');
+    return;
+  }
+
+  // 地図コンテナを強制的に表示状態にする
+  mapContainer.style.display = 'block';
+  mapContainer.style.height = '350px';
+  mapContainer.style.width = '100%';
+
+  // 既に初期化済みの場合は何もしない
+  if (map) {
+    console.log('地図は既に初期化済みです');
+    return;
+  }
+
+  // Leafletライブラリが読み込まれているかチェック
+  if (typeof L === 'undefined') {
+    console.log('Leafletライブラリが読み込まれていません。500ms後に再試行します...');
+    setTimeout(initializeMap, 500);
+    return;
+  }
+  console.log('Leafletライブラリが利用可能です');
+
+  try {
+    console.log('地図を初期化します...');
+
+    // 地図を作成（金沢市を中心に設定）
+    map = L.map('map').setView([36.5777, 136.6483], 13);
+    console.log('地図オブジェクトを作成しました');
+
+    // OpenStreetMapタイルを追加
+    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    console.log('タイルレイヤーを追加しました');
+
+    // 地図コンテナの最終的なサイズを確認
+    const finalRect = mapContainer.getBoundingClientRect();
+    console.log('地図初期化後のコンテナサイズ:', finalRect.width, 'x', finalRect.height);
+
+    console.log('地図の初期化が完了しました');
+
+    // 地図のサイズを再計算
+    setTimeout(() => {
+      console.log('地図のサイズを再計算します');
+      map.invalidateSize();
+
+      // 再計算後のサイズも確認
+      const afterInvalidateRect = mapContainer.getBoundingClientRect();
+      console.log('サイズ再計算後のコンテナサイズ:', afterInvalidateRect.width, 'x', afterInvalidateRect.height);
+
+      console.log('地図のサイズ再計算完了');
+
+      // タイルの読み込み状況を確認
+      console.log('地図のズームレベル:', map.getZoom());
+      console.log('地図の中心座標:', map.getCenter());
+    }, 200);
+
+  } catch (error) {
+    console.error('地図の初期化に失敗しました:', error);
+  }
+}
