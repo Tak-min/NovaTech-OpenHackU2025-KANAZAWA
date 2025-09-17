@@ -1,7 +1,5 @@
 import "./style.css";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-
 const pages = document.querySelectorAll('main section');
 const navButtons = document.querySelectorAll('.nav-button');
 const headerTitle = document.getElementById('header-title');
@@ -85,7 +83,7 @@ function startLocationTracking() {
         const { latitude, longitude } = position.coords;
         console.log(`位置情報を取得しました: Lat ${latitude}, Lon ${longitude}`);
         try {
-          await fetch('https://soralog-diqp.onrender.com/log-location', {
+          await fetch('http://localhost:3000/log-location', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -119,7 +117,7 @@ registerForm.addEventListener('submit', async (event) => {
   const email = document.getElementById('register-email').value;
   const password = document.getElementById('register-password').value;
   try {
-    const response = await fetch('https://soralog-diqp.onrender.com/register', {
+    const response = await fetch('http://localhost:3000/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, email, password }),
@@ -150,7 +148,7 @@ async function checkLoginStatus() {
   console.log('Token found in localStorage:', token);
 
   try {
-    const response = await fetch('https://soralog-diqp.onrender.com/status', {
+    const response = await fetch('http://localhost:3000/status', {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}` // 修正
@@ -185,7 +183,7 @@ async function updateHomePageStatus() {
   const token = localStorage.getItem('token');
   if (!token) return;
   try {
-    const response = await fetch('https://soralog-diqp.onrender.com/status', {
+    const response = await fetch('http://localhost:3000/status', {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -220,6 +218,7 @@ loginForm.addEventListener('submit', async (event) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
+      credentials: 'include', // 認証情報を含める
     });
     const data = await response.json();
     if (response.ok) {
@@ -274,7 +273,7 @@ async function updateRankingPage() {
   rankingList.innerHTML = '<li>ランキングを読み込んでいます...</li>'
 
   try {
-    const response = await fetch('https://soralog-diqp.onrender.com/ranking');
+    const response = await fetch('http://localhost:3000/ranking');
     if (!response.ok) {
       throw new Error('network response was not ok');
     }
@@ -336,7 +335,7 @@ async function loadUserMarkers() {
 
   try {
     console.log('ユーザー位置情報を取得中...');
-    const response = await fetch('https://soralog-diqp.onrender.com/users-locations', {
+    const response = await fetch('http://localhost:3000/users-locations', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`

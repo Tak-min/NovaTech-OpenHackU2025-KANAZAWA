@@ -14,20 +14,13 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
-app.use(cors({
-  origin: frontendURL
-}));
-
-const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173', // Use environment variable for production
-  optionsSuccessStatus: 200
-};
-app.use(cors(corsOptions));
 // JSON形式のリクエストボディを解析できるようにする
 app.use(express.json());
-app.use(cors());
-
+app.use(cors({
+  origin: 'https://solalog.onrender.com', // フロントエンドのURLを指定
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // 許可するHTTPメソッド
+  credentials: true // クッキーや認証情報を含むリクエストを許可
+}));
 
 // データベース接続プールの設定
 const pool = new Pool({
