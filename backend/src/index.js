@@ -19,6 +19,11 @@ app.use(cors({
   origin: frontendURL
 }));
 
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173', // Use environment variable for production
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 // JSON形式のリクエストボディを解析できるようにする
 app.use(express.json());
 app.use(cors());
