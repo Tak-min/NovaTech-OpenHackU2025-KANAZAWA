@@ -24,7 +24,11 @@ app.use(cors({
 
 // データベース接続プールの設定
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL,
+  // ===== 以下のssl設定を追加 =====
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 const createTables = async () => {
