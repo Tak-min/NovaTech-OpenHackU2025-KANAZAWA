@@ -74,6 +74,15 @@ header {
   display: block;
 }
 
+#header-setting-img {
+  position: absolute; /* 画面上で固定配置 */
+  top: 20px;          /* 上から5px */
+  right: 10px;        /* 右から5px */
+  width: 60px;       /* 横幅 */
+  height: 21px;      /* 高さ */
+  z-index: 2;
+}
+
 main {
   flex-grow: 1;
   /* flex-grow */
@@ -85,9 +94,9 @@ main {
 
 section {
   /* background-color: #fff; */ /* 削除 */
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1rem;
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
 }
 
 /* Login Page */
