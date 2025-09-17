@@ -171,16 +171,31 @@ section {
 
 .gender-group  {
   display: flex;
-  justify-content: space-between; /* 左右に離す */
+  justify-content: space-between;
   margin-bottom: 1rem; 
-  width: 100%; /* sectionの幅いっぱいに */
+  width: 100%;
 }
 
 .gender-option {
   display: flex;
-  align-items: center; /* ラベル文字とラジオボタンを中央揃え */
-  gap: 0.3rem; /* 文字と丸ボタンの間隔 */
+  align-items: center; 
+  gap: 0.3rem;
   font-size: 1rem;
+}
+
+.gender-text{
+  font-size: 1rem;
+}
+
+input[type="radio"] {
+  transform: scale(1.2); /* ラジオボタンを少し大きく */
+  width: 10px;
+}
+
+#page-register input[type="radio"] {
+  margin-right: 0.5rem; /* ラジオボタンとテキストの間隔 */
+  width: 20%;
+  margin-left: 1rem;
 }
 
 /* Home Page */
@@ -190,13 +205,15 @@ section {
 
 #page-home p{
   font-family: 'Kiwi Maru';
+  color: #4B4B4B;
 }
 
 #status-text {
   font-size: 2.25rem;
-  font-weight: bold;
+  font-weight: 500;
   margin: 1rem 0;
   font-family: 'Kiwi Maru';
+  color: #4B4B4B;
 }
 
 #status-image {
@@ -273,7 +290,7 @@ footer button.active {
 
   header{
     padding-top: 7%;
-    padding-bottom: 0;
+    padding-bottom: 7%;
   }
 
   #page-login,
