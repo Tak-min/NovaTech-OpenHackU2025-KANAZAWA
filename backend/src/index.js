@@ -269,26 +269,25 @@ app.get('/ranking', async (req, res) =>{
 // [POST] /register - 新規ユーザー登録
 app.post('/register', async (req, res) => {
     try {
-        const { username, email, password } = req.body;
+        // 1. gender をリクエストボディから受け取る
+        const { username, email, password, gender } = req.body;
 
-        // 1. 入力値のバリデーション (簡易版)
         if (!username || !email || !password) {
-            return res.status(400).json({ message: 'すべての項目を入力してください' });
+          return res.status(400).json({ message: '必須項目を入力してください' });
         }
 
-        // 2. パスワードをハッシュ化
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // 3. データベースにユーザーを保存
+        // 2. INSERT文に gender を追加
         const newUser = await pool.query(
-            'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username',
-            [username, email, passwordHash]
+          'INSERT INTO users (username, email, password_hash, gender) VALUES ($1, $2, $3, $4) RETURNING id, username',
+          [username, email, passwordHash, gender]
         );
 
-        res.status(201).json({
+        res.status(201).json({ 
             message: 'ユーザー登録が成功しました',
-            user: newUser.rows[0]
+            user: newUser.rows[0] 
         });
 
     } catch (error) {

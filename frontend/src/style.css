@@ -34,10 +34,10 @@ header {
   /* text-center */
   /* py-4 */
   position: relative;
-  height: 90px;
+  height: 20px;
   /* ヘッダーの高さ固定 */
-  padding-top: 20%;
-  padding-bottom: 1rem;
+  padding-top: 18%;
+  padding-bottom: 4rem;
 }
 
 .header-img-container {
@@ -103,7 +103,7 @@ section {
   flex-direction: column;         /* 縦方向に並べる */
   justify-content: center;         /* 垂直方向中央寄せ */
   align-items: center;             /* 横方向中央寄せ */
-  height: 100%;                    /* セクション全体を使用 */
+  height: auto;                  /* 高さ自動調整 */
 
   max-width: 400px; /* ← 幅を制限 */
   margin-left: auto;
@@ -130,12 +130,6 @@ section {
   border: 1px solid #d1d5db;
   font-size: 1rem;
 }
-
-/*#page-login .bg-yellow-400,
-#page-register .bg-yellow-400 {
-  background-color: #facc15;
-  color: #ffffff;
-}*/
 
 #page-login button[type="submit"] {
   background-color: #facc15;
@@ -175,15 +169,51 @@ section {
   color: #374151;         /* グレー文字 */
 }
 
+.gender-group  {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem; 
+  width: 100%;
+}
+
+.gender-option {
+  display: flex;
+  align-items: center; 
+  gap: 0.3rem;
+  font-size: 1rem;
+}
+
+.gender-text{
+  font-size: 1rem;
+}
+
+input[type="radio"] {
+  transform: scale(1.2); /* ラジオボタンを少し大きく */
+  width: 10px;
+}
+
+#page-register input[type="radio"] {
+  margin-right: 0.5rem; /* ラジオボタンとテキストの間隔 */
+  width: 20%;
+  margin-left: 1rem;
+}
+
 /* Home Page */
 #page-home {
   text-align: center;
 }
 
+#page-home p{
+  font-family: 'Kiwi Maru';
+  color: #4B4B4B;
+}
+
 #status-text {
   font-size: 2.25rem;
-  font-weight: bold;
+  font-weight: 500;
   margin: 1rem 0;
+  font-family: 'Kiwi Maru';
+  color: #4B4B4B;
 }
 
 #status-image {
@@ -260,6 +290,12 @@ footer button.active {
 
   header{
     padding-top: 7%;
-    padding-bottom: 0;
+    padding-bottom: 7%;
+  }
+
+  #page-login,
+  #page-register {
+    width: 70%;     /* 横幅70%にする */
+    max-width: none; /* 最大幅制限なし */
   }
 }
