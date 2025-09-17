@@ -269,20 +269,20 @@ app.get('/ranking', async (req, res) =>{
 // [POST] /register - 新規ユーザー登録
 app.post('/register', async (req, res) => {
     try {
-        // 1. gender をリクエストボディから受け取る
+        console.log('Register endpoint hit'); // デバッグログ
         const { username, email, password, gender } = req.body;
+        console.log('Request body:', req.body); // リクエストボディをログ出力
 
         if (!username || !email || !password) {
-          return res.status(400).json({ message: '必須項目を入力してください' });
+            return res.status(400).json({ message: '必須項目を入力してください' });
         }
 
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // 2. INSERT文に gender を追加
         const newUser = await pool.query(
-          'INSERT INTO users (username, email, password_hash, gender) VALUES ($1, $2, $3, $4) RETURNING id, username',
-          [username, email, passwordHash, gender]
+            'INSERT INTO users (username, email, password_hash, gender) VALUES ($1, $2, $3, $4) RETURNING id, username',
+            [username, email, passwordHash, gender]
         );
 
         res.status(201).json({ 
@@ -291,11 +291,10 @@ app.post('/register', async (req, res) => {
         });
 
     } catch (error) {
-        // メールアドレスやユーザー名が重複した場合のエラー処理
+        console.error('Error in /register endpoint:', error); // エラー内容をログ出力
         if (error.code === '23505') {
             return res.status(409).json({ message: 'このメールアドレスまたはユーザー名は既に使用されています' });
         }
-        console.error(error);
         res.status(500).json({ message: 'サーバーエラーが発生しました' });
     }
 });
