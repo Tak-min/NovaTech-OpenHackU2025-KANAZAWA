@@ -1,40 +1,43 @@
 /* General Reset & Body Style */
 body {
-  background-color: #e0f2fe;
-  /* light sky blue */
+  background-color: #e0f2fe; /* light sky blue */
   font-family: sans-serif;
   margin: 0;
 }
 
 /* App Container */
 #app {
-  max-width: 448px;
-  /* 28rem */
+  max-width: 448px; /* 28rem */
   margin: 0 auto;
   height: 100vh;
   background-color: #ffffff;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  /*background-image: url('/img/background-sky.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: all 0.3s ease-in-out;*/
+}
+
+#app.bg-sky {
   background-image: url('/img/background-sky.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  transition: all 0.3s ease-in-out;
 }
 
 /* Header */
 header {
   text-align: center;
   /* text-center */
-  padding: 1rem 0;
   /* py-4 */
   position: relative;
   height: 90px;
   /* ヘッダーの高さ固定 */
   padding-top: 20%;
   padding-bottom: 1rem;
-
 }
 
 .header-img-container {
@@ -42,12 +45,11 @@ header {
 }
 
 #header-title {
-  font-size: 1.5rem;
-  /* text-2xl */
-  font-weight: bold;
-  /* font-bold */
-  color: #4b5563;
+  font-size: 2rem;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 1);
   /* text-gray-700 */
+  font-family: 'Inter'
 }
 
 .header-home-img {
@@ -58,14 +60,22 @@ header {
   max-width: 448px;
   transform: translateX(-50%);
   z-index: 2;
-  display: none;
-  /* Initially hidden */
+  display: none; /* Initially hidden */
 }
 
 .header-home-img img {
   width: 100%;
   height: auto;
   display: block;
+}
+
+#header-setting-img {
+  position: absolute; /* 画面上で固定配置 */
+  top: 20px;          /* 上から5px */
+  right: 10px;        /* 右から5px */
+  width: 60px;       /* 横幅 */
+  height: 21px;      /* 高さ */
+  z-index: 2;
 }
 
 /* Main Content */
@@ -80,7 +90,10 @@ section {
   margin-bottom: 1rem;
 }
 
-/* Page Specific Styles */
+/* Login Page */
+/* ログイン・新規登録ページ */
+
+/* Login Page / Register Page */
 #page-login,
 #page-register {
   background-color: white;        /* 背景を白にする */
@@ -96,18 +109,9 @@ section {
   margin-left: auto;
   margin-right: auto;
 }
-#page-home,
-#page-map,
-#page-ranking {
-  background-color: white;
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  margin: 0 auto;
-  max-width: 90%;
-}
 
-/* Form Styles */
-form {
+#page-login form,
+#page-register form {
   display: flex;
   flex-direction: column;
   gap: 1rem;                       /* 各要素の間隔 */
@@ -171,41 +175,6 @@ form {
   color: #374151;         /* グレー文字 */
 }
 
-#page-login input,
-#page-register input {
-  padding: 0.75rem;
-  /* p-3 */
-  border: 1px solid #d1d5db;
-  /* border */
-  border-radius: 0.5rem;
-  /* rounded-lg */
-}
-
-#page-login button,
-#page-register button {
-  padding: 0.75rem;
-  /* py-3 */
-  border-radius: 0.5rem;
-  /* rounded-lg */
-  font-weight: bold;
-  /* font-bold */
-}
-
-button[type="submit"] {
-  background-color: #facc15;
-  /* yellow-400 */
-  color: #ffffff;
-  /* text-white */
-}
-
-button[type="button"] {
-  background-color: transparent;
-  color: #3b82f6;
-  /* blue-500 */
-  font-size: 0.875rem;
-}
-
-
 /* Home Page */
 #page-home {
   text-align: center;
@@ -231,16 +200,11 @@ button[type="button"] {
 #page-home,
 #page-map,
 #page-ranking {
-  background-color: white;
-  /* 背景を白にする */
-  padding: 1rem;
-  /* 内側の余白 */
-  border-radius: 1rem;
-  /* 角丸 */
-  margin: 0 auto;
-  /* 中央寄せ */
-  max-width: 80%;
-  /* 幅を制限 */
+  background-color: white; /* 背景を白にする */
+  padding: 1rem; /* 内側の余白 */
+  border-radius: 1rem; /* 角丸 */
+  margin: 0 auto; /* 中央寄せ */
+  max-width: 80%; /* 幅を制限 */
 }
 
 /* Footer */
@@ -257,13 +221,11 @@ footer button {
   padding: 0.5rem;
   background: none;
   border: none;
-  color: #6b7280;
-  /* gray-500 */
+  color: #6b7280; /* gray-500 */
 }
 
 footer button.active {
-  color: #f59e0b;
-  /* yellow-500 */
+  color: #f59e0b; /* yellow-500 */
 }
 
 /* Utility Classes */
@@ -279,51 +241,20 @@ footer button.active {
   border: 1px solid #ddd;
 }
 
-/* Custom User Marker Styles */
-.custom-div-icon {
-  background: transparent !important;
-  border: none !important;
-}
-
-.user-marker {
-  transition: transform 0.2s ease-in-out;
-  cursor: pointer;
-}
-
-.user-marker:hover {
-  transform: scale(1.2);
-}
-
-/* Leaflet Popup Styling */
-.leaflet-popup-content-wrapper {
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.leaflet-popup-content {
-  margin: 8px 12px;
-  line-height: 1.4;
-}
-
 /* PC Layout using Media Query */
 @media (min-width: 768px) {
   #app {
     max-width: 90%;
     height: 95vh;
-    border-radius: 1.5rem;
-    /* rounded-3xl */
+    border-radius: 1.5rem; /* rounded-3xl */
   }
-
+  
   .header-home-img {
     /* 変更点: max-widthを90%から固定値に変更 */
-    max-width: 550px;
+    max-width: 550px; 
   }
 
-  #page-login,
-  #page-register,
-  #page-home,
-  #page-map,
-  #page-ranking {
+  #page-login, #page-register, #page-home, #page-map, #page-ranking {
     max-width: 600px;
   }
 
