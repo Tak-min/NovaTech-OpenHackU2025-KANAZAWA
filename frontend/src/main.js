@@ -37,6 +37,14 @@ function showPage(pageId) {
     'page-ranking': 'ランキング',
   };
   headerTitle.textContent = titles[pageId] || 'Hare/Ame';
+
+    // #appにクラスを付け替える
+  const app = document.getElementById('app');
+  if (pageId === 'page-home' || pageId === 'page-map' || pageId === 'page-ranking') {
+    app.classList.add('bg-sky');
+  } else {
+    app.classList.remove('bg-sky');
+  }
 }
 
 // 画像切り替え用の要素取得
