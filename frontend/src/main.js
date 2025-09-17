@@ -83,7 +83,7 @@ function startLocationTracking() {
         const { latitude, longitude } = position.coords;
         console.log(`位置情報を取得しました: Lat ${latitude}, Lon ${longitude}`);
         try {
-          await fetch('http://https://soralog-diqp.onrender.com/log-location', {
+          await fetch('https://soralog-backend.onrender.com/log-location', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -116,10 +116,34 @@ registerForm.addEventListener('submit', async (event) => {
   const username = document.getElementById('register-username').value;
   const email = document.getElementById('register-email').value;
   const password = document.getElementById('register-password').value;
-  const gender = document.querySelector('input[name="gender"]:checked').value;
+  const genderElement = document.querySelector('input[name="gender"]:checked');
+
+  // 性別が選択されているかチェック
+  if (!genderElement) {
+    alert('性別を選択してください');
+    return;
+  }
+  const gender = genderElement.value;
+
+  // クライアントサイドのバリデーション
+  if (username.length < 3 || username.length > 50) {
+    alert('ユーザー名は3文字以上50文字以下で入力してください');
+    return;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    alert('有効なメールアドレスを入力してください');
+    return;
+  }
+
+  if (password.length < 6) {
+    alert('パスワードは6文字以上で入力してください');
+    return;
+  }
 
   try {
-    const response = await fetch('http://https://soralog-diqp.onrender.com/register', {
+    const response = await fetch('https://soralog-backend.onrender.com/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, email, password, gender}),
@@ -150,7 +174,7 @@ async function checkLoginStatus() {
   console.log('Token found in localStorage:', token);
 
   try {
-    const response = await fetch('http://https://soralog-diqp.onrender.com/status', {
+    const response = await fetch('https://soralog-backend.onrender.com/status', {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}` // 修正
@@ -185,7 +209,7 @@ async function updateHomePageStatus() {
   const token = localStorage.getItem('token');
   if (!token) return;
   try {
-    const response = await fetch('http://https://soralog-diqp.onrender.com/status', {
+    const response = await fetch('https://soralog-backend.onrender.com/status', {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -216,10 +240,23 @@ loginForm.addEventListener('submit', async (event) => {
   console.log('Login form submitted'); // デバッグログを追加
   const email = document.getElementById('login-email').value;
   const password = document.getElementById('login-password').value;
-  console.log('Email:', email, 'Password:', password); // 入力値を確認
+
+  // クライアントサイドのバリデーション
+  if (!email || !password) {
+    alert('メールアドレスとパスワードを入力してください');
+    return;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    alert('有効なメールアドレスを入力してください');
+    return;
+  }
+
+  console.log('Email:', email, 'Password:', '***'); // パスワードを隠してログ出力
 
   try {
-    const response = await fetch('https://https://soralog-diqp.onrender.com/login', {
+    const response = await fetch('https://soralog-backend.onrender.com/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -281,7 +318,7 @@ async function updateRankingPage() {
   rankingList.innerHTML = '<li>ランキングを読み込んでいます...</li>'
 
   try {
-    const response = await fetch('http://https://soralog-diqp.onrender.com/ranking');
+    const response = await fetch('https://soralog-backend.onrender.com/ranking');
     if (!response.ok) {
       throw new Error('network response was not ok');
     }
@@ -343,7 +380,7 @@ async function loadUserMarkers() {
 
   try {
     console.log('ユーザー位置情報を取得中...');
-    const response = await fetch('http://https://soralog-diqp.onrender.com/users-locations', {
+    const response = await fetch('https://soralog-backend.onrender.com/users-locations', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`

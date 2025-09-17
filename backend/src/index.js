@@ -14,10 +14,24 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 環境変数のチェック
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL environment variable is not set');
+  process.exit(1);
+}
+if (!process.env.JWT_SECRET) {
+  console.error('JWT_SECRET environment variable is not set');
+  process.exit(1);
+}
+if (!process.env.WEATHER_API_KEY) {
+  console.error('WEATHER_API_KEY environment variable is not set');
+  process.exit(1);
+}
+
 // JSON形式のリクエストボディを解析できるようにする
 app.use(express.json());
 app.use(cors({
-  origin: 'https://solalog.onrender.com', // フロントエンドのURLを指定
+  origin: 'https://soralog-qnka.onrender.com', // フロントエンドのURLを指定
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // 許可するHTTPメソッド
   credentials: true // クッキーや認証情報を含むリクエストを許可
 }));
@@ -28,7 +42,12 @@ const pool = new Pool({
   // ===== 以下のssl設定を追加 =====
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  // 接続タイムアウト設定
+  connectionTimeoutMillis: 10000, // 10秒
+  query_timeout: 10000, // 10秒
+  idleTimeoutMillis: 30000, // 30秒
+  max: 20, // 最大接続数
 });
 
 const createTables = async () => {
@@ -40,6 +59,7 @@ const createTables = async () => {
                 username VARCHAR(50) UNIQUE NOT NULL,
                 email VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
+                gender VARCHAR(10), -- 性別を追加
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
@@ -66,20 +86,24 @@ const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN" の形式
 
+    console.log('Auth header:', authHeader); // デバッグログ
+    console.log('Extracted token:', token ? '***' : null); // トークンを隠してログ出力
+
     if (token == null) {
+        console.log('No token provided'); // デバッグログ
         return res.sendStatus(401); // Unauthorized
     }
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
+            console.log('Token verification failed:', err.message); // デバッグログ
             return res.sendStatus(403); // Forbidden
         }
+        console.log('Token verified for user:', user.username); // デバッグログ
         req.user = user; // リクエストオブジェクトにユーザー情報を付与
         next(); // 次の処理へ
     });
-};
-
-// [POST] /log-location - ユーザーの位置情報と天気を記録
+};// [POST] /log-location - ユーザーの位置情報と天気を記録
 app.post('/log-location', authenticateToken, async (req, res) => {
     try {
         const { latitude, longitude } = req.body;
@@ -275,10 +299,33 @@ app.post('/register', async (req, res) => {
     try {
         console.log('Register endpoint hit'); // デバッグログ
         const { username, email, password, gender } = req.body;
-        console.log('Request body:', req.body); // リクエストボディをログ出力
+        console.log('Request body:', { username, email, gender }); // パスワードを隠してログ出力
 
+        // 入力バリデーション
         if (!username || !email || !password) {
             return res.status(400).json({ message: '必須項目を入力してください' });
+        }
+
+        // ユーザー名の長さチェック
+        if (username.length < 3 || username.length > 50) {
+            return res.status(400).json({ message: 'ユーザー名は3文字以上50文字以下で入力してください' });
+        }
+
+        // メールアドレスの形式チェック
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: '有効なメールアドレスを入力してください' });
+        }
+
+        // パスワードの長さチェック
+        if (password.length < 6) {
+            return res.status(400).json({ message: 'パスワードは6文字以上で入力してください' });
+        }
+
+        // 性別のバリデーション
+        const validGenders = ['male', 'female', 'other'];
+        if (gender && !validGenders.includes(gender)) {
+            return res.status(400).json({ message: '性別はmale、female、otherのいずれかを選択してください' });
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -289,6 +336,7 @@ app.post('/register', async (req, res) => {
             [username, email, passwordHash, gender]
         );
 
+        console.log('User registered successfully:', newUser.rows[0].username); // デバッグログ
         res.status(201).json({ 
             message: 'ユーザー登録が成功しました',
             user: newUser.rows[0] 
@@ -299,18 +347,35 @@ app.post('/register', async (req, res) => {
         if (error.code === '23505') {
             return res.status(409).json({ message: 'このメールアドレスまたはユーザー名は既に使用されています' });
         }
-        res.status(500).json({ message: 'サーバーエラーが発生しました' });
+        if (error.code === 'ECONNREFUSED') {
+            return res.status(503).json({ message: 'データベース接続エラー' });
+        }
+        res.status(500).json({ message: 'サーバーエラーが発生しました', error: process.env.NODE_ENV === 'development' ? error.message : undefined });
     }
 });
 
 // [POST] /login - ログイン
 app.post('/login', async (req, res) => {
     try {
+        console.log('Login endpoint hit'); // デバッグログ
         const { email, password } = req.body;
+        console.log('Request body:', { email, password: '***' }); // パスワードを隠してログ出力
+
+        // 入力バリデーション
+        if (!email || !password) {
+            return res.status(400).json({ message: 'メールアドレスとパスワードを入力してください' });
+        }
+
+        // メールアドレスの形式チェック
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: '有効なメールアドレスを入力してください' });
+        }
 
         // 1. メールアドレスでユーザーを検索
-        const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        const userResult = await pool.query('SELECT id, username, password_hash FROM users WHERE email = $1', [email]);
         if (userResult.rows.length === 0) {
+            console.log('User not found for email:', email); // デバッグログ
             return res.status(401).json({ message: 'メールアドレスまたはパスワードが正しくありません' });
         }
         const user = userResult.rows[0];
@@ -318,6 +383,7 @@ app.post('/login', async (req, res) => {
         // 2. パスワードが正しいか照合
         const isPasswordCorrect = await bcrypt.compare(password, user.password_hash);
         if (!isPasswordCorrect) {
+            console.log('Incorrect password for user:', user.username); // デバッグログ
             return res.status(401).json({ message: 'メールアドレスまたはパスワードが正しくありません' });
         }
 
@@ -332,14 +398,18 @@ app.post('/login', async (req, res) => {
             { expiresIn: '1h' } // トークンの有効期限 (例: 1時間)
         );
 
+        console.log('Login successful for user:', user.username); // デバッグログ
         res.json({
             message: 'ログインに成功しました',
             token: token
         });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'サーバーエラーが発生しました' });
+        console.error('Error in /login endpoint:', error); // エラー内容をログ出力
+        if (error.code === 'ECONNREFUSED') {
+            return res.status(503).json({ message: 'データベース接続エラー' });
+        }
+        res.status(500).json({ message: 'サーバーエラーが発生しました', error: process.env.NODE_ENV === 'development' ? error.message : undefined });
     }
 });
 
@@ -347,14 +417,19 @@ app.post('/login', async (req, res) => {
 // サーバー起動とDB接続確認
 app.listen(PORT, async () => {
     console.log(`Server is running on port ${PORT}`);
+    console.log(`CORS origin set to: https://soralog-qnka.onrender.com`);
 
     try {
         const client = await pool.connect();
         console.log('Database connection successful!');
+        console.log('Database URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
         client.release();
         await createTables();
+        console.log('Server startup completed successfully');
     } catch (err) {
         console.error('Database connection error:', err.stack);
+        console.error('Please check your DATABASE_URL environment variable');
+        process.exit(1); // データベース接続に失敗したらサーバーを停止
     }
 });
 
