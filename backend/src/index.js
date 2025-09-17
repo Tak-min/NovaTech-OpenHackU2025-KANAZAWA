@@ -59,14 +59,20 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN" の形式
 
+  console.log('Authorization header:', authHeader);
+  console.log('Extracted token:', token);
+
   if (token == null) {
+    console.log('No token provided. Sending 401 Unauthorized.');
     return res.sendStatus(401); // Unauthorized
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
+      console.log('Token verification failed. Error:', err);
       return res.sendStatus(403); // Forbidden
     }
+    console.log('Token verified successfully. User:', user);
     req.user = user; // リクエストオブジェクトにユーザー情報を付与
     next(); // 次の処理へ
   });
@@ -182,6 +188,44 @@ app.get('/status', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'サーバーエラーが発生しました' });
+  }
+});
+
+// [GET] /ranking - Get top 10 user rankings
+app.get('/ranking', async (req, res) =>{
+  try{
+    const rankingQuery = `
+      SELECT
+        u.id,
+        u.username,
+        COALESCE(SUM(
+          CASE l.weather
+            WHEN 'sunny' THEN 1
+            WHEN 'cloudy' THEN 0.5
+            WHEN 'rainy' THEN -1
+            WHEN 'snowy' THEN 2
+            WHEN 'thunderstorm' THEN -3
+            WHEN 'stormy' THEN -2
+            ELSE 0
+          END
+        ), 0) AS score
+      FROM
+        users u
+      LEFT JOIN
+        locations l ON u.id = l.user_id
+      GROUP BY
+        u.id, u.username
+      ORDER BY
+        score DESC
+      LIMIT 10;
+    `;
+
+    const rankingResult = await pool.query(rankingQuery);
+
+    res.json(rankingResult.rows);
+  }catch (error) {
+    console.error('Ranking Error', error);
+    res.status(500).json({message: 'ランキングの取得に失敗しました'});
   }
 });
 

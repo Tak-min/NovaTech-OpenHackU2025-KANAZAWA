@@ -135,6 +135,49 @@ registerForm.addEventListener('submit', async (event) => {
   }
 });
 
+async function checkLoginStatus() {
+  const token = localStorage.getItem('token');
+
+  if (!token) {
+    console.log('No token found in localStorage. Redirecting to login page.');
+    footerNav.classList.add('hidden');
+    showPage('page-login');
+    return;
+  }
+
+  console.log('Token found in localStorage:', token);
+
+  try {
+    const response = await fetch('http://localhost:3000/status', {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}` // 修正
+      }
+    });
+
+    console.log('Response from /status endpoint:', response);
+
+    if (response.ok) {
+      console.log('Session restored successfully.');
+      footerNav.classList.remove('hidden');
+      showPage('page-home');
+      startLocationTracking();
+      updateHomePageStatus();
+      document.querySelector('.nav-button[data-page="home"]').classList.add('active');
+    } else {
+      console.log('Invalid session token. Response status:', response.status);
+      localStorage.removeItem('token');
+      footerNav.classList.add('hidden');
+      showPage('page-login');
+    }
+    
+  } catch (error) {
+    console.error('Failed to verify token. Error:', error); // 修正
+    footerNav.classList.add('hidden');
+    showPage('page-login');
+  }
+}
+
 
 async function updateHomePageStatus() {
   const token = localStorage.getItem('token');
@@ -205,10 +248,13 @@ navButtons.forEach(button => {
     showPage(pageId);
     navButtons.forEach(btn => btn.classList.remove('active'));
     button.classList.add('active');
+    
     if (button.dataset.page === "home") {
       updateHomePageStatus();
     } else if (button.dataset.page === "map") {
       setTimeout(initializeMap, 100);
+    } else if (button.dataset.page === "ranking") {
+      updateRankingPage();
     }
   });
 });
@@ -220,6 +266,34 @@ document.getElementById('show-login-button').addEventListener('click', () => sho
 footerNav.classList.add('hidden');
 showPage('page-login');
 
+//ここからはランキング機能
+async function updateRankingPage() {
+  const rankingList = document.getElementById('ranking-list');
+  rankingList.innerHTML = '<li>ランキングを読み込んでいます...</li>'
+
+  try {
+    const response = await fetch('http://localhost:3000/ranking');
+    if (!response.ok) {
+      throw new Error('network response was not ok');
+    }
+    const rankingData = await response.json();
+    rankingList.innerHTML = "";
+
+    if (rankingData.length === 0){
+      rankingList.innerHTML = "<li>まだ誰もランクインしていません</li>";
+      return;
+    }
+
+    rankingData.forEach((user, index) => {
+      const listItem = document.createElement('li');
+      listItem.textContent =`${index + 1}位: ${user.username} (スコア: ${Number(user.score).toFixed(1)})`;
+      rankingList.appendChild(listItem);
+    });
+  } catch (error) {
+    console.error('ランキングの取得に失敗:', error);
+    rankingList.innerHTML = "<li>ランキングの取得に失敗しました</li>";
+  }
+}
 
 //ここからは地図機能
 
