@@ -34,10 +34,10 @@ header {
   /* text-center */
   /* py-4 */
   position: relative;
-  height: 90px;
+  height: 20px;
   /* ヘッダーの高さ固定 */
-  padding-top: 20%;
-  padding-bottom: 1rem;
+  padding-top: 18%;
+  padding-bottom: 4rem;
 }
 
 .header-img-container {
@@ -131,12 +131,6 @@ section {
   font-size: 1rem;
 }
 
-/*#page-login .bg-yellow-400,
-#page-register .bg-yellow-400 {
-  background-color: #facc15;
-  color: #ffffff;
-}*/
-
 #page-login button[type="submit"] {
   background-color: #facc15;
   color: #fff;
@@ -194,10 +188,15 @@ section {
   text-align: center;
 }
 
+#page-home p{
+  font-family: 'Kiwi Maru';
+}
+
 #status-text {
   font-size: 2.25rem;
   font-weight: bold;
   margin: 1rem 0;
+  font-family: 'Kiwi Maru';
 }
 
 #status-image {
