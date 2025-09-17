@@ -113,34 +113,50 @@ function stopLocationTracking() {
 const registerForm = document.getElementById('register-form');
 registerForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+  console.log('=== FRONTEND REGISTER ATTEMPT ===');
+  console.log('Register form submitted at:', new Date().toISOString());
+
   const username = document.getElementById('register-username').value;
   const email = document.getElementById('register-email').value;
   const password = document.getElementById('register-password').value;
   const genderElement = document.querySelector('input[name="gender"]:checked');
 
-  // 性別が選択されているかチェック
-  if (!genderElement) {
-    alert('性別を選択してください');
-    return;
-  }
-  const gender = genderElement.value;
+  console.log('Form data:', {
+    username,
+    email,
+    passwordLength: password.length,
+    gender: genderElement ? genderElement.value : 'not selected'
+  });
 
   // クライアントサイドのバリデーション
   if (username.length < 3 || username.length > 50) {
+    console.log('Frontend validation failed: Invalid username length');
     alert('ユーザー名は3文字以上50文字以下で入力してください');
     return;
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
+    console.log('Frontend validation failed: Invalid email format');
     alert('有効なメールアドレスを入力してください');
     return;
   }
 
   if (password.length < 6) {
+    console.log('Frontend validation failed: Password too short');
     alert('パスワードは6文字以上で入力してください');
     return;
   }
+
+  // 性別が選択されているかチェック
+  if (!genderElement) {
+    console.log('Frontend validation failed: Gender not selected');
+    alert('性別を選択してください');
+    return;
+  }
+  const gender = genderElement.value;
+
+  console.log('Sending register request to:', 'https://soralog-backend.onrender.com/register');
 
   try {
     const response = await fetch('https://soralog-backend.onrender.com/register', {
@@ -148,16 +164,30 @@ registerForm.addEventListener('submit', async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, email, password, gender}),
     });
+
+    console.log('Register response received - Status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
     const data = await response.json();
+    console.log('Register response data:', data);
+
     if (response.ok) {
+      console.log('Registration successful');
       alert(data.message);
       showPage('page-login');
     } else {
+      console.log('Registration failed with status:', response.status);
       alert(`エラー: ${data.message}`);
     }
   } catch (error) {
-    console.error('通信エラー:', error);
-    alert('サーバーとの通信に失敗しました。');
+    console.error('=== FRONTEND REGISTER ERROR ===');
+    console.error('Network error during registration:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    alert('サーバーとの通信に失敗しました。ネットワーク接続を確認してください。');
   }
 });
 
@@ -237,23 +267,27 @@ async function updateHomePageStatus() {
 const loginForm = document.getElementById('login-form');
 loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  console.log('Login form submitted'); // デバッグログを追加
+  console.log('=== FRONTEND LOGIN ATTEMPT ===');
+  console.log('Login form submitted at:', new Date().toISOString());
   const email = document.getElementById('login-email').value;
   const password = document.getElementById('login-password').value;
 
   // クライアントサイドのバリデーション
   if (!email || !password) {
+    console.log('Frontend validation failed: Missing email or password');
     alert('メールアドレスとパスワードを入力してください');
     return;
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
+    console.log('Frontend validation failed: Invalid email format');
     alert('有効なメールアドレスを入力してください');
     return;
   }
 
-  console.log('Email:', email, 'Password:', '***'); // パスワードを隠してログ出力
+  console.log('Email:', email, 'Password length:', password.length);
+  console.log('Sending request to:', 'https://soralog-backend.onrender.com/login');
 
   try {
     const response = await fetch('https://soralog-backend.onrender.com/login', {
@@ -262,11 +296,15 @@ loginForm.addEventListener('submit', async (event) => {
       body: JSON.stringify({ email, password }),
       credentials: 'include', // 認証情報を含める
     });
-    console.log('Response status:', response.status); // ステータスコードを確認
+
+    console.log('Response received - Status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
     const data = await response.json();
-    console.log('Response data:', data); // レスポンス内容を確認
+    console.log('Response data:', data);
 
     if (response.ok) {
+      console.log('Login successful, storing token');
       alert(data.message);
       localStorage.setItem('token', data.token);
 
@@ -280,11 +318,18 @@ loginForm.addEventListener('submit', async (event) => {
       navButtons.forEach(btn => btn.classList.remove('active'));
       document.querySelector('.nav-button[data-page="home"]').classList.add('active');
     } else {
+      console.log('Login failed with status:', response.status);
       alert(`エラー: ${data.message}`);
     }
   } catch (error) {
-    console.error('通信エラー:', error);
-    alert('サーバーとの通信に失敗しました。');
+    console.error('=== FRONTEND LOGIN ERROR ===');
+    console.error('Network error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    alert('サーバーとの通信に失敗しました。ネットワーク接続を確認してください。');
   }
 });
 

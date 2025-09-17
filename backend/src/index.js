@@ -53,6 +53,7 @@ const pool = new Pool({
 const createTables = async () => {
     const client = await pool.connect();
     try {
+        console.log('Creating users table...');
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -63,7 +64,9 @@ const createTables = async () => {
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
+        console.log('Users table created or already exists.');
 
+        console.log('Creating locations table...');
         await client.query(`
             CREATE TABLE IF NOT EXISTS locations (
                 id SERIAL PRIMARY KEY,
@@ -73,9 +76,11 @@ const createTables = async () => {
                 recorded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log('tables created successfully or already exist.');
+        console.log('Locations table created or already exists.');
+        console.log('All tables created successfully.');
     } catch (err) {
-        console.error("error creating tables:", err.stack);
+        console.error("Error creating tables:", err.stack);
+        throw err; // エラーを投げてサーバー起動を停止
     } finally {
         client.release();
     }
@@ -297,97 +302,125 @@ app.get('/ranking', async (req, res) =>{
 // [POST] /register - 新規ユーザー登録
 app.post('/register', async (req, res) => {
     try {
-        console.log('Register endpoint hit'); // デバッグログ
+        console.log('=== REGISTER ATTEMPT ===');
+        console.log('Register endpoint hit at:', new Date().toISOString());
         const { username, email, password, gender } = req.body;
-        console.log('Request body:', { username, email, gender }); // パスワードを隠してログ出力
+        console.log('Request body:', { username, email, passwordLength: password ? password.length : 0, gender });
 
         // 入力バリデーション
         if (!username || !email || !password) {
+            console.log('Validation failed: Missing required fields');
             return res.status(400).json({ message: '必須項目を入力してください' });
         }
 
         // ユーザー名の長さチェック
         if (username.length < 3 || username.length > 50) {
+            console.log('Validation failed: Invalid username length');
             return res.status(400).json({ message: 'ユーザー名は3文字以上50文字以下で入力してください' });
         }
 
         // メールアドレスの形式チェック
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
+            console.log('Validation failed: Invalid email format');
             return res.status(400).json({ message: '有効なメールアドレスを入力してください' });
         }
 
         // パスワードの長さチェック
         if (password.length < 6) {
+            console.log('Validation failed: Password too short');
             return res.status(400).json({ message: 'パスワードは6文字以上で入力してください' });
         }
 
         // 性別のバリデーション
         const validGenders = ['male', 'female', 'other'];
         if (gender && !validGenders.includes(gender)) {
+            console.log('Validation failed: Invalid gender');
             return res.status(400).json({ message: '性別はmale、female、otherのいずれかを選択してください' });
         }
 
+        console.log('Creating password hash...');
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
+        console.log('Inserting user into database...');
         const newUser = await pool.query(
             'INSERT INTO users (username, email, password_hash, gender) VALUES ($1, $2, $3, $4) RETURNING id, username',
             [username, email, passwordHash, gender]
         );
 
-        console.log('User registered successfully:', newUser.rows[0].username); // デバッグログ
-        res.status(201).json({ 
+        console.log('User registered successfully:', newUser.rows[0].username);
+        res.status(201).json({
             message: 'ユーザー登録が成功しました',
-            user: newUser.rows[0] 
+            user: newUser.rows[0]
         });
 
     } catch (error) {
-        console.error('Error in /register endpoint:', error); // エラー内容をログ出力
+        console.error('=== REGISTER ERROR ===');
+        console.error('Error in /register endpoint:', error);
+        console.error('Error code:', error.code);
+        console.error('Error stack:', error.stack);
+
         if (error.code === '23505') {
+            console.log('Duplicate key error - user already exists');
             return res.status(409).json({ message: 'このメールアドレスまたはユーザー名は既に使用されています' });
         }
         if (error.code === 'ECONNREFUSED') {
+            console.log('Database connection refused');
             return res.status(503).json({ message: 'データベース接続エラー' });
         }
-        res.status(500).json({ message: 'サーバーエラーが発生しました', error: process.env.NODE_ENV === 'development' ? error.message : undefined });
+        res.status(500).json({
+            message: 'サーバーエラーが発生しました',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 
 // [POST] /login - ログイン
 app.post('/login', async (req, res) => {
     try {
-        console.log('Login endpoint hit'); // デバッグログ
+        console.log('=== LOGIN ATTEMPT ===');
+        console.log('Login endpoint hit at:', new Date().toISOString());
         const { email, password } = req.body;
-        console.log('Request body:', { email, password: '***' }); // パスワードを隠してログ出力
+        console.log('Request body:', { email, password: password ? '***' : 'empty' });
 
         // 入力バリデーション
         if (!email || !password) {
+            console.log('Validation failed: Missing email or password');
             return res.status(400).json({ message: 'メールアドレスとパスワードを入力してください' });
         }
 
         // メールアドレスの形式チェック
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
+            console.log('Validation failed: Invalid email format');
             return res.status(400).json({ message: '有効なメールアドレスを入力してください' });
         }
 
+        console.log('Querying database for user:', email);
         // 1. メールアドレスでユーザーを検索
         const userResult = await pool.query('SELECT id, username, password_hash FROM users WHERE email = $1', [email]);
+        console.log('Database query result - rows found:', userResult.rows.length);
+
         if (userResult.rows.length === 0) {
-            console.log('User not found for email:', email); // デバッグログ
+            console.log('User not found for email:', email);
             return res.status(401).json({ message: 'メールアドレスまたはパスワードが正しくありません' });
         }
         const user = userResult.rows[0];
+        console.log('User found:', { id: user.id, username: user.username });
 
         // 2. パスワードが正しいか照合
+        console.log('Comparing passwords...');
         const isPasswordCorrect = await bcrypt.compare(password, user.password_hash);
+        console.log('Password comparison result:', isPasswordCorrect);
+
         if (!isPasswordCorrect) {
-            console.log('Incorrect password for user:', user.username); // デバッグログ
+            console.log('Incorrect password for user:', user.username);
             return res.status(401).json({ message: 'メールアドレスまたはパスワードが正しくありません' });
         }
 
         // 3. 認証トークン(JWT)を生成
+        console.log('Generating JWT token...');
         const payload = {
             id: user.id,
             username: user.username
@@ -397,19 +430,25 @@ app.post('/login', async (req, res) => {
             process.env.JWT_SECRET,
             { expiresIn: '1h' } // トークンの有効期限 (例: 1時間)
         );
+        console.log('JWT token generated successfully');
 
-        console.log('Login successful for user:', user.username); // デバッグログ
+        console.log('Login successful for user:', user.username);
         res.json({
             message: 'ログインに成功しました',
             token: token
         });
 
     } catch (error) {
-        console.error('Error in /login endpoint:', error); // エラー内容をログ出力
+        console.error('=== LOGIN ERROR ===');
+        console.error('Error in /login endpoint:', error);
+        console.error('Error stack:', error.stack);
         if (error.code === 'ECONNREFUSED') {
             return res.status(503).json({ message: 'データベース接続エラー' });
         }
-        res.status(500).json({ message: 'サーバーエラーが発生しました', error: process.env.NODE_ENV === 'development' ? error.message : undefined });
+        res.status(500).json({
+            message: 'サーバーエラーが発生しました',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 
@@ -433,13 +472,16 @@ app.listen(PORT, async () => {
     }
 });
 
-app.get('/', async (req, res) => {
+app.get('/debug/users', async (req, res) => {
     try {
-        const client = await pool.connect();
-        const result = await client.query('SELECT NOW()');
-        res.send(`hello world! DB time is: ${result.rows[0].now}`);
-        client.release();
-    } catch (err) {
-        res.status(500).send('database connection error');
+        const users = await pool.query('SELECT id, username, email, gender, created_at FROM users ORDER BY created_at DESC LIMIT 10');
+        res.json({
+            success: true,
+            users: users.rows,
+            count: users.rows.length
+        });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Failed to fetch users', details: error.message });
     }
 });
