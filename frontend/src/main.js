@@ -51,9 +51,9 @@ const headerImg = document.getElementById('header-img');
 
 function showHeaderImage(type) {
   const images = {
-    home: '/img/header-home.png',
-    map: '/img/header-map.png',
-    ranking: '/img/header-ranking.png',
+    home: 'frontend\img\header-home.png',
+    map: 'frontend\img\header-map.png',
+    ranking: 'frontend\img\header-ranking.png',
   };
 
   if (type && images[type]) {
