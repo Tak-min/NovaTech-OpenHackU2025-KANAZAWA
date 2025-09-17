@@ -38,10 +38,15 @@
         <form id="register-form">
           <label for="register-username">ユーザー名</label>
           <input id="register-username" type="text" placeholder="ユーザー名" required>
-           <label for="register-email">メールアドレス</label>
+          <label for="register-email">メールアドレス</label>
           <input id="register-email" type="email" placeholder="メールアドレス" required>
           <label for="register-password">パスワード</label>
           <input id="register-password" type="password" placeholder="パスワード" required>
+          <label for="register-gender">性別</label>
+            <div class="gender-group">
+              <label class="gender-option">男性<input type="radio" name="gender" value="male" required></label>
+              <label class="gender-option">女性<input type="radio" name="gender" value="female" required></label>
+            </div>
           <button type="submit">新規登録</button>
           <button id="show-login-button" type="button">ログインはこちら</button>
         </form>

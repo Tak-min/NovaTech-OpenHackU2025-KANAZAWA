@@ -103,7 +103,7 @@ section {
   flex-direction: column;         /* 縦方向に並べる */
   justify-content: center;         /* 垂直方向中央寄せ */
   align-items: center;             /* 横方向中央寄せ */
-  height: 100%;                    /* セクション全体を使用 */
+  height: auto;                  /* 高さ自動調整 */
 
   max-width: 400px; /* ← 幅を制限 */
   margin-left: auto;
@@ -173,6 +173,20 @@ section {
   text-align: left;       /* 左端に揃える */
   font-size: 0.75rem;     /* 小さめ文字 */
   color: #374151;         /* グレー文字 */
+}
+
+.gender-group  {
+  display: flex;
+  justify-content: space-between; /* 左右に離す */
+  margin-bottom: 1rem; 
+  width: 100%; /* sectionの幅いっぱいに */
+}
+
+.gender-option {
+  display: flex;
+  align-items: center; /* ラベル文字とラジオボタンを中央揃え */
+  gap: 0.3rem; /* 文字と丸ボタンの間隔 */
+  font-size: 1rem;
 }
 
 /* Home Page */
@@ -261,5 +275,11 @@ footer button.active {
   header{
     padding-top: 7%;
     padding-bottom: 0;
+  }
+
+  #page-login,
+  #page-register {
+    width: 70%;     /* 横幅70%にする */
+    max-width: none; /* 最大幅制限なし */
   }
 }
