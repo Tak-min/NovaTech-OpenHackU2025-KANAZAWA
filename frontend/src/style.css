@@ -36,7 +36,7 @@ header {
   position: relative;
   height: 90px;
   /* ヘッダーの高さ固定 */
-  padding-top: 3.5rem;
+  padding-top: 20%;
   padding-bottom: 1rem;
 }
 
@@ -104,6 +104,10 @@ section {
   justify-content: center;         /* 垂直方向中央寄せ */
   align-items: center;             /* 横方向中央寄せ */
   height: 100%;                    /* セクション全体を使用 */
+
+  max-width: 400px; /* ← 幅を制限 */
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #page-login form,
@@ -132,7 +136,8 @@ section {
   color: #ffffff;
 }*/
 
-#page-login button[type="submit"] {
+#page-login button[type="submit"]
+#page-register button[type="submit"] {
   background-color: #facc15;
   color: #fff;
   font-weight: bold;
@@ -263,5 +268,9 @@ footer button.active {
 
   #page-login, #page-register, #page-home, #page-map, #page-ranking {
     max-width: 600px;
+  }
+
+  header{
+    padding-top: 12%;
   }
 }
