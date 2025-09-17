@@ -26,8 +26,14 @@ body {
   display: flex;
   flex-direction: column;
 
+  /*background-image: url('/img/background-sky.png'); 
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;*/
+}
+
+#app.bg-sky {
   background-image: url('/img/background-sky.png');
-  /* 背景画像を設定 */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -76,6 +82,15 @@ header {
   display: block;
 }
 
+#header-setting-img {
+  position: absolute; /* 画面上で固定配置 */
+  top: 20px;          /* 上から5px */
+  right: 10px;        /* 右から5px */
+  width: 60px;       /* 横幅 */
+  height: 21px;      /* 高さ */
+  z-index: 2;
+}
+
 main {
   flex-grow: 1;
   /* flex-grow */
@@ -86,11 +101,9 @@ main {
 }
 
 section {
-  /* background-color: #fff; */
-  /* 削除 */
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1rem;
+  /* background-color: #fff; */ /* 削除 */
+  padding: 2rem;
+  margin-bottom: 2rem;
 }
 
 /* Login Page */
@@ -180,16 +193,11 @@ section {
 #page-home,
 #page-map,
 #page-ranking {
-  background-color: white;
-  /* 背景を白にする */
-  padding: 1rem;
-  /* 内側の余白 */
-  border-radius: 0.5rem;
-  /* 角丸 */
-  margin: 0 auto;
-  /* 中央寄せ */
-  max-width: 100%;
-  /* 幅を制限 */
+  background-color: white; /* 背景を白にする */
+  padding: 1rem; /* 内側の余白 */
+  border-radius: 1rem; /* 角丸 */
+  margin: 0 auto; /* 中央寄せ */
+  max-width: 80%; /* 幅を制限 */
 }
 
 /* Footer */
