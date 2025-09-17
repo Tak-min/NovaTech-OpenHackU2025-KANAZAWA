@@ -300,6 +300,7 @@ footer button {
   background: none;
   border: none;
   color: #6b7280; /* gray-500 */
+  font-family: 'Kiwi Maru';
 }
 
 footer button.active {
