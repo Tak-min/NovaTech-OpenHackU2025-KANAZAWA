@@ -213,15 +213,22 @@ async function updateHomePageStatus() {
 const loginForm = document.getElementById('login-form');
 loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+  console.log('Login form submitted'); // デバッグログを追加
   const email = document.getElementById('login-email').value;
   const password = document.getElementById('login-password').value;
+  console.log('Email:', email, 'Password:', password); // 入力値を確認
+
   try {
-    const response = await fetch('http://localhost:3000/login', {
+    const response = await fetch('https://soralog-diqp.onrender.com/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
+      credentials: 'include', // 認証情報を含める
     });
+    console.log('Response status:', response.status); // ステータスコードを確認
     const data = await response.json();
+    console.log('Response data:', data); // レスポンス内容を確認
+
     if (response.ok) {
       alert(data.message);
       localStorage.setItem('token', data.token);
