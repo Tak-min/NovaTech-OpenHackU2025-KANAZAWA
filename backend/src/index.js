@@ -14,6 +14,11 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const frontendURL = process.env.FRONTEND_URL || 'http://localhost:5173';
+app.use(cors({
+  origin: frontendURL
+}));
+
 // JSON形式のリクエストボディを解析できるようにする
 app.use(express.json());
 app.use(cors());
