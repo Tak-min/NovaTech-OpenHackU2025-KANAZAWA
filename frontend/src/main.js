@@ -25,6 +25,7 @@ function showPage(pageId) {
   if (pageId === 'page-home') showHeaderImage('home');
   else if (pageId === 'page-map') showHeaderImage('map');
   else if (pageId === 'page-ranking') showHeaderImage('ranking');
+  else if (pageId === 'page-setting') showHeaderImage('setting');
   else showHeaderImage(null);
 
   // ヘッダータイトルの更新
@@ -34,12 +35,13 @@ function showPage(pageId) {
     'page-home': 'ホーム',
     'page-map': 'マップ',
     'page-ranking': 'ランキング',
+    'page-setting': '設定'
   };
   headerTitle.textContent = titles[pageId] || 'Hare/Ame';
 
   // #appにクラスを付け替える
   const app = document.getElementById('app');
-  if (pageId === 'page-home' || pageId === 'page-map' || pageId === 'page-ranking') {
+  if (pageId === 'page-home' || pageId === 'page-map' || pageId === 'page-ranking' || pageId === 'page-setting') {
     app.classList.add('bg-sky');
   } else {
     app.classList.remove('bg-sky');
@@ -51,18 +53,21 @@ const headerImg = document.getElementById('header-img');
 
 function showHeaderImage(type) {
   const images = {
-    home: 'frontend\img\header-home.png',
-    map: 'frontend\img\header-map.png',
-    ranking: 'frontend\img\header-ranking.png',
+    home: '/img/header-home.png',
+    map: '/img/header-map.png',
+    ranking: '/img/header-ranking.png',
+    setting: '/img/header-setting.png',
   };
 
   if (type && images[type]) {
     headerImg.src = images[type];
     headerImgContainer.style.display = 'block';
     headerTitle.style.display = 'none';
+    console.log(`ヘッダー画像を${type}に変更しました:`, images[type]);
   } else {
     headerImgContainer.style.display = 'none';
     headerTitle.style.display = 'block';
+    console.log('ヘッダー画像を非表示にして、タイトルを表示しました');
   }
 }
 
@@ -226,7 +231,7 @@ async function checkLoginStatus() {
       footerNav.classList.add('hidden');
       showPage('page-login');
     }
-    
+
   } catch (error) {
     console.error('Failed to verify token. Error:', error); // 修正
     footerNav.classList.add('hidden');
@@ -339,13 +344,15 @@ navButtons.forEach(button => {
     showPage(pageId);
     navButtons.forEach(btn => btn.classList.remove('active'));
     button.classList.add('active');
-    
+
     if (button.dataset.page === "home") {
       updateHomePageStatus();
     } else if (button.dataset.page === "map") {
       setTimeout(initializeMap, 100);
     } else if (button.dataset.page === "ranking") {
       updateRankingPage();
+    } else if (button.dataset.page === "setting") {
+      console.log('設定ページが表示されました');
     }
   });
 });
@@ -370,14 +377,14 @@ async function updateRankingPage() {
     const rankingData = await response.json();
     rankingList.innerHTML = "";
 
-    if (rankingData.length === 0){
+    if (rankingData.length === 0) {
       rankingList.innerHTML = "<li>まだ誰もランクインしていません</li>";
       return;
     }
 
     rankingData.forEach((user, index) => {
       const listItem = document.createElement('li');
-      listItem.textContent =`${index + 1}位: ${user.username} (スコア: ${Number(user.score).toFixed(1)})`;
+      listItem.textContent = `${index + 1}位: ${user.username} (スコア: ${Number(user.score).toFixed(1)})`;
       rankingList.appendChild(listItem);
     });
   } catch (error) {
@@ -566,3 +573,248 @@ function initializeMap() {
     console.error('地図の初期化に失敗しました:', error);
   }
 }
+
+//アイコン機能
+
+const iconInput = document.getElementById('iconInput');
+const iconPreview = document.getElementById('iconPreview');
+const saveBtn = document.getElementById('saveBtn');
+const resetBtn = document.getElementById('resetBtn');
+const imageInfo = document.getElementById('imageInfo');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+const imageDimensions = document.getElementById('imageDimensions');
+
+// 選択された画像データを保存する変数
+let selectedImageData = null;
+
+// ページ読み込み時に保存されたアイコンを復元
+window.addEventListener('DOMContentLoaded', () => {
+  loadSavedIcon();
+});
+
+// ファイル選択時の処理
+iconInput.addEventListener('change', function (event) {
+  const file = event.target.files[0];
+
+  if (file) {
+    // ファイルタイプのチェック
+    if (!file.type.startsWith('image/')) {
+      alert('画像ファイルを選択してください。');
+      return;
+    }
+
+    // ファイルサイズのチェック（5MB以下）
+    if (file.size > 5 * 1024 * 1024) {
+      alert('ファイルサイズは5MB以下にしてください。');
+      return;
+    }
+
+    // FileReaderを使用して画像を読み込み
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+      selectedImageData = e.target.result;
+      displayImagePreview(selectedImageData);
+      displayImageInfo(file);
+      saveBtn.disabled = false;
+    };
+
+    reader.onerror = function () {
+      alert('ファイルの読み込みに失敗しました。');
+    };
+
+    reader.readAsDataURL(file);
+  }
+});
+
+// 画像プレビューを表示する関数
+function displayImagePreview(imageSrc) {
+  iconPreview.innerHTML = `<img src="${imageSrc}" alt="選択されたアイコン">`;
+}
+
+// 画像情報を表示する関数
+function displayImageInfo(file) {
+  // ファイル名
+  fileName.textContent = file.name;
+
+  // ファイルサイズ（MB、KB、Bに変換）
+  const size = file.size;
+  let sizeText = '';
+  if (size > 1024 * 1024) {
+    sizeText = (size / (1024 * 1024)).toFixed(2) + ' MB';
+  } else if (size > 1024) {
+    sizeText = (size / 1024).toFixed(2) + ' KB';
+  } else {
+    sizeText = size + ' B';
+  }
+  fileSize.textContent = sizeText;
+
+  // 画像の寸法を取得
+  const img = new Image();
+  img.onload = function () {
+    imageDimensions.textContent = `${this.width} × ${this.height} px`;
+  };
+  img.src = selectedImageData;
+
+  // 画像情報を表示
+  imageInfo.classList.add('show');
+}
+
+// 保存ボタンのクリック処理
+saveBtn.addEventListener('click', function () {
+  if (selectedImageData) {
+    // localStorageに画像データを保存
+    try {
+      localStorage.setItem('userIcon', selectedImageData);
+
+      // 保存完了のアニメーション
+      saveBtn.textContent = '保存完了！';
+      saveBtn.style.background = '#28a745';
+
+      setTimeout(() => {
+        saveBtn.textContent = '保存';
+        saveBtn.style.background = '#28a745';
+      }, 2000);
+
+      console.log('アイコンが保存されました');
+    } catch (error) {
+      alert('保存に失敗しました。画像サイズが大きすぎる可能性があります。');
+      console.error('保存エラー:', error);
+    }
+  }
+});
+
+// リセットボタンのクリック処理
+resetBtn.addEventListener('click', function () {
+  if (confirm('アイコンをリセットしますか？')) {
+    // プレビューをリセット
+    iconPreview.innerHTML = '<span class="icon-placeholder">アイコンを選択してください</span>';
+
+    // ファイル入力をリセット
+    iconInput.value = '';
+
+    // 画像情報を非表示
+    imageInfo.classList.remove('show');
+
+    // 保存ボタンを無効化
+    saveBtn.disabled = true;
+
+    // 選択された画像データをクリア
+    selectedImageData = null;
+
+    // localStorageからアイコンを削除
+    localStorage.removeItem('userIcon');
+
+    console.log('アイコンがリセットされました');
+  }
+});
+
+// 保存されたアイコンを読み込む関数
+function loadSavedIcon() {
+  const savedIcon = localStorage.getItem('userIcon');
+  if (savedIcon) {
+    selectedImageData = savedIcon;
+    displayImagePreview(savedIcon);
+    saveBtn.disabled = false;
+
+    // 保存済みアイコンの情報を表示
+    const img = new Image();
+    img.onload = function () {
+      fileName.textContent = '保存済みアイコン';
+      fileSize.textContent = calculateBase64Size(savedIcon);
+      imageDimensions.textContent = `${this.width} × ${this.height} px`;
+      imageInfo.classList.add('show');
+    };
+    img.src = savedIcon;
+  }
+}
+
+// Base64データのサイズを計算する関数
+function calculateBase64Size(base64String) {
+  // Base64のヘッダー部分を除去
+  const base64Data = base64String.split(',')[1];
+  // Base64の文字数から実際のバイト数を計算
+  const bytes = Math.round(base64Data.length * 0.75);
+
+  if (bytes > 1024 * 1024) {
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  } else if (bytes > 1024) {
+    return (bytes / 1024).toFixed(2) + ' KB';
+  } else {
+    return bytes + ' B';
+  }
+}
+
+// ドラッグ&ドロップ機能
+iconPreview.addEventListener('dragover', function (e) {
+  e.preventDefault();
+  iconPreview.style.borderColor = '#667eea';
+  iconPreview.style.backgroundColor = '#f0f0ff';
+});
+
+iconPreview.addEventListener('dragleave', function (e) {
+  e.preventDefault();
+  iconPreview.style.borderColor = '#ddd';
+  iconPreview.style.backgroundColor = '#f9f9f9';
+});
+
+iconPreview.addEventListener('drop', function (e) {
+  e.preventDefault();
+  iconPreview.style.borderColor = '#ddd';
+  iconPreview.style.backgroundColor = '#f9f9f9';
+
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    const file = files[0];
+
+    // ファイルタイプのチェック
+    if (!file.type.startsWith('image/')) {
+      alert('画像ファイルをドロップしてください。');
+      return;
+    }
+
+    // ファイルサイズのチェック
+    if (file.size > 5 * 1024 * 1024) {
+      alert('ファイルサイズは5MB以下にしてください。');
+      return;
+    }
+
+    // FileReaderで読み込み
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      selectedImageData = event.target.result;
+      displayImagePreview(selectedImageData);
+      displayImageInfo(file);
+      saveBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+// アイコンプレビューをクリックしてファイル選択を開く
+iconPreview.addEventListener('click', function () {
+  iconInput.click();
+});
+
+// エラーハンドリング
+window.addEventListener('error', function (e) {
+  console.error('エラーが発生しました:', e.error);
+});
+
+// localStorageの容量チェック
+function checkLocalStorageSpace() {
+  try {
+    const testKey = 'storageTest';
+    const testValue = new Array(1024 * 1024).join('a'); // 1MBのテストデータ
+    localStorage.setItem(testKey, testValue);
+    localStorage.removeItem(testKey);
+    return true;
+  } catch (e) {
+    console.warn('localStorageの容量が不足している可能性があります');
+    return false;
+  }
+}
+
+// 初期化時に容量チェック
+checkLocalStorageSpace();
