@@ -26,7 +26,7 @@ function showPage(pageId) {
   else if (pageId === 'page-map') showHeaderImage('map');
   else if (pageId === 'page-ranking') showHeaderImage('ranking');
   else showHeaderImage(null);
-  
+
   // ヘッダータイトルの更新
   const titles = {
     'page-login': 'ログイン',
@@ -37,7 +37,7 @@ function showPage(pageId) {
   };
   headerTitle.textContent = titles[pageId] || 'Hare/Ame';
 
-    // #appにクラスを付け替える
+  // #appにクラスを付け替える
   const app = document.getElementById('app');
   if (pageId === 'page-home' || pageId === 'page-map' || pageId === 'page-ranking') {
     app.classList.add('bg-sky');
@@ -67,7 +67,7 @@ function showHeaderImage(type) {
 }
 
 // (startLocationTracking, stopLocationTracking, registerForm logic... is unchanged)
-let locationIntervalId = null; 
+let locationIntervalId = null;
 
 function startLocationTracking() {
   if (locationIntervalId) return;
@@ -135,6 +135,49 @@ registerForm.addEventListener('submit', async (event) => {
   }
 });
 
+async function checkLoginStatus() {
+  const token = localStorage.getItem('token');
+
+  if (!token) {
+    console.log('No token found in localStorage. Redirecting to login page.');
+    footerNav.classList.add('hidden');
+    showPage('page-login');
+    return;
+  }
+
+  console.log('Token found in localStorage:', token);
+
+  try {
+    const response = await fetch('http://localhost:3000/status', {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}` // 修正
+      }
+    });
+
+    console.log('Response from /status endpoint:', response);
+
+    if (response.ok) {
+      console.log('Session restored successfully.');
+      footerNav.classList.remove('hidden');
+      showPage('page-home');
+      startLocationTracking();
+      updateHomePageStatus();
+      document.querySelector('.nav-button[data-page="home"]').classList.add('active');
+    } else {
+      console.log('Invalid session token. Response status:', response.status);
+      localStorage.removeItem('token');
+      footerNav.classList.add('hidden');
+      showPage('page-login');
+    }
+    
+  } catch (error) {
+    console.error('Failed to verify token. Error:', error); // 修正
+    footerNav.classList.add('hidden');
+    showPage('page-login');
+  }
+}
+
 
 async function updateHomePageStatus() {
   const token = localStorage.getItem('token');
@@ -180,7 +223,7 @@ loginForm.addEventListener('submit', async (event) => {
     if (response.ok) {
       alert(data.message);
       localStorage.setItem('token', data.token);
-      
+
       // ログイン成功時にフッターを表示し、ホームへ遷移
       footerNav.classList.remove('hidden');
       showPage('page-home');
@@ -205,10 +248,13 @@ navButtons.forEach(button => {
     showPage(pageId);
     navButtons.forEach(btn => btn.classList.remove('active'));
     button.classList.add('active');
+    
     if (button.dataset.page === "home") {
       updateHomePageStatus();
     } else if (button.dataset.page === "map") {
       setTimeout(initializeMap, 100);
+    } else if (button.dataset.page === "ranking") {
+      updateRankingPage();
     }
   });
 });
@@ -220,12 +266,145 @@ document.getElementById('show-login-button').addEventListener('click', () => sho
 footerNav.classList.add('hidden');
 showPage('page-login');
 
+//ここからはランキング機能
+async function updateRankingPage() {
+  const rankingList = document.getElementById('ranking-list');
+  rankingList.innerHTML = '<li>ランキングを読み込んでいます...</li>'
+
+  try {
+    const response = await fetch('http://localhost:3000/ranking');
+    if (!response.ok) {
+      throw new Error('network response was not ok');
+    }
+    const rankingData = await response.json();
+    rankingList.innerHTML = "";
+
+    if (rankingData.length === 0){
+      rankingList.innerHTML = "<li>まだ誰もランクインしていません</li>";
+      return;
+    }
+
+    rankingData.forEach((user, index) => {
+      const listItem = document.createElement('li');
+      listItem.textContent =`${index + 1}位: ${user.username} (スコア: ${Number(user.score).toFixed(1)})`;
+      rankingList.appendChild(listItem);
+    });
+  } catch (error) {
+    console.error('ランキングの取得に失敗:', error);
+    rankingList.innerHTML = "<li>ランキングの取得に失敗しました</li>";
+  }
+}
 
 //ここからは地図機能
 
 
 // 地図関連の変数
 let map = null;
+let userMarkers = [];
+
+// 天気に応じたマーカーの色を定義
+const weatherColors = {
+  'sunny': '#FFD700',      // 金色
+  'cloudy': '#87CEEB',     // スカイブルー
+  'rainy': '#4169E1',      // ロイヤルブルー
+  'snowy': '#FFFFFF',      // 白
+  'thunderstorm': '#8A2BE2', // ブルーバイオレット
+  'stormy': '#2F4F4F',     // ダークスレートグレー
+  'unknown': '#808080'     // グレー
+};
+
+// 天気に応じた絵文字を定義
+const weatherEmojis = {
+  'sunny': '☀️',
+  'cloudy': '☁️',
+  'rainy': '🌧️',
+  'snowy': '❄️',
+  'thunderstorm': '⚡',
+  'stormy': '🌪️',
+  'unknown': '❓'
+};
+
+// ユーザーの位置情報を取得してマーカーを表示
+async function loadUserMarkers() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.log('認証トークンがありません');
+    return;
+  }
+
+  try {
+    console.log('ユーザー位置情報を取得中...');
+    const response = await fetch('http://localhost:3000/users-locations', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('取得したユーザー位置情報:', data);
+
+    // 既存のマーカーをクリア
+    userMarkers.forEach(marker => map.removeLayer(marker));
+    userMarkers = [];
+
+    // 各ユーザーのマーカーを追加
+    data.users.forEach(user => {
+      const color = weatherColors[user.weather] || weatherColors['unknown'];
+      const emoji = weatherEmojis[user.weather] || weatherEmojis['unknown'];
+
+      // カスタムマーカーアイコンを作成
+      const customIcon = L.divIcon({
+        html: `
+          <div class="user-marker" style="
+            background-color: ${color};
+            border: 2px solid #333;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+          ">
+            ${emoji}
+          </div>
+        `,
+        className: 'custom-div-icon',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+
+      // マーカーを作成
+      const marker = L.marker([user.latitude, user.longitude], {
+        icon: customIcon
+      }).addTo(map);
+
+      // ポップアップを追加
+      const recordedDate = new Date(user.recordedAt).toLocaleString('ja-JP');
+      marker.bindPopup(`
+        <div style="text-align: center;">
+          <strong>${user.username}</strong><br>
+          天気: ${emoji} ${user.weather}<br>
+          記録日時: ${recordedDate}
+        </div>
+      `);
+
+      userMarkers.push(marker);
+    });
+
+    console.log(`${data.users.length}人のユーザーマーカーを追加しました`);
+
+  } catch (error) {
+    console.error('ユーザー位置情報の取得に失敗しました:', error);
+  }
+}
+
 // 最低限の地図表示機能
 function initializeMap() {
   console.log('initializeMap関数が呼ばれました');
@@ -244,10 +423,10 @@ function initializeMap() {
     return;
   }
 
-
-  // 既に初期化済みの場合は何もしない
+  // 既に初期化済みの場合はユーザーマーカーのみ更新
   if (map) {
-    console.log('地図は既に初期化済みです');
+    console.log('地図は既に初期化済みです - ユーザーマーカーを更新します');
+    loadUserMarkers();
     return;
   }
 
@@ -266,8 +445,6 @@ function initializeMap() {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
     console.log('タイルレイヤーを追加しました');
-
-
 
     // 地図コンテナの最終的なサイズを確認
     const finalRect = mapContainer.getBoundingClientRect();
@@ -289,6 +466,9 @@ function initializeMap() {
       // タイルの読み込み状況を確認
       console.log('地図のズームレベル:', map.getZoom());
       console.log('地図の中心座標:', map.getCenter());
+
+      // ユーザーマーカーを読み込み
+      loadUserMarkers();
     }, 200);
 
   } catch (error) {
