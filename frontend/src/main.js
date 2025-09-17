@@ -214,11 +214,10 @@ loginForm.addEventListener('submit', async (event) => {
   const email = document.getElementById('login-email').value;
   const password = document.getElementById('login-password').value;
   try {
-    const response = await fetch('https://soralog-diqp.onrender.com/login', {
+    const response = await fetch('http://localhost:3000/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
-      credentials: 'include', // 認証情報を含める
     });
     const data = await response.json();
     if (response.ok) {
