@@ -26,7 +26,8 @@ body {
   display: flex;
   flex-direction: column;
 
-  background-image: url('/img/background-sky.png'); /* 背景画像を設定 */
+  background-image: url('/img/background-sky.png');
+  /* 背景画像を設定 */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -38,7 +39,8 @@ header {
   padding: 1rem 0;
   /* py-4 */
   position: relative;
-  height: 90px; /* ヘッダーの高さ固定 */
+  height: 90px;
+  /* ヘッダーの高さ固定 */
 }
 
 .header-img-container {
@@ -84,7 +86,8 @@ main {
 }
 
 section {
-  /* background-color: #fff; */ /* 削除 */
+  /* background-color: #fff; */
+  /* 削除 */
   border-radius: 0.5rem;
   padding: 1rem;
   margin-bottom: 1rem;
@@ -94,12 +97,16 @@ section {
 /* ログイン・新規登録ページ */
 #page-login,
 #page-register {
-  background-color: white; /* 背景を白にする */
-  padding: 1rem; /* 内側の余白 */
-  border-radius: 0.5rem; /* 角丸 */
-  margin: 0 auto; /* 中央寄せ */
-  max-width: 80%; /* 幅を制限 */
-
+  background-color: white;
+  /* 背景を白にする */
+  padding: 1rem;
+  /* 内側の余白 */
+  border-radius: 0.5rem;
+  /* 角丸 */
+  margin: 0 auto;
+  /* 中央寄せ */
+  max-width: 80%;
+  /* 幅を制限 */
   background-image: none;
 }
 
@@ -173,11 +180,16 @@ section {
 #page-home,
 #page-map,
 #page-ranking {
-  background-color: white; /* 背景を白にする */
-  padding: 1rem; /* 内側の余白 */
-  border-radius: 0.5rem; /* 角丸 */
-  margin: 0 auto; /* 中央寄せ */
-  max-width: 80%; /* 幅を制限 */
+  background-color: white;
+  /* 背景を白にする */
+  padding: 1rem;
+  /* 内側の余白 */
+  border-radius: 0.5rem;
+  /* 角丸 */
+  margin: 0 auto;
+  /* 中央寄せ */
+  max-width: 100%;
+  /* 幅を制限 */
 }
 
 /* Footer */

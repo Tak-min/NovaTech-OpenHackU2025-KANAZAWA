@@ -185,13 +185,13 @@ async function updateHomePageStatus() {
 
     if (response.ok) {
       const data = await response.json();
-      
+
       const statusTextElement = document.getElementById('status-text');
       const statusImageElement = document.getElementById('status-image');
-      
+
       // バックエンドから受け取った称号を表示
       statusTextElement.textContent = `${data.status}です`;
-      
+
       // 称号に応じた画像と絵文字のマップ
       const statusVisuals = {
         '太陽神': '☀️',
@@ -289,19 +289,17 @@ document.getElementById('show-login-button').addEventListener('click', () => sho
 // 初期表示ページを設定
 showPage('page-login');
 
+
+//ここからは地図機能
+
+
 // 地図関連の変数
 let map = null;
-
 // 最低限の地図表示機能
 function initializeMap() {
   console.log('initializeMap関数が呼ばれました');
-
   // 地図コンテナが存在するかチェック
   const mapContainer = document.getElementById('map');
-  if (!mapContainer) {
-    console.error('地図コンテナが見つかりません');
-    return;
-  }
   console.log('地図コンテナが見つかりました');
 
   // 地図コンテナのサイズを確認
@@ -315,10 +313,6 @@ function initializeMap() {
     return;
   }
 
-  // 地図コンテナを強制的に表示状態にする
-  mapContainer.style.display = 'block';
-  mapContainer.style.height = '350px';
-  mapContainer.style.width = '100%';
 
   // 既に初期化済みの場合は何もしない
   if (map) {
@@ -347,6 +341,8 @@ function initializeMap() {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
     console.log('タイルレイヤーを追加しました');
+
+
 
     // 地図コンテナの最終的なサイズを確認
     const finalRect = mapContainer.getBoundingClientRect();
