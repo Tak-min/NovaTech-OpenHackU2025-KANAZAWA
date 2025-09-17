@@ -219,7 +219,7 @@ loginForm.addEventListener('submit', async (event) => {
   console.log('Email:', email, 'Password:', password); // 入力値を確認
 
   try {
-    const response = await fetch('https://soralog-diqp.onrender.com/login', {
+    const response = await fetch('https://locahost:3000/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
