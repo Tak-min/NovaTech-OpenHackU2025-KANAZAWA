@@ -95,6 +95,7 @@ section {
   max-width: 400px; /* ← 幅を制限 */
   margin-left: auto;
   margin-right: auto;
+}
 #page-home,
 #page-map,
 #page-ranking {
@@ -161,15 +162,13 @@ form {
   margin: 0 auto;     /* ← 中央に寄せる */
 }
 
-/*#page-login,
-#page-register {
-  background-color: white;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  margin: 0 auto;
-  max-width: 80%;
-
-  background-image: none;
+#page-login label,
+#page-register label {
+  display: block;         /* 上に表示 */
+  width: 100%;            /* inputと同じ幅にする */
+  text-align: left;       /* 左端に揃える */
+  font-size: 0.75rem;     /* 小さめ文字 */
+  color: #374151;         /* グレー文字 */
 }
 
 #page-login input,
@@ -329,6 +328,7 @@ footer button.active {
   }
 
   header{
-    padding-top: 12%;
+    padding-top: 7%;
+    padding-bottom: 0;
   }
 }

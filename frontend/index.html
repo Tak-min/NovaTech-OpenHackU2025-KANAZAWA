@@ -25,7 +25,9 @@
     <main>
       <section id="page-login">
         <form id="login-form">
+          <label for="login-email">メールアドレス</label>
           <input id="login-email" type="email" placeholder="メールアドレス" required>
+          <label for="login-password">パスワード</label>
           <input id="login-password" type="password" placeholder="パスワード" required>
           <button type="submit">ログイン</button>
           <button id="show-register-button" type="button">新規登録はこちら</button>
@@ -34,8 +36,11 @@
 
       <section id="page-register" class="hidden">
         <form id="register-form">
+          <label for="register-username">ユーザー名</label>
           <input id="register-username" type="text" placeholder="ユーザー名" required>
+           <label for="register-email">メールアドレス</label>
           <input id="register-email" type="email" placeholder="メールアドレス" required>
+          <label for="register-password">パスワード</label>
           <input id="register-password" type="password" placeholder="パスワード" required>
           <button type="submit">新規登録</button>
           <button id="show-login-button" type="button">ログインはこちら</button>
