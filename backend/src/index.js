@@ -59,25 +59,6 @@ const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN" の形式
 
-<<<<<<< HEAD
-  console.log('Authorization header:', authHeader);
-  console.log('Extracted token:', token);
-
-  if (token == null) {
-    console.log('No token provided. Sending 401 Unauthorized.');
-    return res.sendStatus(401); // Unauthorized
-  }
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      console.log('Token verification failed. Error:', err);
-      return res.sendStatus(403); // Forbidden
-    }
-    console.log('Token verified successfully. User:', user);
-    req.user = user; // リクエストオブジェクトにユーザー情報を付与
-    next(); // 次の処理へ
-  });
-=======
     if (token == null) {
         return res.sendStatus(401); // Unauthorized
     }
@@ -89,7 +70,6 @@ const authenticateToken = (req, res, next) => {
         req.user = user; // リクエストオブジェクトにユーザー情報を付与
         next(); // 次の処理へ
     });
->>>>>>> feature/map-pins
 };
 
 // [POST] /log-location - ユーザーの位置情報と天気を記録
