@@ -136,8 +136,7 @@ section {
   color: #ffffff;
 }*/
 
-#page-login button[type="submit"]
-#page-register button[type="submit"] {
+#page-login button[type="submit"] {
   background-color: #facc15;
   color: #fff;
   font-weight: bold;
