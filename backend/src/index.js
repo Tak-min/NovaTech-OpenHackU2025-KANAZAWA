@@ -16,38 +16,66 @@ const PORT = process.env.PORT || 3000;
 
 // 環境変数のチェック
 if (!process.env.DATABASE_URL) {
-  console.error('DATABASE_URL environment variable is not set');
-  process.exit(1);
+    console.error('DATABASE_URL environment variable is not set');
+    process.exit(1);
 }
 if (!process.env.JWT_SECRET) {
-  console.error('JWT_SECRET environment variable is not set');
-  process.exit(1);
+    console.error('JWT_SECRET environment variable is not set');
+    process.exit(1);
 }
 if (!process.env.WEATHER_API_KEY) {
-  console.error('WEATHER_API_KEY environment variable is not set');
-  process.exit(1);
+    console.error('WEATHER_API_KEY environment variable is not set');
+    process.exit(1);
 }
 
 // JSON形式のリクエストボディを解析できるようにする
 app.use(express.json());
+
+// ===== CORS 設定 (複数オリジン + 環境変数対応) =====
+// 環境変数 FRONTEND_ORIGINS でカンマ区切り指定可能 例: https://example.com,https://foo.app
+const defaultOrigins = [
+    'https://soralog-qnka.onrender.com',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5174'
+];
+const extraOrigins = (process.env.FRONTEND_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...extraOrigins]));
+
+console.log('CORS allowed origins:', allowedOrigins);
+
 app.use(cors({
-  origin: 'https://soralog-qnka.onrender.com', // フロントエンドのURLを指定
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // 許可するHTTPメソッド
-  credentials: true // クッキーや認証情報を含むリクエストを許可
+    origin: (origin, callback) => {
+        // origin が undefined の場合 (curl や 同一オリジン) は許可
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        console.warn('Blocked by CORS:', origin);
+        return callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
+// ================================================
 
 // データベース接続プールの設定
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  // ===== 以下のssl設定を追加 =====
-  ssl: {
-    rejectUnauthorized: false
-  },
-  // 接続タイムアウト設定
-  connectionTimeoutMillis: 10000, // 10秒
-  query_timeout: 10000, // 10秒
-  idleTimeoutMillis: 30000, // 30秒
-  max: 20, // 最大接続数
+    connectionString: process.env.DATABASE_URL,
+    // ===== 以下のssl設定を追加 =====
+    ssl: {
+        rejectUnauthorized: false
+    },
+    // 接続タイムアウト設定
+    connectionTimeoutMillis: 10000, // 10秒
+    query_timeout: 10000, // 10秒
+    idleTimeoutMillis: 30000, // 30秒
+    max: 20, // 最大接続数
 });
 
 const createTables = async () => {
@@ -65,6 +93,16 @@ const createTables = async () => {
             );
         `);
         console.log('Users table created or already exists.');
+
+        // 既存テーブルにgenderカラムが存在しない場合、追加
+        try {
+            await client.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10);
+            `);
+            console.log('Gender column added or already exists.');
+        } catch (alterError) {
+            console.log('Gender column alter attempted:', alterError.message);
+        }
 
         console.log('Creating locations table...');
         await client.query(`
@@ -108,7 +146,26 @@ const authenticateToken = (req, res, next) => {
         req.user = user; // リクエストオブジェクトにユーザー情報を付与
         next(); // 次の処理へ
     });
-};// [POST] /log-location - ユーザーの位置情報と天気を記録
+};
+
+// ===== ルートハンドラー =====
+// [GET] / - APIヘルスチェック
+app.get('/', (req, res) => {
+    res.json({
+        message: 'SoraLog API Server is running',
+        version: '1.0.0',
+        endpoints: {
+            auth: ['POST /register', 'POST /login', 'GET /status'],
+            location: ['POST /log-location'],
+            ranking: ['GET /ranking'],
+            map: ['GET /users-locations'],
+            debug: ['GET /debug/users']
+        },
+        timestamp: new Date().toISOString()
+    });
+});
+
+// [POST] /log-location - ユーザーの位置情報と天気を記録
 app.post('/log-location', authenticateToken, async (req, res) => {
     try {
         const { latitude, longitude } = req.body;
@@ -261,9 +318,9 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
 });
 
 // [GET] /ranking - Get top 10 user rankings
-app.get('/ranking', async (req, res) =>{
-  try{
-    const rankingQuery = `
+app.get('/ranking', async (req, res) => {
+    try {
+        const rankingQuery = `
       SELECT
         u.id,
         u.username,
@@ -289,13 +346,13 @@ app.get('/ranking', async (req, res) =>{
       LIMIT 10;
     `;
 
-    const rankingResult = await pool.query(rankingQuery);
+        const rankingResult = await pool.query(rankingQuery);
 
-    res.json(rankingResult.rows);
-  }catch (error) {
-    console.error('Ranking Error', error);
-    res.status(500).json({message: 'ランキングの取得に失敗しました'});
-  }
+        res.json(rankingResult.rows);
+    } catch (error) {
+        console.error('Ranking Error', error);
+        res.status(500).json({ message: 'ランキングの取得に失敗しました' });
+    }
 });
 
 

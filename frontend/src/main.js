@@ -1,5 +1,33 @@
 import "./style.css";
 
+// ================== API ベースURL設定 start ==================
+const DEFAULT_PROD_API = 'https://soralog-backend.onrender.com';
+const LOCAL_API = 'http://localhost:3000';
+let API_BASE = (typeof window !== 'undefined' && window.__API_BASE__) || DEFAULT_PROD_API;
+
+console.log('[API] Initial window.location:', typeof window !== 'undefined' ? window.location : 'no window');
+console.log('[API] Initial window.location.host:', typeof window !== 'undefined' ? window.location.host : 'no window');
+
+const isLocalHost = typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.host);
+console.log('[API] isLocalHost:', isLocalHost);
+
+if (isLocalHost) {
+  API_BASE = LOCAL_API;
+  console.log('[API] Set to LOCAL_API because isLocalHost is true');
+} else {
+  console.log('[API] Keep DEFAULT_PROD_API because isLocalHost is false');
+}
+
+try {
+  if (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) {
+    API_BASE = import.meta.env.VITE_API_BASE;
+    console.log('[API] Override with VITE_API_BASE:', API_BASE);
+  }
+} catch (_) { /* no-op */ }
+
+console.log('[API] Final Base URL =', API_BASE);
+// ================== API ベースURL設定 end ==================
+
 const pages = document.querySelectorAll('main section');
 const navButtons = document.querySelectorAll('.nav-button');
 const headerTitle = document.getElementById('header-title');
@@ -88,7 +116,7 @@ function startLocationTracking() {
         const { latitude, longitude } = position.coords;
         console.log(`位置情報を取得しました: Lat ${latitude}, Lon ${longitude}`);
         try {
-          await fetch('https://soralog-backend.onrender.com/log-location', {
+          await fetch(`${API_BASE}/log-location`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -161,13 +189,13 @@ registerForm.addEventListener('submit', async (event) => {
   }
   const gender = genderElement.value;
 
-  console.log('Sending register request to:', 'https://soralog-backend.onrender.com/register');
+  console.log('Sending register request to:', `${API_BASE}/register`);
 
   try {
-    const response = await fetch('https://soralog-backend.onrender.com/register', {
+    const response = await fetch(`${API_BASE}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password, gender}),
+      body: JSON.stringify({ username, email, password, gender }),
     });
 
     console.log('Register response received - Status:', response.status);
@@ -209,7 +237,7 @@ async function checkLoginStatus() {
   console.log('Token found in localStorage:', token);
 
   try {
-    const response = await fetch('https://soralog-backend.onrender.com/status', {
+    const response = await fetch(`${API_BASE}/status`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}` // 修正
@@ -244,7 +272,7 @@ async function updateHomePageStatus() {
   const token = localStorage.getItem('token');
   if (!token) return;
   try {
-    const response = await fetch('https://soralog-backend.onrender.com/status', {
+    const response = await fetch(`${API_BASE}/status`, {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -292,10 +320,10 @@ loginForm.addEventListener('submit', async (event) => {
   }
 
   console.log('Email:', email, 'Password length:', password.length);
-  console.log('Sending request to:', 'https://soralog-backend.onrender.com/login');
+  console.log('Sending request to:', `${API_BASE}/login`);
 
   try {
-    const response = await fetch('https://soralog-backend.onrender.com/login', {
+    const response = await fetch(`${API_BASE}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -370,7 +398,7 @@ async function updateRankingPage() {
   rankingList.innerHTML = '<li>ランキングを読み込んでいます...</li>'
 
   try {
-    const response = await fetch('https://soralog-backend.onrender.com/ranking');
+    const response = await fetch(`${API_BASE}/ranking`);
     if (!response.ok) {
       throw new Error('network response was not ok');
     }
@@ -432,7 +460,7 @@ async function loadUserMarkers() {
 
   try {
     console.log('ユーザー位置情報を取得中...');
-    const response = await fetch('https://soralog-backend.onrender.com/users-locations', {
+    const response = await fetch(`${API_BASE}/users-locations`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -585,6 +613,16 @@ const fileName = document.getElementById('fileName');
 const fileSize = document.getElementById('fileSize');
 const imageDimensions = document.getElementById('imageDimensions');
 
+// 要素存在チェック
+if (!iconInput) console.warn('iconInput element not found');
+if (!iconPreview) console.warn('iconPreview element not found');
+if (!saveBtn) console.warn('saveBtn element not found');
+if (!resetBtn) console.warn('resetBtn element not found');
+if (!imageInfo) console.warn('imageInfo element not found');
+if (!fileName) console.warn('fileName element not found');
+if (!fileSize) console.warn('fileSize element not found');
+if (!imageDimensions) console.warn('imageDimensions element not found');
+
 // 選択された画像データを保存する変数
 let selectedImageData = null;
 
@@ -594,7 +632,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ファイル選択時の処理
-iconInput.addEventListener('change', function (event) {
+if (iconInput) iconInput.addEventListener('change', function (event) {
   const file = event.target.files[0];
 
   if (file) {
@@ -661,8 +699,8 @@ function displayImageInfo(file) {
   imageInfo.classList.add('show');
 }
 
-// 保存ボタンのクリック処理
-saveBtn.addEventListener('click', function () {
+// 保存ボタンのクリック処理 (要素存在チェック)
+if (saveBtn) saveBtn.addEventListener('click', function () {
   if (selectedImageData) {
     // localStorageに画像データを保存
     try {
@@ -685,8 +723,8 @@ saveBtn.addEventListener('click', function () {
   }
 });
 
-// リセットボタンのクリック処理
-resetBtn.addEventListener('click', function () {
+// リセットボタンのクリック処理 (要素存在チェック)
+if (resetBtn) resetBtn.addEventListener('click', function () {
   if (confirm('アイコンをリセットしますか？')) {
     // プレビューをリセット
     iconPreview.innerHTML = '<span class="icon-placeholder">アイコンを選択してください</span>';
@@ -747,55 +785,57 @@ function calculateBase64Size(base64String) {
 }
 
 // ドラッグ&ドロップ機能
-iconPreview.addEventListener('dragover', function (e) {
-  e.preventDefault();
-  iconPreview.style.borderColor = '#667eea';
-  iconPreview.style.backgroundColor = '#f0f0ff';
-});
+if (iconPreview) {
+  iconPreview.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    iconPreview.style.borderColor = '#667eea';
+    iconPreview.style.backgroundColor = '#f0f0ff';
+  });
 
-iconPreview.addEventListener('dragleave', function (e) {
-  e.preventDefault();
-  iconPreview.style.borderColor = '#ddd';
-  iconPreview.style.backgroundColor = '#f9f9f9';
-});
+  iconPreview.addEventListener('dragleave', function (e) {
+    e.preventDefault();
+    iconPreview.style.borderColor = '#ddd';
+    iconPreview.style.backgroundColor = '#f9f9f9';
+  });
 
-iconPreview.addEventListener('drop', function (e) {
-  e.preventDefault();
-  iconPreview.style.borderColor = '#ddd';
-  iconPreview.style.backgroundColor = '#f9f9f9';
+  iconPreview.addEventListener('drop', function (e) {
+    e.preventDefault();
+    iconPreview.style.borderColor = '#ddd';
+    iconPreview.style.backgroundColor = '#f9f9f9';
 
-  const files = e.dataTransfer.files;
-  if (files.length > 0) {
-    const file = files[0];
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
 
-    // ファイルタイプのチェック
-    if (!file.type.startsWith('image/')) {
-      alert('画像ファイルをドロップしてください。');
-      return;
+      // ファイルタイプのチェック
+      if (!file.type.startsWith('image/')) {
+        alert('画像ファイルをドロップしてください。');
+        return;
+      }
+
+      // ファイルサイズのチェック
+      if (file.size > 5 * 1024 * 1024) {
+        alert('ファイルサイズは5MB以下にしてください。');
+        return;
+      }
+
+      // FileReaderで読み込み
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        selectedImageData = event.target.result;
+        displayImagePreview(selectedImageData);
+        displayImageInfo(file);
+        if (saveBtn) saveBtn.disabled = false;
+      };
+      reader.readAsDataURL(file);
     }
+  });
 
-    // ファイルサイズのチェック
-    if (file.size > 5 * 1024 * 1024) {
-      alert('ファイルサイズは5MB以下にしてください。');
-      return;
-    }
-
-    // FileReaderで読み込み
-    const reader = new FileReader();
-    reader.onload = function (event) {
-      selectedImageData = event.target.result;
-      displayImagePreview(selectedImageData);
-      displayImageInfo(file);
-      saveBtn.disabled = false;
-    };
-    reader.readAsDataURL(file);
-  }
-});
-
-// アイコンプレビューをクリックしてファイル選択を開く
-iconPreview.addEventListener('click', function () {
-  iconInput.click();
-});
+  // アイコンプレビューをクリックしてファイル選択を開く
+  iconPreview.addEventListener('click', function () {
+    if (iconInput) iconInput.click();
+  });
+}
 
 // エラーハンドリング
 window.addEventListener('error', function (e) {
