@@ -297,6 +297,13 @@ footer button.active {
   /* yellow-500 */
 }
 
+.fooder-img{
+  display: flex;
+  bottom: 0;
+  left: 0; 
+  width: 100%; 
+}
+
 /* Utility Classes */
 .hidden {
   display: none !important;
