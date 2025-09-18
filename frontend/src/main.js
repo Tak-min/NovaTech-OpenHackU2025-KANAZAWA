@@ -33,6 +33,9 @@ const navButtons = document.querySelectorAll('.nav-button');
 const headerTitle = document.getElementById('header-title');
 const footerNav = document.getElementById('footer-nav');
 
+// 位置情報追跡用の変数
+let locationWatchId = null;
+
 function showPage(pageId) {
   pages.forEach(page => page.classList.add('hidden'));
 
@@ -53,7 +56,13 @@ function showPage(pageId) {
   if (pageId === 'page-home') showHeaderImage('home');
   else if (pageId === 'page-map') showHeaderImage('map');
   else if (pageId === 'page-ranking') showHeaderImage('ranking');
-  else if (pageId === 'page-setting') showHeaderImage('setting');
+  else if (pageId === 'page-setting') {
+    showHeaderImage('setting');
+    // 設定ページが表示されたら初期化関数を呼び出し
+    initializeSettingsPage();
+    // 設定ページが表示されたらユーザー情報を更新
+    updateUserInfo();
+  }
   else showHeaderImage(null);
 
   // ヘッダータイトルの更新
@@ -100,48 +109,6 @@ function showHeaderImage(type) {
 }
 
 // (startLocationTracking, stopLocationTracking, registerForm logic... is unchanged)
-let locationIntervalId = null;
-
-function startLocationTracking() {
-  if (locationIntervalId) return;
-  console.log('位置情報の追跡を開始します...');
-  locationIntervalId = setInterval(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      stopLocationTracking();
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        console.log(`位置情報を取得しました: Lat ${latitude}, Lon ${longitude}`);
-        try {
-          await fetch(`${API_BASE}/log-location`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ latitude, longitude })
-          });
-        } catch (error) {
-          console.error('通信エラー:', error);
-        }
-      },
-      (error) => {
-        console.error('位置情報の取得に失敗:', error.message);
-      }
-    );
-  }, 60000);
-}
-
-function stopLocationTracking() {
-  if (locationIntervalId) {
-    clearInterval(locationIntervalId);
-    locationIntervalId = null;
-    console.log('位置情報の追跡を停止しました。');
-  }
-}
 
 const registerForm = document.getElementById('register-form');
 registerForm.addEventListener('submit', async (event) => {
@@ -250,7 +217,24 @@ async function checkLoginStatus() {
       console.log('Session restored successfully.');
       footerNav.classList.remove('hidden');
       showPage('page-home');
-      startLocationTracking();
+
+      // セッション復元時もユーザーの設定を確認してから位置情報追跡を開始
+      loadUserSettings().then(settings => {
+        if (settings && settings.location_enabled) {
+          checkLocationPermission().then(permissionState => {
+            if (permissionState === 'granted') {
+              startLocationTracking();
+            } else {
+              console.log('位置情報パーミッションが許可されていないため、追跡を開始できません');
+            }
+          });
+        } else {
+          console.log('位置情報許可設定がOFFのため、追跡を開始しません');
+        }
+      }).catch(error => {
+        console.error('設定取得エラー:', error);
+      });
+
       updateHomePageStatus();
       document.querySelector('.nav-button[data-page="home"]').classList.add('active');
     } else {
@@ -344,7 +328,24 @@ loginForm.addEventListener('submit', async (event) => {
       // ログイン成功時にフッターを表示し、ホームへ遷移
       footerNav.classList.remove('hidden');
       showPage('page-home');
-      startLocationTracking();
+
+      // ユーザーの設定を確認してから位置情報追跡を開始
+      loadUserSettings().then(settings => {
+        if (settings && settings.location_enabled) {
+          checkLocationPermission().then(permissionState => {
+            if (permissionState === 'granted') {
+              startLocationTracking();
+            } else {
+              console.log('位置情報パーミッションが許可されていないため、追跡を開始できません');
+            }
+          });
+        } else {
+          console.log('位置情報許可設定がOFFのため、追跡を開始しません');
+        }
+      }).catch(error => {
+        console.error('設定取得エラー:', error);
+      });
+
       updateHomePageStatus();
 
       // ナビボタンのアクティブ状態をリセット
@@ -454,7 +455,7 @@ const weatherEmojis = {
 async function loadUserMarkers() {
   const token = localStorage.getItem('token');
   if (!token) {
-    console.log('認証トークンがありません');
+    console.log('ユーザーマーカー読み込みスキップ: 認証トークンなし');
     return;
   }
 
@@ -629,6 +630,26 @@ let selectedImageData = null;
 // ページ読み込み時に保存されたアイコンを復元
 window.addEventListener('DOMContentLoaded', () => {
   loadSavedIcon();
+
+  // ページ読み込み時にログイン状態を確認し、位置情報追跡を開始
+  const token = localStorage.getItem('token');
+  if (token) {
+    loadUserSettings().then(settings => {
+      if (settings && settings.location_enabled) {
+        checkLocationPermission().then(permissionState => {
+          if (permissionState === 'granted') {
+            startLocationTracking();
+          } else {
+            console.log('位置情報パーミッションが許可されていないため、追跡を開始できません');
+          }
+        });
+      } else {
+        console.log('位置情報許可設定がOFFのため、追跡を開始しません');
+      }
+    }).catch(error => {
+      console.error('設定取得エラー:', error);
+    });
+  }
 });
 
 // ファイル選択時の処理
@@ -666,177 +687,6 @@ if (iconInput) iconInput.addEventListener('change', function (event) {
   }
 });
 
-// 画像プレビューを表示する関数
-function displayImagePreview(imageSrc) {
-  iconPreview.innerHTML = `<img src="${imageSrc}" alt="選択されたアイコン">`;
-}
-
-// 画像情報を表示する関数
-function displayImageInfo(file) {
-  // ファイル名
-  fileName.textContent = file.name;
-
-  // ファイルサイズ（MB、KB、Bに変換）
-  const size = file.size;
-  let sizeText = '';
-  if (size > 1024 * 1024) {
-    sizeText = (size / (1024 * 1024)).toFixed(2) + ' MB';
-  } else if (size > 1024) {
-    sizeText = (size / 1024).toFixed(2) + ' KB';
-  } else {
-    sizeText = size + ' B';
-  }
-  fileSize.textContent = sizeText;
-
-  // 画像の寸法を取得
-  const img = new Image();
-  img.onload = function () {
-    imageDimensions.textContent = `${this.width} × ${this.height} px`;
-  };
-  img.src = selectedImageData;
-
-  // 画像情報を表示
-  imageInfo.classList.add('show');
-}
-
-// 保存ボタンのクリック処理 (要素存在チェック)
-if (saveBtn) saveBtn.addEventListener('click', function () {
-  if (selectedImageData) {
-    // localStorageに画像データを保存
-    try {
-      localStorage.setItem('userIcon', selectedImageData);
-
-      // 保存完了のアニメーション
-      saveBtn.textContent = '保存完了！';
-      saveBtn.style.background = '#28a745';
-
-      setTimeout(() => {
-        saveBtn.textContent = '保存';
-        saveBtn.style.background = '#28a745';
-      }, 2000);
-
-      console.log('アイコンが保存されました');
-    } catch (error) {
-      alert('保存に失敗しました。画像サイズが大きすぎる可能性があります。');
-      console.error('保存エラー:', error);
-    }
-  }
-});
-
-// リセットボタンのクリック処理 (要素存在チェック)
-if (resetBtn) resetBtn.addEventListener('click', function () {
-  if (confirm('アイコンをリセットしますか？')) {
-    // プレビューをリセット
-    iconPreview.innerHTML = '<span class="icon-placeholder">アイコンを選択してください</span>';
-
-    // ファイル入力をリセット
-    iconInput.value = '';
-
-    // 画像情報を非表示
-    imageInfo.classList.remove('show');
-
-    // 保存ボタンを無効化
-    saveBtn.disabled = true;
-
-    // 選択された画像データをクリア
-    selectedImageData = null;
-
-    // localStorageからアイコンを削除
-    localStorage.removeItem('userIcon');
-
-    console.log('アイコンがリセットされました');
-  }
-});
-
-// 保存されたアイコンを読み込む関数
-function loadSavedIcon() {
-  const savedIcon = localStorage.getItem('userIcon');
-  if (savedIcon) {
-    selectedImageData = savedIcon;
-    displayImagePreview(savedIcon);
-    saveBtn.disabled = false;
-
-    // 保存済みアイコンの情報を表示
-    const img = new Image();
-    img.onload = function () {
-      fileName.textContent = '保存済みアイコン';
-      fileSize.textContent = calculateBase64Size(savedIcon);
-      imageDimensions.textContent = `${this.width} × ${this.height} px`;
-      imageInfo.classList.add('show');
-    };
-    img.src = savedIcon;
-  }
-}
-
-// Base64データのサイズを計算する関数
-function calculateBase64Size(base64String) {
-  // Base64のヘッダー部分を除去
-  const base64Data = base64String.split(',')[1];
-  // Base64の文字数から実際のバイト数を計算
-  const bytes = Math.round(base64Data.length * 0.75);
-
-  if (bytes > 1024 * 1024) {
-    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-  } else if (bytes > 1024) {
-    return (bytes / 1024).toFixed(2) + ' KB';
-  } else {
-    return bytes + ' B';
-  }
-}
-
-// ドラッグ&ドロップ機能
-if (iconPreview) {
-  iconPreview.addEventListener('dragover', function (e) {
-    e.preventDefault();
-    iconPreview.style.borderColor = '#667eea';
-    iconPreview.style.backgroundColor = '#f0f0ff';
-  });
-
-  iconPreview.addEventListener('dragleave', function (e) {
-    e.preventDefault();
-    iconPreview.style.borderColor = '#ddd';
-    iconPreview.style.backgroundColor = '#f9f9f9';
-  });
-
-  iconPreview.addEventListener('drop', function (e) {
-    e.preventDefault();
-    iconPreview.style.borderColor = '#ddd';
-    iconPreview.style.backgroundColor = '#f9f9f9';
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      const file = files[0];
-
-      // ファイルタイプのチェック
-      if (!file.type.startsWith('image/')) {
-        alert('画像ファイルをドロップしてください。');
-        return;
-      }
-
-      // ファイルサイズのチェック
-      if (file.size > 5 * 1024 * 1024) {
-        alert('ファイルサイズは5MB以下にしてください。');
-        return;
-      }
-
-      // FileReaderで読み込み
-      const reader = new FileReader();
-      reader.onload = function (event) {
-        selectedImageData = event.target.result;
-        displayImagePreview(selectedImageData);
-        displayImageInfo(file);
-        if (saveBtn) saveBtn.disabled = false;
-      };
-      reader.readAsDataURL(file);
-    }
-  });
-
-  // アイコンプレビューをクリックしてファイル選択を開く
-  iconPreview.addEventListener('click', function () {
-    if (iconInput) iconInput.click();
-  });
-}
-
 // エラーハンドリング
 window.addEventListener('error', function (e) {
   console.error('エラーが発生しました:', e.error);
@@ -858,3 +708,746 @@ function checkLocalStorageSpace() {
 
 // 初期化時に容量チェック
 checkLocalStorageSpace();
+
+// 設定ページの初期化関数
+function initializeSettingsPage() {
+  console.log('設定ページを初期化します');
+
+  // アイコン機能の要素を取得
+  const iconInput = document.getElementById('iconInput');
+  const iconPreview = document.getElementById('iconPreview');
+  const saveBtn = document.getElementById('saveBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const imageInfo = document.getElementById('imageInfo');
+
+  // アイコン選択のイベントリスナー
+  if (iconInput && !iconInput.hasAttribute('data-initialized')) {
+    iconInput.setAttribute('data-initialized', 'true');
+    iconInput.addEventListener('change', function (event) {
+      const file = event.target.files[0];
+      if (file) {
+        // ファイルタイプのチェック
+        if (!file.type.startsWith('image/')) {
+          alert('画像ファイルを選択してください。');
+          return;
+        }
+        // ファイルサイズのチェック（5MB以下）
+        if (file.size > 5 * 1024 * 1024) {
+          alert('ファイルサイズは5MB以下にしてください。');
+          return;
+        }
+        // ファイル読み込み処理
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          selectedImageData = e.target.result;
+          displayImagePreview(selectedImageData);
+          displayImageInfo(file);
+          if (saveBtn) saveBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+
+  // 保存ボタンのイベントリスナー
+  if (saveBtn && !saveBtn.hasAttribute('data-initialized')) {
+    saveBtn.setAttribute('data-initialized', 'true');
+    saveBtn.addEventListener('click', async function () {
+      if (selectedImageData) {
+        await saveIconToServer(selectedImageData);
+      }
+    });
+  }
+
+  // リセットボタンのイベントリスナー
+  if (resetBtn && !resetBtn.hasAttribute('data-initialized')) {
+    resetBtn.setAttribute('data-initialized', 'true');
+    resetBtn.addEventListener('click', function () {
+      if (confirm('アイコンをリセットしますか？')) {
+        if (iconPreview) {
+          iconPreview.innerHTML = '<span class="icon-placeholder">アイコンを選択してください</span>';
+        }
+        if (iconInput) iconInput.value = '';
+        if (imageInfo) imageInfo.classList.remove('show');
+        if (saveBtn) saveBtn.disabled = true;
+        selectedImageData = null;
+        // サーバーからも削除（オプション）
+        console.log('アイコンがリセットされました');
+      }
+    });
+  }
+
+  // ドラッグ&ドロップ機能
+  if (iconPreview && !iconPreview.hasAttribute('data-initialized')) {
+    iconPreview.setAttribute('data-initialized', 'true');
+
+    iconPreview.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      iconPreview.style.borderColor = '#667eea';
+      iconPreview.style.backgroundColor = '#f0f0ff';
+    });
+
+    iconPreview.addEventListener('dragleave', function (e) {
+      e.preventDefault();
+      iconPreview.style.borderColor = '#ddd';
+      iconPreview.style.backgroundColor = '#f9f9f9';
+    });
+
+    iconPreview.addEventListener('drop', function (e) {
+      e.preventDefault();
+      iconPreview.style.borderColor = '#ddd';
+      iconPreview.style.backgroundColor = '#f9f9f9';
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        const file = files[0];
+        if (!file.type.startsWith('image/')) {
+          alert('画像ファイルをドロップしてください。');
+          return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          alert('ファイルサイズは5MB以下にしてください。');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          selectedImageData = e.target.result;
+          displayImagePreview(selectedImageData);
+          displayImageInfo(file);
+          if (saveBtn) saveBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // クリックでファイル選択
+    iconPreview.addEventListener('click', function () {
+      if (iconInput) iconInput.click();
+    });
+  }
+
+  // ユーザー情報を取得して表示
+  loadUserInfo();
+
+  // 設定項目のスイッチ機能を初期化
+  initializeSettingsSwitches();
+
+  // 自己紹介機能の初期化
+  initializeIntroduction();
+
+  // 保存されたアイコンを読み込み
+  loadSavedIcon();
+
+  // 位置情報のパーミッション状態を確認
+  updateLocationSwitch();
+}
+
+// ユーザー情報をAPIから取得して表示する関数
+async function loadUserInfo() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    // トークンがない場合はログインページにリダイレクト
+    showPage('login');
+    return;
+  }
+
+  // 読み込み中を表示
+  const userIdElement = document.querySelector('.introduce-number');
+  const userNameElement = document.querySelector('.introduce-name');
+
+  if (userIdElement) userIdElement.textContent = 'ID：読み込み中...';
+  if (userNameElement) userNameElement.textContent = 'ユーザ名：読み込み中...';
+
+  try {
+    const response = await fetch(`${API_BASE}/user/info`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const userData = await response.json();
+
+      if (userIdElement) {
+        userIdElement.textContent = `ID：${userData.id}`;
+      }
+      if (userNameElement) {
+        userNameElement.textContent = `ユーザ名：${userData.username}`;
+      }
+
+      console.log('ユーザー情報を取得しました:', userData);
+    } else if (response.status === 401) {
+      // 認証エラーの場合はログアウト
+      console.error('認証エラー: トークンが無効です');
+      localStorage.removeItem('token');
+      showPage('login');
+    } else {
+      console.error('ユーザー情報の取得に失敗しました:', response.status);
+      if (userIdElement) userIdElement.textContent = 'ID：取得失敗';
+      if (userNameElement) userNameElement.textContent = 'ユーザ名：取得失敗';
+    }
+  } catch (error) {
+    console.error('ユーザー情報の取得に失敗:', error);
+    if (userIdElement) userIdElement.textContent = 'ID：ネットワークエラー';
+    if (userNameElement) userNameElement.textContent = 'ユーザ名：ネットワークエラー';
+  }
+}
+
+// 設定項目のスイッチ機能を初期化
+function initializeSettingsSwitches() {
+  // 通知設定
+  const notificationSwitch = document.getElementById('notification-switch');
+  if (notificationSwitch) {
+    // APIから設定を読み込み
+    loadUserSettings().then(settings => {
+      if (settings) {
+        notificationSwitch.checked = settings.notification_enabled;
+      }
+    });
+
+    notificationSwitch.addEventListener('change', function () {
+      console.log('=== 通知設定変更イベント開始 ===');
+      console.log('通知設定スイッチ変更:', this.checked);
+      console.log('このスイッチのID:', this.id);
+
+      // 念のため、位置情報追跡が開始されないことを確認
+      console.log('通知設定変更: 位置情報追跡は開始しません');
+
+      saveUserSettings();
+      console.log('通知設定:', this.checked ? '有効' : '無効');
+      console.log('=== 通知設定変更イベント終了 ===');
+      // 注意: 通知設定の変更では位置情報追跡を開始しない
+    });
+  }
+
+  // 位置情報許可設定
+  const locationSwitch = document.getElementById('location-switch');
+  if (locationSwitch) {
+    // APIから設定を読み込み
+    loadUserSettings().then(settings => {
+      if (settings) {
+        locationSwitch.checked = settings.location_enabled;
+      }
+    });
+
+    locationSwitch.addEventListener('change', async function () {
+      console.log('=== 位置情報許可設定変更イベント開始 ===');
+      console.log('位置情報許可スイッチ変更:', this.checked);
+
+      if (this.checked) {
+        // 位置情報を有効にする場合、パーミッションを確認
+        const permissionState = await checkLocationPermission();
+        console.log('位置情報パーミッション状態:', permissionState);
+        if (permissionState === 'denied') {
+          alert('位置情報のパーミッションがブロックされています。\n' +
+            'ブラウザの設定から位置情報のパーミッションを許可してください。');
+          this.checked = false;
+          console.log('位置情報許可設定をOFFに戻しました');
+          return;
+        }
+      }
+
+      saveUserSettings();
+      console.log('位置情報許可設定:', this.checked ? '有効' : '無効');
+
+      // 設定変更後に位置情報追跡状態を更新（パーミッションも考慮）
+      if (this.checked) {
+        console.log('位置情報許可がONになったため、追跡を開始します');
+        // 位置情報許可がONになった場合、パーミッションを確認してから開始
+        checkLocationPermission().then(permissionState => {
+          console.log('追跡開始前のパーミッション確認:', permissionState);
+          if (permissionState === 'granted') {
+            console.log('パーミッションが許可されているため、位置情報追跡を開始します');
+            startLocationTracking();
+          } else {
+            console.log('位置情報パーミッションが許可されていないため、追跡を開始できません');
+          }
+        });
+      } else {
+        console.log('位置情報許可がOFFになったため、追跡を停止します');
+        // 位置情報許可がOFFになった場合、追跡を停止
+        stopLocationTracking();
+      }
+      console.log('=== 位置情報許可設定変更イベント終了 ===');
+    });
+  }
+}
+
+// ユーザー設定をAPIから取得する関数
+async function loadUserSettings() {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${API_BASE}/user/settings`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      return await response.json();
+    } else {
+      console.error('設定の取得に失敗しました');
+      return null;
+    }
+  } catch (error) {
+    console.error('設定の取得に失敗:', error);
+    return null;
+  }
+}
+
+// ユーザー設定をAPIに保存する関数
+async function saveUserSettings() {
+  const token = localStorage.getItem('token');
+  if (!token) return;
+
+  const notificationSwitch = document.getElementById('notification-switch');
+  const locationSwitch = document.getElementById('location-switch');
+  const messageTextarea = document.getElementById('message');
+
+  const settings = {
+    notification_enabled: notificationSwitch ? notificationSwitch.checked : true,
+    location_enabled: locationSwitch ? locationSwitch.checked : false,
+    introduction_text: messageTextarea ? messageTextarea.value : ''
+  };
+
+  try {
+    const response = await fetch(`${API_BASE}/user/settings`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(settings)
+    });
+
+    if (response.ok) {
+      console.log('設定が保存されました');
+    } else {
+      console.error('設定の保存に失敗しました');
+    }
+  } catch (error) {
+    console.error('設定の保存に失敗:', error);
+  }
+}
+
+// 自己紹介機能の初期化
+function initializeIntroduction() {
+  const messageTextarea = document.getElementById('message');
+  if (messageTextarea) {
+    // APIから自己紹介を読み込み
+    loadUserSettings().then(settings => {
+      if (settings && settings.introduction_text) {
+        messageTextarea.value = settings.introduction_text;
+      }
+    });
+
+    // 入力時に自動保存（リアルタイム保存）
+    messageTextarea.addEventListener('input', function () {
+      // 自動保存を少し遅らせる（パフォーマンスのため）
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = setTimeout(() => {
+        saveUserSettings();
+      }, 1000); // 1秒後に保存
+    });
+  }
+}
+
+// アイコンをサーバーに保存する関数
+async function saveIconToServer(imageData) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    alert('ログインが必要です');
+    return;
+  }
+
+  try {
+    // Base64データをCanvasで圧縮
+    const compressedImageData = await compressImage(imageData);
+
+    // 圧縮後のBase64データからファイルサイズを計算
+    const base64Data = compressedImageData.split(',')[1];
+    const fileSize = Math.round((base64Data.length * 3) / 4);
+
+    console.log(`元のサイズ: ${Math.round((imageData.length * 3) / 4)} bytes`);
+    console.log(`圧縮後のサイズ: ${fileSize} bytes`);
+
+    const response = await fetch(`${API_BASE}/user/icon`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        icon_data: base64Data,
+        content_type: 'image/jpeg',
+        file_size: fileSize
+      })
+    });
+
+    if (response.ok) {
+      const saveBtn = document.getElementById('saveBtn');
+      if (saveBtn) {
+        saveBtn.textContent = '保存完了！';
+        saveBtn.style.background = '#28a745';
+        setTimeout(() => {
+          saveBtn.textContent = '保存';
+          saveBtn.style.background = '';
+        }, 2000);
+      }
+      console.log('アイコンが保存されました');
+    } else {
+      const errorData = await response.json();
+      alert(`保存に失敗しました: ${errorData.message || '不明なエラー'}`);
+    }
+  } catch (error) {
+    console.error('アイコン保存エラー:', error);
+    alert('保存に失敗しました。ネットワークエラーが発生しました。');
+  }
+}
+
+// 画像を圧縮する関数
+async function compressImage(imageData) {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+
+    img.onload = () => {
+      // 最大サイズを200x200に制限
+      const maxSize = 200;
+      let { width, height } = img;
+
+      if (width > height) {
+        if (width > maxSize) {
+          height = (height * maxSize) / width;
+          width = maxSize;
+        }
+      } else {
+        if (height > maxSize) {
+          width = (width * maxSize) / height;
+          height = maxSize;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      // 画像をキャンバスに描画
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // JPEG形式で圧縮（品質0.8）
+      const compressedData = canvas.toDataURL('image/jpeg', 0.8);
+      resolve(compressedData);
+    };
+
+    img.src = imageData;
+  });
+}
+
+// 画像プレビューを表示する関数
+function displayImagePreview(imageData) {
+  const iconPreview = document.getElementById('iconPreview');
+  if (iconPreview) {
+    iconPreview.innerHTML = `<img src="${imageData}" alt="アイコンプレビュー" style="max-width: 100%; max-height: 100%; border-radius: 50%; object-fit: cover;">`;
+  }
+}
+
+// 画像情報を表示する関数
+function displayImageInfo(file) {
+  const imageInfo = document.getElementById('imageInfo');
+  const fileName = document.getElementById('fileName');
+  const fileSize = document.getElementById('fileSize');
+  const imageDimensions = document.getElementById('imageDimensions');
+
+  if (fileName) fileName.textContent = `ファイル名: ${file.name}`;
+  if (fileSize) fileSize.textContent = `サイズ: ${(file.size / 1024).toFixed(1)} KB`;
+
+  // 画像の寸法を取得
+  const img = new Image();
+  img.onload = function () {
+    if (imageDimensions) {
+      imageDimensions.textContent = `寸法: ${img.width} x ${img.height}`;
+    }
+  };
+  img.src = URL.createObjectURL(file);
+
+  if (imageInfo) imageInfo.classList.add('show');
+}
+
+// 保存されたアイコンをAPIから読み込む関数
+async function loadSavedIcon() {
+  const token = localStorage.getItem('token');
+  if (!token) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/user/icon`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (response.ok) {
+      // 画像データを取得
+      const blob = await response.blob();
+      const reader = new FileReader();
+
+      reader.onload = function (e) {
+        const imageData = e.target.result;
+        displayImagePreview(imageData);
+        const saveBtn = document.getElementById('saveBtn');
+        if (saveBtn) saveBtn.disabled = false;
+      };
+
+      reader.readAsDataURL(blob);
+      console.log('保存されたアイコンを読み込みました');
+    } else if (response.status === 404) {
+      // アイコンが存在しない場合は何もしない
+      console.log('アイコンが存在しません');
+    } else {
+      console.error('アイコンの取得に失敗しました');
+    }
+  } catch (error) {
+    console.error('アイコンの取得に失敗:', error);
+  }
+}
+
+// 位置情報追跡を開始する関数
+function startLocationTracking() {
+  if (navigator.geolocation) {
+    // 既に追跡中の場合は停止してから再開
+    if (locationWatchId !== null) {
+      navigator.geolocation.clearWatch(locationWatchId);
+      locationWatchId = null;
+    }
+
+    console.log('位置情報追跡を開始します...');
+    locationWatchId = navigator.geolocation.watchPosition(
+      function (position) {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+
+        console.log('位置情報更新:', {
+          latitude: latitude.toFixed(6),
+          longitude: longitude.toFixed(6),
+          accuracy: accuracy.toFixed(1) + 'm',
+          timestamp: new Date(position.timestamp).toLocaleTimeString()
+        });
+
+        // 位置情報をサーバーに送信
+        sendLocationToServer(latitude, longitude);
+      },
+      function (error) {
+        console.error('位置情報取得エラー:', error);
+        handleLocationError(error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 30000, // 30秒に延長
+        maximumAge: 300000 // 5分
+      }
+    );
+
+    console.log('位置情報追跡リクエストを送信しました (Watch ID:', locationWatchId, ')');
+  } else {
+    alert('このブラウザは位置情報に対応していません。');
+  }
+}
+
+// 位置情報エラーを処理する関数
+function handleLocationError(error) {
+  let message = '';
+  let shouldRetry = false;
+
+  switch (error.code) {
+    case error.PERMISSION_DENIED:
+      message = '位置情報のパーミッションが拒否されました。\n\n' +
+        'パーミッションをリセットするには：\n' +
+        '1. ブラウザのアドレスバーの左側にある🔒アイコンをクリック\n' +
+        '2. 「位置情報」を「許可」に変更\n' +
+        '3. ページをリロードしてください\n\n' +
+        'または、ブラウザの設定から位置情報のパーミッションをリセットしてください。';
+      break;
+    case error.POSITION_UNAVAILABLE:
+      message = '位置情報を取得できませんでした。\nGPSが有効になっているか確認してください。';
+      shouldRetry = true;
+      break;
+    case error.TIMEOUT:
+      message = '位置情報の取得がタイムアウトしました。\nネットワーク接続やGPS信号を確認してください。\n\n再度試行します...';
+      shouldRetry = true;
+      break;
+    default:
+      message = '位置情報の取得中に不明なエラーが発生しました。';
+      shouldRetry = true;
+      break;
+  }
+
+  console.log('位置情報エラー処理:', { code: error.code, message: error.message, shouldRetry });
+
+  // タイムアウトや不明なエラーの場合は自動リトライ
+  if (shouldRetry && locationWatchId !== null) {
+    console.log('3秒後に位置情報取得を再試行します...');
+    setTimeout(() => {
+      console.log('位置情報取得を再試行します');
+      // 現在の追跡を停止してから再開
+      stopLocationTracking();
+      setTimeout(() => startLocationTracking(), 1000);
+    }, 3000);
+  } else {
+    alert(message);
+  }
+}
+
+// 位置情報追跡を停止する関数
+function stopLocationTracking() {
+  if (locationWatchId !== null) {
+    navigator.geolocation.clearWatch(locationWatchId);
+    locationWatchId = null;
+    console.log('位置情報追跡を停止しました');
+  } else {
+    console.log('位置情報追跡は既に停止しています');
+  }
+}
+
+// 位置情報をサーバーに送信する関数
+function sendLocationToServer(latitude, longitude) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.log('位置情報送信スキップ: 認証トークンなし');
+    return;
+  }
+
+  console.log('位置情報送信開始:', { latitude, longitude, endpoint: `${API_BASE}/log-location` });
+
+  fetch(`${API_BASE}/log-location`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      latitude: latitude,
+      longitude: longitude
+    })
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('位置情報送信に失敗しました');
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('位置情報送信成功:', data);
+    })
+    .catch(error => {
+      console.error('位置情報送信エラー:', error);
+    });
+}
+
+// テスト用の位置情報を追加する関数（開発用）
+function addTestLocationData() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.log('テストデータ追加スキップ: 認証トークンなし');
+    return;
+  }
+
+  // 金沢周辺のテスト位置情報
+  const testLocations = [
+    { latitude: 36.5777, longitude: 136.6483 }, // 金沢駅周辺
+    { latitude: 36.5947, longitude: 136.6256 }, // 金沢21世紀美術館周辺
+    { latitude: 36.5611, longitude: 136.6567 }  // 兼六園周辺
+  ];
+
+  testLocations.forEach((location, index) => {
+    setTimeout(() => {
+      console.log(`テスト位置情報送信 ${index + 1}:`, location);
+      sendLocationToServer(location.latitude, location.longitude);
+    }, index * 1000); // 1秒ごとに送信
+  });
+}
+
+// グローバルスコープにテスト関数を公開（開発用）
+window.addTestLocationData = addTestLocationData;
+
+// テストボタンのイベントリスナーを設定
+document.addEventListener('DOMContentLoaded', function () {
+  const testBtn = document.getElementById('test-location-btn');
+  if (testBtn) {
+    testBtn.addEventListener('click', function () {
+      console.log('テスト位置情報追加ボタンがクリックされました');
+      addTestLocationData();
+    });
+  }
+});
+async function checkLocationPermission() {
+  if (!navigator.permissions) {
+    return 'unknown';
+  }
+
+  try {
+    const result = await navigator.permissions.query({ name: 'geolocation' });
+    return result.state; // 'granted', 'denied', 'prompt'
+  } catch (error) {
+    console.error('パーミッション確認エラー:', error);
+    return 'unknown';
+  }
+}
+
+// 位置情報設定のスイッチを更新する関数
+async function updateLocationSwitch() {
+  const locationSwitch = document.querySelector('#page-setting input[type="checkbox"]:last-of-type');
+  if (!locationSwitch) return;
+
+  const permissionState = await checkLocationPermission();
+
+  // パーミッションの状態に応じてスイッチの状態を更新
+  if (permissionState === 'denied') {
+    locationSwitch.checked = false;
+    locationSwitch.disabled = true;
+
+    // スイッチの後に説明文を追加
+    const switchContainer = locationSwitch.parentElement;
+    let warningText = switchContainer.querySelector('.permission-warning');
+
+    if (!warningText) {
+      warningText = document.createElement('div');
+      warningText.className = 'permission-warning';
+      warningText.style.color = '#ff6b6b';
+      warningText.style.fontSize = '12px';
+      warningText.style.marginTop = '5px';
+      warningText.innerHTML = '⚠️ 位置情報のパーミッションがブロックされています。<br>' +
+        'ブラウザの設定からパーミッションをリセットしてください。';
+      switchContainer.appendChild(warningText);
+    }
+  } else {
+    locationSwitch.disabled = false;
+
+    // 警告文を削除
+    const switchContainer = locationSwitch.parentElement;
+    const warningText = switchContainer.querySelector('.permission-warning');
+    if (warningText) {
+      warningText.remove();
+    }
+  }
+
+  // パーミッション状態の変更を監視
+  if (navigator.permissions) {
+    try {
+      const permission = await navigator.permissions.query({ name: 'geolocation' });
+      permission.addEventListener('change', function () {
+        console.log('位置情報パーミッションが変更されました:', this.state);
+        updateLocationSwitch();
+      });
+    } catch (error) {
+      console.error('パーミッション監視エラー:', error);
+    }
+  }
+}
