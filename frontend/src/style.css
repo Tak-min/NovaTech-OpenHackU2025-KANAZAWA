@@ -383,7 +383,7 @@ footer button[data-page="ranking"].active img.icon {
 }
 
 footer button[data-page="settings"].active img.icon {
-  content: url('img/settings-yellow.png');
+  content: url('img/setting-yellow.png');
 }
 
 /* 背景画像のコンテナ */

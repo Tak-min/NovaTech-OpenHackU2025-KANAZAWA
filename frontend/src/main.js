@@ -95,7 +95,7 @@ function showHeaderImage(type) {
     home: '/img/header-home.png',
     map: '/img/header-map.png',
     ranking: '/img/header-ranking.png',
-    settings: '/img/header-settings.png',
+    settings: '/img/header-setting.png',
   };
 
   if (type && images[type]) {
