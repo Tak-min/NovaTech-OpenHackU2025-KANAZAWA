@@ -72,7 +72,7 @@ let statusImages = {
   '太陽神': '/img/map-very-yellow.png',
   '晴れ男': '/img/map-yellow.png',
   '晴れ女': '/img/map-yellow.png',
-  '凡人': '/img/map-normal.png',
+  '凡人': '/img/map.png',
   '雨男': '/img/map-snow.png',
   '雨女': '/img/map-snow.png',
   '嵐を呼ぶ者': '/img/map-kaze.png',
@@ -861,6 +861,9 @@ async function loadUserMarkers() {
       const status = user.status || 'unknown';
       const imageUrl = statusImages[status] || statusImages['unknown'];
 
+      // 現在のユーザーかどうかで境界線の有無を決定
+      const borderStyle = user.isCurrentUser ? 'border: 2px solid #333;' : 'border: none;';
+
       // カスタムマーカーアイコンを作成（画像ベース）
       const customIcon = L.divIcon({
         html: `
@@ -876,7 +879,7 @@ async function loadUserMarkers() {
               width: 30px;
               height: 30px;
               border-radius: 50%;
-              border: 2px solid #333;
+              ${borderStyle}
               box-shadow: 0 2px 5px rgba(0,0,0,0.3);
               object-fit: cover;
             " onerror="this.style.display='none'; this.parentNode.innerHTML='${statusEmojis[status] || statusEmojis['unknown']}'; this.parentNode.style.backgroundColor='${statusColors[status] || statusColors['unknown']}'; this.parentNode.style.borderRadius='50%'; this.parentNode.style.fontSize='16px';">

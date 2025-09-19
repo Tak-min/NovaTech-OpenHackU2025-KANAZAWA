@@ -605,6 +605,8 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
 
         const result = await pool.query(locationsQuery);
 
+        const currentUserId = req.user.id; // 現在のユーザーIDを取得
+
         const userLocations = result.rows.map(row => {
             const totalScore = row.score !== null ? parseFloat(row.score) : 0;
             const gender = row.gender;
@@ -629,7 +631,8 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
                 weather: row.weather,
                 recordedAt: row.recorded_at,
                 status: status,  // 称号を追加
-                score: totalScore  // スコアも追加（デバッグ用）
+                score: totalScore,  // スコアも追加（デバッグ用）
+                isCurrentUser: row.id === currentUserId  // 現在のユーザーかどうかのフラグを追加
             };
         });
 
