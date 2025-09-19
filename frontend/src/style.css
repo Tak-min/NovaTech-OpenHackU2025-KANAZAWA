@@ -320,7 +320,7 @@ input[type="radio"] {
   /* 中央寄せ */
   max-width: 80%;
   /* 幅を制限 */
-  height: 90%;
+  height: 130%;
 }
 
 /* Footer */
@@ -600,8 +600,10 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  min-width: 200px;
+  /* min-width: 200px; */
+  max-width: 100px;
 }
+
 
 .introduce-container textarea {
   padding: 12px;
