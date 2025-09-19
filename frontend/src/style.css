@@ -4,7 +4,8 @@ body {
   /* light sky blue */
   font-family: sans-serif;
   margin: 0;
-  padding: 0; /*paddingを追加*/
+  padding: 0;
+  /*paddingを追加*/
 }
 
 /* App Container */
@@ -204,31 +205,33 @@ section {
   /* グレー文字 */
 }
 
-.gender-group  {
+.gender-group {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 1rem; 
+  margin-bottom: 1rem;
   width: 100%;
 }
 
 .gender-option {
   display: flex;
-  align-items: center; 
+  align-items: center;
   gap: 0.3rem;
   font-size: 1rem;
 }
 
-.gender-text{
+.gender-text {
   font-size: 1rem;
 }
 
 input[type="radio"] {
-  transform: scale(1.2); /* ラジオボタンを少し大きく */
+  transform: scale(1.2);
+  /* ラジオボタンを少し大きく */
   width: 10px;
 }
 
 #page-register input[type="radio"] {
-  margin-right: 0.5rem; /* ラジオボタンとテキストの間隔 */
+  margin-right: 0.5rem;
+  /* ラジオボタンとテキストの間隔 */
   width: 20%;
   margin-left: 1rem;
 }
@@ -245,22 +248,23 @@ input[type="radio"] {
   border-radius: 8px;
   color: white;
   font-size: 1em;
-  background: #f6d55c; /* 黄色ベース */
-  box-shadow: 0 3px 0 hsl(45, 85%, 45%), 0 6px 0 rgba(0,0,0,.15);
+  background: #f6d55c;
+  /* 黄色ベース */
+  box-shadow: 0 3px 0 hsl(45, 85%, 45%), 0 6px 0 rgba(0, 0, 0, .15);
   transition: color .3s, background .3s, box-shadow .3s, transform .3s;
 }
 
 .main-btn:hover {
   color: white;
   background: #ffe066;
-  box-shadow: 0 1px 0 hsl(45, 85%, 55%), 0 3px 0 rgba(0,0,0,.15);
+  box-shadow: 0 1px 0 hsl(45, 85%, 55%), 0 3px 0 rgba(0, 0, 0, .15);
   transform: translateY(2px);
 }
 
 .main-btn:active {
   color: #f0e68c;
   background: #f4d03f;
-  box-shadow: 0 0 0 hsl(45, 85%, 45%), 0 0 0 rgba(0,0,0,.15);
+  box-shadow: 0 0 0 hsl(45, 85%, 45%), 0 0 0 rgba(0, 0, 0, .15);
   transform: translateY(4px);
   transition-duration: .1s;
 }
@@ -268,8 +272,10 @@ input[type="radio"] {
 /* サブボタン（リンク風） */
 .link-btn {
   background: none;
-  color: #6ec1e4; /* 薄め水色 */
-  text-decoration: none; /* 下線なし */
+  color: #6ec1e4;
+  /* 薄め水色 */
+  text-decoration: none;
+  /* 下線なし */
   border: none;
   padding: 0.5em 0;
   font-size: 0.9em;
@@ -278,7 +284,8 @@ input[type="radio"] {
 }
 
 .link-btn:hover {
-  color: #3ba0d6; /* 少し濃く */
+  color: #3ba0d6;
+  /* 少し濃く */
 }
 
 /* Home Page */
@@ -286,7 +293,7 @@ input[type="radio"] {
   text-align: center;
 }
 
-#page-home p{
+#page-home p {
   font-family: 'Kiwi Maru', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
   color: #4B4B4B;
 }
@@ -322,7 +329,7 @@ input[type="radio"] {
   /* 中央寄せ */
   max-width: 80%;
   /* 幅を制限 */
-  height: 150%;
+  height: 100%;
 }
 
 /* Footer */
@@ -351,9 +358,12 @@ footer {
   text-align: center;
   padding: 0.5rem 0;
   border-top: 1px solid #d1d5db;
-  height: 60px; /* フッターの高さを設定 */
-  background-color: white; /* 背景色を設定 */
-  z-index: 10; /* 他の要素より前面に表示 */
+  height: 60px;
+  /* フッターの高さを設定 */
+  background-color: white;
+  /* 背景色を設定 */
+  z-index: 10;
+  /* 他の要素より前面に表示 */
 
   background-color: transparent;
   border-top: none;
@@ -414,8 +424,10 @@ footer button[data-page="settings"].active img.icon {
   right: 0;
   bottom: 0;
   width: 100%;
-  max-width: none; /* 制限を解除 */
-  z-index: -1; /* フッターの下に配置 */
+  max-width: none;
+  /* 制限を解除 */
+  z-index: -1;
+  /* フッターの下に配置 */
 }
 
 .footer-home-img img {
@@ -469,8 +481,10 @@ footer button[data-page="settings"].active img.icon {
 
   #page-login,
   #page-register {
-    width: 70%;      /* 横幅70%にする */
-    max-width: none; /* 最大幅制限なし */
+    width: 70%;
+    /* 横幅70%にする */
+    max-width: none;
+    /* 最大幅制限なし */
   }
 }
 
@@ -520,8 +534,10 @@ footer button[data-page="settings"].active img.icon {
 
 /* settings page layout */
 #page-settings {
-  max-height: 80vh; /* セクションの最大高さを設定 */
-  overflow-y: auto; /* 縦方向のスクロールを有効化 */
+  max-height: 80vh;
+  /* セクションの最大高さを設定 */
+  overflow-y: auto;
+  /* 縦方向のスクロールを有効化 */
   padding: 1rem;
 }
 
@@ -531,7 +547,8 @@ footer button[data-page="settings"].active img.icon {
   flex-direction: column;
   align-items: flex-start;
   width: 40%;
-  height: 200px; /* 高さを調整 */
+  height: 200px;
+  /* 高さを調整 */
   margin-bottom: 1rem;
 }
 
@@ -541,19 +558,25 @@ footer button[data-page="settings"].active img.icon {
   flex-direction: column;
   /*align-items: flex-start;*/
   width: 100%;
-  align-items: center; /* 中央揃え */
-  gap: 10px; /* ボタン間の間隔 */
+  align-items: center;
+  /* 中央揃え */
+  gap: 10px;
+  /* ボタン間の間隔 */
   margin-top: 1rem;
 }
 
 .file-input-container input[type="file"] {
-  display: none; /* 非表示 */
+  display: none;
+  /* 非表示 */
 }
 
 .file-input-container button {
-  width: 80%; /* ボタンの幅を統一 */
-  max-width: 200px; /* 最大幅を制限 */
-  margin: 0 auto; /* 水平方向の中央揃え */
+  width: 80%;
+  /* ボタンの幅を統一 */
+  max-width: 200px;
+  /* 最大幅を制限 */
+  margin: 0 auto;
+  /* 水平方向の中央揃え */
 }
 
 
@@ -566,7 +589,8 @@ footer button[data-page="settings"].active img.icon {
   color: white;
   border: none;
   padding: 3px 3px;
-  margin: 5px auto; /* 15pxから5pxに変更 */
+  margin: 5px auto;
+  /* 15pxから5pxに変更 */
   border-radius: 15px;
   font-size: 14px;
   cursor: pointer;
@@ -659,16 +683,21 @@ textarea {
   resize: vertical;
 
   width: 100%;
-  max-width: 100%; /* はみ出し防止 */
+  max-width: 100%;
+  /* はみ出し防止 */
   height: 100px;
-  resize: vertical; /* 縦方向のリサイズのみ許可 */
+  resize: vertical;
+  /* 縦方向のリサイズのみ許可 */
   margin-top: 10px;
 }
 
 #message {
-  border-radius: 12px; /* 角丸を大きく */
-  margin-right: 8px; /* 右側に8pxの余白 */
-  width: calc(100% - 8px); /* 右余白分を引いた幅 */
+  border-radius: 12px;
+  /* 角丸を大きく */
+  margin-right: 8px;
+  /* 右側に8pxの余白 */
+  width: calc(100% - 8px);
+  /* 右余白分を引いた幅 */
   padding: 8px;
   resize: vertical;
 }
@@ -729,7 +758,8 @@ textarea {
   top: 0;
   left: 0;
   cursor: pointer;
-  z-index: 2; /* スライダーより前面に */
+  z-index: 2;
+  /* スライダーより前面に */
 }
 
 /* The slider */
@@ -742,7 +772,8 @@ textarea {
   bottom: 0;
   background-color: #ccc;
   transition: .4s;
-  z-index: 1; /* input の下に */
+  z-index: 1;
+  /* input の下に */
 }
 
 .slider:before {
@@ -804,14 +835,19 @@ input:checked+.slider:before {
   font-size: 0.9rem;
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  white-space: nowrap; /* 改行を防ぐ */
-  min-width: 60px; /* ボタンの最小幅を設定 */
-  display: flex; /* Flexboxを使用 */
-  align-items: center; /* 垂直方向の中央揃え */
-  justify-content: center; /* 水平方向の中央揃え */
+  white-space: nowrap;
+  /* 改行を防ぐ */
+  min-width: 60px;
+  /* ボタンの最小幅を設定 */
+  display: flex;
+  /* Flexboxを使用 */
+  align-items: center;
+  /* 垂直方向の中央揃え */
+  justify-content: center;
+  /* 水平方向の中央揃え */
 }
 
-.jinx-counter{
+.jinx-counter {
   margin-top: 1.5rem;
   font-size: 0.9rem;
   color: var(--text-light);
@@ -853,10 +889,10 @@ input:checked+.slider:before {
 
 /*リセットボタンのフォントサイズを変更*/
 button {
-  font-size: 10px; /* フォントサイズを10pxに設定 */
-  white-space: nowrap; /* 改行を防ぐ */
+  font-size: 10px;
+  /* フォントサイズを10pxに設定 */
+  white-space: nowrap;
+  /* 改行を防ぐ */
 }
 
-.ranking-tab{
-  
-}
+.ranking-tab {}
