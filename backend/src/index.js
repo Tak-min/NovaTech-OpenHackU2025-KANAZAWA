@@ -90,6 +90,7 @@ const createTables = async () => {
                 email VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 gender VARCHAR(10), -- 性別を追加
+                score NUMERIC(10, 2) DEFAULT 0, -- スコアカラムを追加
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
@@ -196,7 +197,7 @@ app.get('/', (req, res) => {
     });
 });
 
-// [POST] /log-location - ユーザーの位置情報と天気を記録
+// [POST] /log-location - ユーザーの位置情報と天気とスコアを記録
 app.post('/log-location', authenticateToken, async (req, res) => {
     try {
         const { latitude, longitude } = req.body;
@@ -233,18 +234,50 @@ app.post('/log-location', authenticateToken, async (req, res) => {
             weather = 'unknown'; // 不明
         }
 
-        // データベースに位置情報と天気を保存
-        const logQuery = `
-      INSERT INTO locations (user_id, geom, weather, recorded_at)
-      VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), $4, NOW())
-    `;
-        await pool.query(logQuery, [userId, longitude, latitude, weather]);
+        // 天気ごとのスコアを定義
+        const scores = {
+            'sunny': 1,
+            'cloudy': 0.5,
+            'rainy': -1,
+            'snowy': -2,
+            'thunderstorm': -3,
+            'stormy': -2,
+            'unknown': 0
+        };
+        const scoreChange = scores[weather] || 0;
 
-        res.status(201).json({
-            message: '位置情報を記録しました',
-            weather: weather,
-            city: weatherData.name // APIから取得した都市名も返してみる
-        });
+        // トランザクション開始
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // データベースに位置情報と天気を保存
+            const logQuery = `
+                INSERT INTO locations (user_id, geom, weather, recorded_at)
+                VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), $4, NOW())
+            `;
+            await client.query(logQuery, [userId, longitude, latitude, weather]);
+
+            // ユーザースコアを更新
+            const updateScoreQuery = `
+                UPDATE users SET score = score + $1 WHERE id = $2
+            `;
+            await client.query(updateScoreQuery, [scoreChange, userId]);
+
+            await client.query('COMMIT');
+
+            res.status(201).json({
+                message: '位置情報を記録しました',
+                weather: weather,
+                city: weatherData.name, // APIから取得した都市名も返してみる
+                scoreChange: scoreChange
+            });
+        } catch (txError) {
+            await client.query('ROLLBACK');
+            throw txError;
+        } finally {
+            client.release();
+        }
 
     } catch (error) {
         if (axios.isAxiosError(error)) {
@@ -261,40 +294,43 @@ app.get('/status', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        const weatherRecords = await pool.query(
-            'SELECT weather, COUNT(*) as count FROM locations WHERE user_id = $1 GROUP BY weather',
-            [userId]
-        );
+        // ユーザーのスコアと性別、天気ごとの記録数を取得
+        const userQuery = `
+            SELECT
+                u.score,
+                u.gender,
+                (SELECT json_object_agg(weather, count)
+                 FROM (
+                    SELECT weather, COUNT(*) as count
+                    FROM locations
+                    WHERE user_id = $1
+                    GROUP BY weather
+                 ) as weather_counts
+                ) as counts
+            FROM users u
+            WHERE u.id = $1;
+        `;
+        const userResult = await pool.query(userQuery, [userId]);
 
-        // 天気ごとのスコアを定義
-        const scores = {
-            'sunny': 1,
-            'cloudy': 0.5,
-            'rainy': -1,
-            'snowy': 2, // 雪は少しレアなので高めのプラススコア
-            'thunderstorm': -3, // 雷は影響が大きいのでマイナススコア
-            'stormy': -2,
-        };
-
-        // 合計スコアを計算
-        let totalScore = 0;
-        const counts = {};
-        for (const record of weatherRecords.rows) {
-            const weather = record.weather;
-            const count = parseInt(record.count, 10);
-            counts[weather] = count;
-            if (scores[weather]) {
-                totalScore += scores[weather] * count;
-            }
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: 'ユーザーが見つかりません' });
         }
+
+        const user = userResult.rows[0];
+        const totalScore = parseFloat(user.score);
+        const gender = user.gender;
+        const counts = user.counts || {};
 
         // スコアに応じた称号を決定
         let status = '凡人';
-        if (weatherRecords.rows.length > 0) {
-            if (totalScore > 5) status = '太陽神';
-            else if (totalScore > 0) status = '晴れ男'; // ここは性別に応じて「晴れ女」と変えても良い
-            else if (totalScore < -5) status = '嵐を呼ぶ者';
-            else if (totalScore < 0) status = '雨男'; // 同上
+        if (totalScore > 50) {
+            status = '太陽神';
+        } else if (totalScore > 10) {
+            status = (gender === 'female') ? '晴れ女' : '晴れ男';
+        } else if (totalScore < -50) {
+            status = '嵐を呼ぶ者';
+        } else if (totalScore < -10) {
+            status = (gender === 'female') ? '雨女' : '雨男';
         }
 
         res.json({
@@ -350,41 +386,34 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
     }
 });
 
-// [GET] /ranking - Get top 10 user rankings
-app.get('/ranking', async (req, res) => {
+// [GET] /ranking - スコアランキングを取得
+app.get('/ranking', authenticateToken, async (req, res) => {
     try {
+        console.log('Fetching ranking data...');
+
+        // usersテーブルのscoreカラムを直接使用してランキングを取得
         const rankingQuery = `
-      SELECT
-        u.id,
-        u.username,
-        COALESCE(SUM(
-          CASE l.weather
-            WHEN 'sunny' THEN 1
-            WHEN 'cloudy' THEN 0.5
-            WHEN 'rainy' THEN -1
-            WHEN 'snowy' THEN 2
-            WHEN 'thunderstorm' THEN -3
-            WHEN 'stormy' THEN -2
-            ELSE 0
-          END
-        ), 0) AS score
-      FROM
-        users u
-      LEFT JOIN
-        locations l ON u.id = l.user_id
-      GROUP BY
-        u.id, u.username
-      ORDER BY
-        score DESC
-      LIMIT 10;
-    `;
+            SELECT
+                u.username,
+                u.score
+            FROM
+                users u
+            ORDER BY
+                u.score DESC
+            LIMIT 100;
+        `;
 
-        const rankingResult = await pool.query(rankingQuery);
+        const { rows } = await pool.query(rankingQuery);
+        console.log(`Ranking data fetched successfully. Found ${rows.length} users.`);
 
-        res.json(rankingResult.rows);
+        res.json(rows);
+
     } catch (error) {
-        console.error('Ranking Error', error);
-        res.status(500).json({ message: 'ランキングの取得に失敗しました' });
+        console.error('Error in /ranking endpoint:', error);
+        res.status(500).json({
+            message: 'ランキングの取得中にエラーが発生しました',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 
@@ -646,7 +675,8 @@ app.get('/user/icon', authenticateToken, async (req, res) => {
         client.release();
 
         if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'アイコンが見つかりません' });
+            // アイコン未設定時は 204 No Content を返す（フロントで静かに無視させる）
+            return res.status(204).end();
         }
 
         const icon = result.rows[0];

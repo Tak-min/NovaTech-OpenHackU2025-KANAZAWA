@@ -35,6 +35,35 @@ const footerNav = document.getElementById('footer-nav');
 
 // 位置情報追跡用の変数
 let locationWatchId = null;
+let locationUpdateIntervalId = null; // 定期更新用のID
+
+// 選択された画像データを保存する変数（TDZ回避のため var）
+let selectedImageData = null;
+
+let leafletMap = null;
+let userMarkers = [];
+
+// 天気に応じたマーカーの色を定義（TDZ回避のため var）
+let weatherColors = {
+  'sunny': '#FFD700',      // 金色
+  'cloudy': '#87CEEB',     // スカイブルー
+  'rainy': '#4169E1',      // ロイヤルブルー
+  'snowy': '#FFFFFF',      // 白
+  'thunderstorm': '#8A2BE2', // ブルーバイオレット
+  'stormy': '#2F4F4F',     // ダークスレートグレー
+  'unknown': '#808080'     // グレー
+};
+
+// 天気に応じた絵文字を定義（TDZ回避のため var）
+let weatherEmojis = {
+  'sunny': '☀️',
+  'cloudy': '☁️',
+  'rainy': '🌧️',
+  'snowy': '❄️',
+  'thunderstorm': '⚡',
+  'stormy': '🌪️',
+  'unknown': '❓'
+};
 
 function showPage(pageId) {
   pages.forEach(page => page.classList.add('hidden'));
@@ -217,6 +246,7 @@ async function checkLoginStatus() {
       console.log('Session restored successfully.');
       footerNav.classList.remove('hidden');
       showPage('page-home');
+      startPeriodicLocationUpdate(); // 定期更新を開始
 
       // セッション復元時もユーザーの設定を確認してから位置情報追跡を開始
       loadUserSettings().then(settings => {
@@ -324,6 +354,7 @@ loginForm.addEventListener('submit', async (event) => {
       console.log('Login successful, storing token');
       alert(data.message);
       localStorage.setItem('token', data.token);
+      startPeriodicLocationUpdate(); // 定期更新を開始
 
       // ログイン成功時にフッターを表示し、ホームへ遷移
       footerNav.classList.remove('hidden');
@@ -389,6 +420,78 @@ navButtons.forEach(button => {
 document.getElementById('show-register-button').addEventListener('click', () => showPage('page-register'));
 document.getElementById('show-login-button').addEventListener('click', () => showPage('page-login'));
 
+// ログアウト処理
+document.getElementById('logout-button').addEventListener('click', () => {
+  console.log('Logout button clicked');
+  localStorage.removeItem('token');
+  stopPeriodicLocationUpdate(); // 定期更新を停止
+  stopLocationTracking(); // 位置情報追跡を停止
+  showPage('page-login');
+  alert('ログアウトしました');
+});
+
+// 5分ごとに位置情報を送信する関数
+function sendLocation() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.log('定期更新スキップ: トークンがありません');
+    stopPeriodicLocationUpdate(); // トークンがなければ停止
+    return;
+  }
+
+  console.log('定期更新: 位置情報を取得・送信します');
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    const { latitude, longitude } = position.coords;
+    try {
+      const response = await fetch(`${API_BASE}/log-location`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ latitude, longitude })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        console.log('定期更新成功:', data);
+        // ホーム画面にいる場合、ステータスを更新
+        if (document.getElementById('page-home').classList.contains('hidden') === false) {
+          updateHomePageStatus();
+        }
+      } else {
+        console.error('定期更新エラー:', data.message);
+      }
+    } catch (error) {
+      console.error('定期更新中に通信エラー:', error);
+    }
+  }, (error) => {
+    console.error('定期更新中の位置情報取得エラー:', error.message);
+  });
+}
+
+// 定期的な位置情報更新を開始する関数
+function startPeriodicLocationUpdate() {
+  // 既に実行中の場合は何もしない
+  if (locationUpdateIntervalId) {
+    console.log('定期更新は既に開始されています');
+    return;
+  }
+  console.log('5分ごとの定期更新を開始します');
+  // まず一度すぐに実行
+  sendLocation();
+  // その後、5分ごとに実行
+  locationUpdateIntervalId = setInterval(sendLocation, 5 * 60 * 1000); // 5分 = 300,000ミリ秒
+}
+
+// 定期的な位置情報更新を停止する関数
+function stopPeriodicLocationUpdate() {
+  if (locationUpdateIntervalId) {
+    console.log('定期更新を停止します');
+    clearInterval(locationUpdateIntervalId);
+    locationUpdateIntervalId = null;
+  }
+}
+
 // 初期表示時にフッターを非表示にし、ログインページを表示
 footerNav.classList.add('hidden');
 showPage('page-login');
@@ -396,10 +499,17 @@ showPage('page-login');
 //ここからはランキング機能
 async function updateRankingPage() {
   const rankingList = document.getElementById('ranking-list');
-  rankingList.innerHTML = '<li>ランキングを読み込んでいます...</li>'
+  rankingList.innerHTML = '<li>ランキングを読み込んでいます...</li>';
+  const token = localStorage.getItem('token');
+  if (!token) {
+    rankingList.innerHTML = '<li>ログインが必要です</li>';
+    return;
+  }
 
   try {
-    const response = await fetch(`${API_BASE}/ranking`);
+    const response = await fetch(`${API_BASE}/ranking`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
     if (!response.ok) {
       throw new Error('network response was not ok');
     }
@@ -424,32 +534,11 @@ async function updateRankingPage() {
 
 //ここからは地図機能
 
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+// ★【重要】変数の宣言を、関数定義の前に移動します
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+// 地図関連の変数（TDZ回避のため function-scope）
 
-// 地図関連の変数
-let map = null;
-let userMarkers = [];
-
-// 天気に応じたマーカーの色を定義
-const weatherColors = {
-  'sunny': '#FFD700',      // 金色
-  'cloudy': '#87CEEB',     // スカイブルー
-  'rainy': '#4169E1',      // ロイヤルブルー
-  'snowy': '#FFFFFF',      // 白
-  'thunderstorm': '#8A2BE2', // ブルーバイオレット
-  'stormy': '#2F4F4F',     // ダークスレートグレー
-  'unknown': '#808080'     // グレー
-};
-
-// 天気に応じた絵文字を定義
-const weatherEmojis = {
-  'sunny': '☀️',
-  'cloudy': '☁️',
-  'rainy': '🌧️',
-  'snowy': '❄️',
-  'thunderstorm': '⚡',
-  'stormy': '🌪️',
-  'unknown': '❓'
-};
 
 // ユーザーの位置情報を取得してマーカーを表示
 async function loadUserMarkers() {
@@ -475,12 +564,28 @@ async function loadUserMarkers() {
     const data = await response.json();
     console.log('取得したユーザー位置情報:', data);
 
-    // 既存のマーカーをクリア
-    userMarkers.forEach(marker => map.removeLayer(marker));
+    // 期待するデータ形状の確認
+    if (!data || !Array.isArray(data.users)) {
+      console.warn('Unexpected response shape for /users-locations. Expected { users: [...] } but got:', data);
+      return;
+    }
+
+    // 既存のマーカーをクリア（マップ未初期化時はスキップ）
+    if (!Array.isArray(userMarkers)) {
+      userMarkers = [];
+    }
+    if (!leafletMap) {
+      console.warn('Leaflet map is not initialized yet. Skip clearing markers.');
+    } else {
+      userMarkers.forEach(marker => leafletMap.removeLayer(marker));
+    }
     userMarkers = [];
 
     // 各ユーザーのマーカーを追加
     data.users.forEach(user => {
+      if (!leafletMap) {
+        return; // マップ未初期化ならスキップ
+      }
       const color = weatherColors[user.weather] || weatherColors['unknown'];
       const emoji = weatherEmojis[user.weather] || weatherEmojis['unknown'];
 
@@ -502,108 +607,58 @@ async function loadUserMarkers() {
             ${emoji}
           </div>
         `,
-        className: 'custom-div-icon',
+        className: '', // Leafletのデフォルトクラスを無効化
         iconSize: [30, 30],
         iconAnchor: [15, 15]
       });
 
-      // マーカーを作成
-      const marker = L.marker([user.latitude, user.longitude], {
-        icon: customIcon
-      }).addTo(map);
-
-      // ポップアップを追加
-      const recordedDate = new Date(user.recordedAt).toLocaleString('ja-JP');
-      marker.bindPopup(`
-        <div style="text-align: center;">
-          <strong>ユーザ名：${user.username}</strong><br>
-          天気: ${emoji} ${user.weather}<br>
-          記録日時: ${recordedDate}
-        </div>
-      `);
+      const marker = L.marker([user.latitude, user.longitude], { icon: customIcon })
+        .addTo(leafletMap)
+        .bindPopup(`<b>${user.username}</b><br>天気: ${user.weather}<br>記録日時: ${new Date(user.recordedAt).toLocaleString()}`);
 
       userMarkers.push(marker);
     });
 
-    console.log(`${data.users.length}人のユーザーマーカーを追加しました`);
+    console.log(`${userMarkers.length}個のユーザーマーカーをマップに追加しました`);
 
   } catch (error) {
-    console.error('ユーザー位置情報の取得に失敗しました:', error);
+    console.error('ユーザーマーカーの読み込みに失敗しました:', error);
   }
 }
 
-// 最低限の地図表示機能
+
+
 function initializeMap() {
-  console.log('initializeMap関数が呼ばれました');
-  // 地図コンテナが存在するかチェック
-  const mapContainer = document.getElementById('map');
-  console.log('地図コンテナが見つかりました');
+  const container = document.getElementById('map'); // IDを 'map' に修正
 
-  // 地図コンテナのサイズを確認
-  const containerRect = mapContainer.getBoundingClientRect();
-  console.log('地図コンテナのサイズ:', containerRect.width, 'x', containerRect.height);
-
-  // コンテナが表示されているかチェック
-  const mapPage = document.getElementById('page-map');
-  if (mapPage && mapPage.classList.contains('hidden')) {
-    console.error('地図ページが隠れています');
+  if (!container) {
+    console.error('Map container (#map) not found');
     return;
   }
 
-  // 既に初期化済みの場合はユーザーマーカーのみ更新
-  if (map) {
-    console.log('地図は既に初期化済みです - ユーザーマーカーを更新します');
-    loadUserMarkers();
+  // コンテナ自体が初期化済みか、またはmapインスタンスが存在するかチェック
+  if (container._leaflet_id || (leafletMap && leafletMap.remove)) {
+    console.log('Map already initialized. Invalidating size.');
+    if (leafletMap) {
+      leafletMap.invalidateSize(); // 表示を更新
+    }
+    loadUserMarkers(); // マーカーを再読み込み
     return;
   }
 
-  // Leafletライブラリが読み込まれているかチェック
-  if (typeof L === 'undefined') {
-    console.log('Leafletライブラリが読み込まれていません。500ms後に再試行します...');
-    setTimeout(initializeMap, 500);
-    return;
-  }
-  console.log('Leafletライブラリが利用可能です');
+  console.log('Initializing map for the first time.');
+  // 初回のみマップを初期化
+  leafletMap = L.map(container).setView([35.681236, 139.767125], 13); // 初期中心を東京駅に設定
 
-  try {
-    map = L.map('map').setView([36.5777, 136.6483], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-    console.log('タイルレイヤーを追加しました');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(leafletMap);
 
-    // 地図コンテナの最終的なサイズを確認
-    const finalRect = mapContainer.getBoundingClientRect();
-    console.log('地図初期化後のコンテナサイズ:', finalRect.width, 'x', finalRect.height);
-
-    console.log('地図の初期化が完了しました');
-
-    // 地図のサイズを再計算
-    setTimeout(() => {
-      console.log('地図のサイズを再計算します');
-      map.invalidateSize();
-
-      // 再計算後のサイズも確認
-      const afterInvalidateRect = mapContainer.getBoundingClientRect();
-      console.log('サイズ再計算後のコンテナサイズ:', afterInvalidateRect.width, 'x', afterInvalidateRect.height);
-
-      console.log('地図のサイズ再計算完了');
-
-      // タイルの読み込み状況を確認
-      console.log('地図のズームレベル:', map.getZoom());
-      console.log('地図の中心座標:', map.getCenter());
-
-      // ユーザーマーカーを読み込み
-      loadUserMarkers();
-    }, 200);
-
-  } catch (error) {
-    console.error('地図の初期化に失敗しました:', error);
-  }
+  // ユーザーのマーカーを読み込む
+  loadUserMarkers();
 }
 
-//アイコン機能
+// アイコン機能
 
 const iconInput = document.getElementById('iconInput');
 const iconPreview = document.getElementById('iconPreview');
@@ -624,8 +679,7 @@ if (!fileName) console.warn('fileName element not found');
 if (!fileSize) console.warn('fileSize element not found');
 if (!imageDimensions) console.warn('imageDimensions element not found');
 
-// 選択された画像データを保存する変数
-let selectedImageData = null;
+
 
 // ページ読み込み時に保存されたアイコンを復元
 window.addEventListener('DOMContentLoaded', () => {
@@ -1207,9 +1261,9 @@ async function loadSavedIcon() {
 
       reader.readAsDataURL(blob);
       console.log('保存されたアイコンを読み込みました');
-    } else if (response.status === 404) {
-      // アイコンが存在しない場合は何もしない
-      console.log('アイコンが存在しません');
+    } else if (response.status === 204 || response.status === 404) {
+      // アイコンが存在しない場合（204 No Content / 404 Not Found）は静かに無視
+      console.log('アイコンが未設定（No Content / Not Found）');
     } else {
       console.error('アイコンの取得に失敗しました');
     }
@@ -1401,53 +1455,26 @@ async function checkLocationPermission() {
   }
 }
 
-// 位置情報設定のスイッチを更新する関数
-async function updateLocationSwitch() {
-  const locationSwitch = document.querySelector('#page-setting input[type="checkbox"]:last-of-type');
+// 設定画面の位置情報スイッチ表示を、ブラウザのパーミッション状態に合わせて更新
+function updateLocationSwitch() {
+  const locationSwitch = document.getElementById('location-switch');
   if (!locationSwitch) return;
 
-  const permissionState = await checkLocationPermission();
-
-  // パーミッションの状態に応じてスイッチの状態を更新
-  if (permissionState === 'denied') {
-    locationSwitch.checked = false;
-    locationSwitch.disabled = true;
-
-    // スイッチの後に説明文を追加
-    const switchContainer = locationSwitch.parentElement;
-    let warningText = switchContainer.querySelector('.permission-warning');
-
-    if (!warningText) {
-      warningText = document.createElement('div');
-      warningText.className = 'permission-warning';
-      warningText.style.color = '#ff6b6b';
-      warningText.style.fontSize = '12px';
-      warningText.style.marginTop = '5px';
-      warningText.innerHTML = '⚠️ 位置情報のパーミッションがブロックされています。<br>' +
-        'ブラウザの設定からパーミッションをリセットしてください。';
-      switchContainer.appendChild(warningText);
-    }
-  } else {
-    locationSwitch.disabled = false;
-
-    // 警告文を削除
-    const switchContainer = locationSwitch.parentElement;
-    const warningText = switchContainer.querySelector('.permission-warning');
-    if (warningText) {
-      warningText.remove();
-    }
-  }
-
-  // パーミッション状態の変更を監視
-  if (navigator.permissions) {
-    try {
-      const permission = await navigator.permissions.query({ name: 'geolocation' });
-      permission.addEventListener('change', function () {
-        console.log('位置情報パーミッションが変更されました:', this.state);
-        updateLocationSwitch();
-      });
-    } catch (error) {
-      console.error('パーミッション監視エラー:', error);
-    }
-  }
+  checkLocationPermission()
+    .then((state) => {
+      if (state === 'denied') {
+        // ブラウザ側でブロックされているので、ユーザー操作を無効化
+        locationSwitch.checked = false;
+        locationSwitch.disabled = true;
+        locationSwitch.title = 'ブラウザの設定で位置情報がブロックされています。設定から許可してください。';
+      } else {
+        // 許可または未決定の場合は操作可能
+        locationSwitch.disabled = false;
+        locationSwitch.title = '';
+      }
+    })
+    .catch((err) => {
+      console.warn('位置情報パーミッション状態の取得に失敗:', err);
+    });
 }
+
