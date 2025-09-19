@@ -210,33 +210,33 @@
 
     // ダミーデータ生成（70件、ユーザ名: ダミー1番～ダミー70番）
     function generateDummyRanking(mode, userId) {
-      let ranking = Array.from({ length: 70 }, (_, i) => {
-        let score;
-        if (mode === 'weather') {
-          score = Math.floor(Math.random() * 2000);
-        } else {
-          // 乗り遅れ率は小数（0～100%）
-          score = (Math.random() * 100).toFixed(2);
-        }
-        return {
-          username: `ダミー${i + 1}番`,
-          score: score,
-          userId: `dummy${i + 1}`
-        };
-      });
-      // 自分のスコアもランダム生成
-      let myScore;
-      if (mode === 'weather') {
-        myScore = Math.floor(Math.random() * 2000);
-      } else {
-        myScore = (Math.random() * 100).toFixed(2);
-      }
-      const myUser = {
-        username: '自分',
-        score: myScore,
-        userId: userId
-      };
-      ranking.push(myUser);
+      // let ranking = Array.from({ length: 70 }, (_, i) => {
+      //   let score;
+      //   if (mode === 'weather') {
+      //     score = Math.floor(Math.random() * 2000);
+      //   } else {
+      //     // 乗り遅れ率は小数（0～100%）
+      //     score = (Math.random() * 100).toFixed(2);
+      //   }
+      //   return {
+      //     username: `ダミー${i + 1}番`,
+      //     score: score,
+      //     userId: `dummy${i + 1}`
+      //   };
+      // });
+      // // 自分のスコアもランダム生成
+      // let myScore;
+      // if (mode === 'weather') {
+      //   myScore = Math.floor(Math.random() * 2000);
+      // } else {
+      //   myScore = (Math.random() * 100).toFixed(2);
+      // }
+      // const myUser = {
+      //   username: '自分',
+      //   score: myScore,
+      //   userId: userId
+      // };
+      // ranking.push(myUser);
 
       // 並べ替え（全モードでスコアが高いほど上位）
       ranking.sort((a, b) => b.score - a.score);
