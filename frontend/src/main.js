@@ -65,6 +65,34 @@ let weatherEmojis = {
   'unknown': '❓'
 };
 
+// フッターのアイコンsrcを期待どおりに補正する（存在しない場合はスキップ）
+function ensureFooterIconPaths() {
+  const expected = {
+    home: '/img/home.png',
+    map: '/img/map.png',
+    ranking: '/img/ranking.png',
+    settings: '/img/setting.png'
+  };
+  document.querySelectorAll('#footer-nav .nav-button').forEach(btn => {
+    const page = btn.getAttribute('data-page');
+    const img = btn.querySelector('img.icon');
+    if (!img) return;
+    const should = expected[page];
+    if (!should) return;
+    const current = img.getAttribute('src');
+    if (current !== should) {
+      img.setAttribute('src', should);
+    }
+  });
+}
+
+// 既存の loadUserInfo を呼ぶ薄いラッパー（後方互換）
+function updateUserInfo() {
+  if (typeof loadUserInfo === 'function') {
+    loadUserInfo();
+  }
+}
+
 function showPage(pageId) {
   pages.forEach(page => page.classList.add('hidden'));
 
@@ -1006,7 +1034,9 @@ function initializeSettingsPage() {
         }
         const reader = new FileReader();
         reader.onload = function (event) {
-          selectedImageData = e.target.result;
+          // ドラッグ&ドロップ時に誤って外側のイベント(e)を参照していたバグを修正
+          // 正しくは FileReader の onload イベント(event)から result を取得する
+          selectedImageData = event.target.result;
           displayImagePreview(selectedImageData);
           displayImageInfo(file);
           if (saveBtn) saveBtn.disabled = false;
@@ -1395,6 +1425,9 @@ async function loadSavedIcon() {
 
       reader.onload = function (e) {
         const imageData = e.target.result;
+        // 読み込んだサーバ上のアイコンも現在の選択データとして扱う
+        // これにより「保存」ボタンが反応しないケースを回避
+        selectedImageData = imageData;
         displayImagePreview(imageData);
         const saveBtn = document.getElementById('saveBtn');
         if (saveBtn) saveBtn.disabled = false;
