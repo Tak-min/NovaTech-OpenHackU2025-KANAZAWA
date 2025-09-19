@@ -11,8 +11,11 @@
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap"
+    rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap"
+    rel="stylesheet">
 </head>
 
 <body>
@@ -46,14 +49,14 @@
           <label for="register-password">パスワード</label>
           <input id="register-password" type="password" placeholder="パスワード" required>
           <label for="register-gender">性別</label>
-            <div class="gender-group">
-              <label class="gender-option">
-                <span class="gender-text">男性</span><input type="radio" name="gender" value="male" required>
-              </label>  
-              <label class="gender-option">
-                <span class="gender-text">女性</span><input type="radio" name="gender" value="female" required>
-              </label>
-            </div>
+          <div class="gender-group">
+            <label class="gender-option">
+              <span class="gender-text">男性</span><input type="radio" name="gender" value="male" required>
+            </label>
+            <label class="gender-option">
+              <span class="gender-text">女性</span><input type="radio" name="gender" value="female" required>
+            </label>
+          </div>
 
           <button type="submit" class="main-btn">新規登録</button>
           <button id="show-login-button" type="button" class="link-btn">ログインはこちら</button>
@@ -67,7 +70,7 @@
         <p id="missed-train-counter" class="jinx-counter">電車に乗り遅れた回数 : ...回</p>
         <div style="margin-top:16px;">
           <div>
-            <label for="weather-gauge" style="font-weight:bold;">天気スコア    </label>
+            <label for="weather-gauge" style="font-weight:bold;">天気スコア </label>
             <div id="weather-gauge-bar" class="center-gauge-bar">
               <div id="weather-gauge-fill"></div>
               <div id="weather-gauge-zero"></div>
@@ -75,13 +78,9 @@
             <span id="weather-gauge-value" style="margin-left:8px;">--</span>
           </div>
           <div style="margin-top:12px;">
-            <label for="delay-gauge" style="font-weight:bold;">電車遅延率    </label>
-            <progress id="delay-gauge" value="0" max="100" style="width:200px; height:20px; vertical-align:middle; background:transparent; border-radius:10px;"></progress>
-            <span id="delay-gauge-value" style="margin-left:8px;">--%</span>
-          </div>
-          <div style="margin-top:12px;">
             <label for="missed-gauge" style="font-weight:bold;">電車乗り遅れ率</label>
-            <progress id="missed-gauge" value="0" max="100" style="width:200px; height:20px; vertical-align:middle; background:transparent; border-radius:10px;"></progress>
+            <progress id="missed-gauge" value="0" max="100"
+              style="width:200px; height:20px; vertical-align:middle; background:transparent; border-radius:10px;"></progress>
             <span id="missed-gauge-value" style="margin-left:8px;">--%</span>
           </div>
         </div>
@@ -97,7 +96,6 @@
       <section id="page-ranking" class="hidden">
         <div id="ranking-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
           <button class="ranking-tab active" data-mode="weather">天気スコア</button>
-          <button class="ranking-tab" data-mode="delay">電車遅延率</button>
           <button class="ranking-tab" data-mode="missed">電車乗り遅れ率</button>
         </div>
         <div id="ranking-table-container">
@@ -110,7 +108,9 @@
               </tr>
             </thead>
             <tbody id="ranking-table-body">
-              <tr><td colspan="3" style="padding: 16px; text-align: center;">ランキングを読み込み中...</td></tr>
+              <tr>
+                <td colspan="3" style="padding: 16px; text-align: center;">ランキングを読み込み中...</td>
+              </tr>
             </tbody>
           </table>
           <div style="margin-top: 16px; font-size: 0.9em; color: #888;">
@@ -175,48 +175,25 @@
           <button class="change-button">変更</button>
         </div>
       </section>
-
-      <section id="page-omikuji">
-        <h3>おみくじコーナー</h3>
-        <div>
-          <button id="omikuji-btn" style="padding:8px 24px; font-size:1.2em;">おみくじを引く</button>
-        </div>
-        <div id="omikuji-result" style="margin:16px 0; font-size:1.5em; font-weight:bold;"></div>
-        <div id="omikuji-streak" style="font-size:1em; color:#1976d2;">当たり連続回数: 0回</div>
-        <div style="margin-top:16px;">
-          <table id="omikuji-table" style="width:100%; border-collapse:collapse; text-align:center;">
-            <thead>
-              <tr>
-                <th style="padding:6px; border-bottom:1px solid #ccc;">連続回数</th>
-                <th style="padding:6px; border-bottom:1px solid #ccc;">確率</th>
-                <th style="padding:6px; border-bottom:1px solid #ccc;">例</th>
-              </tr>
-            </thead>
-            <tbody id="omikuji-table-body">
-              <!-- JSで動的生成 -->
-            </tbody>
-          </table>
-        </div>
-      </section>
     </main>
 
     <footer id="footer-nav" class="hidden">
-  <button data-page="home" class="nav-button active">
-    <img src="/img/home.png" alt="ホーム" class="icon">
-    <span>ホーム</span>
-  </button>
-  <button data-page="map" class="nav-button">
-    <img src="/img/map.png" alt="マップ" class="icon">
-    <span>マップ</span>
-  </button>
-  <button data-page="ranking" class="nav-button">
-    <img src="/img/ranking.png" alt="ランキング" class="icon">
-    <span>ランキング</span>
-  </button>
-  <button data-page="settings" class="nav-button">
-    <img src="img/settings.png" alt="設定" class="icon">
-    <span>設定</span>
-  </button>
+      <button data-page="home" class="nav-button active">
+        <img src="/img/home.png" alt="ホーム" class="icon">
+        <span>ホーム</span>
+      </button>
+      <button data-page="map" class="nav-button">
+        <img src="/img/map.png" alt="マップ" class="icon">
+        <span>マップ</span>
+      </button>
+      <button data-page="ranking" class="nav-button">
+        <img src="/img/ranking.png" alt="ランキング" class="icon">
+        <span>ランキング</span>
+      </button>
+      <button data-page="settings" class="nav-button">
+        <img src="/img/settings.png" alt="設定" class="icon">
+        <span>設定</span>
+      </button>
       <div id="footer-img-container" class="footer-home-img">
         <img id="footer-img" src="/img/footer-4-1.png" alt="フッター画像">
       </div>
@@ -225,52 +202,51 @@
 
   <script type="module" src="/src/main.js?v=1.1"></script>
   <script>
-        // --- ランキング画面のUI制御 ---
-        const modeLabels = {
-          weather: '天気スコア',
-          delay: '電車遅延率',
-          missed: '電車乗り遅れ率'
-        };
+    // --- ランキング画面のUI制御 ---
+    const modeLabels = {
+      weather: '天気スコア',
+      missed: '電車乗り遅れ率'
+    };
 
-        // ダミーデータ生成（70件、ユーザ名: ダミー1番～ダミー70番）
-        function generateDummyRanking(mode, userId) {
-          let ranking = Array.from({ length: 70 }, (_, i) => {
-            let score;
-            if (mode === 'weather') {
-              score = Math.floor(Math.random() * 2000);
-            } else {
-              // 遅延率・乗り遅れ率は小数（0～100%）
-              score = (Math.random() * 100).toFixed(2);
-            }
-            return {
-              username: `ダミー${i + 1}番`,
-              score: score,
-              userId: `dummy${i + 1}`
-            };
-          });
-          // 自分のスコアもランダム生成
-          let myScore;
-          if (mode === 'weather') {
-            myScore = Math.floor(Math.random() * 2000);
-          } else {
-            myScore = (Math.random() * 100).toFixed(2);
-          }
-          const myUser = {
-            username: '自分',
-            score: myScore,
-            userId: userId
-          };
-          ranking.push(myUser);
-
-          // 並べ替え（全モードでスコアが高いほど上位）
-          ranking.sort((a, b) => b.score - a.score);
-
-          ranking.forEach((user, idx) => user.rank = idx + 1);
-          return ranking;
+    // ダミーデータ生成（70件、ユーザ名: ダミー1番～ダミー70番）
+    function generateDummyRanking(mode, userId) {
+      let ranking = Array.from({ length: 70 }, (_, i) => {
+        let score;
+        if (mode === 'weather') {
+          score = Math.floor(Math.random() * 2000);
+        } else {
+          // 遅延率・乗り遅れ率は小数（0～100%）
+          score = (Math.random() * 100).toFixed(2);
         }
+        return {
+          username: `ダミー${i + 1}番`,
+          score: score,
+          userId: `dummy${i + 1}`
+        };
+      });
+      // 自分のスコアもランダム生成
+      let myScore;
+      if (mode === 'weather') {
+        myScore = Math.floor(Math.random() * 2000);
+      } else {
+        myScore = (Math.random() * 100).toFixed(2);
+      }
+      const myUser = {
+        username: '自分',
+        score: myScore,
+        userId: userId
+      };
+      ranking.push(myUser);
 
-        function showMyUserRow(myUser) {
-          return `
+      // 並べ替え（全モードでスコアが高いほど上位）
+      ranking.sort((a, b) => b.score - a.score);
+
+      ranking.forEach((user, idx) => user.rank = idx + 1);
+      return ranking;
+    }
+
+    function showMyUserRow(myUser) {
+      return `
             <div id="my-user-fixed" style="background:#fffde7;font-weight:bold;position:sticky;z-index:2;padding:4px 0;">
               <table style="width:100%;">
                 <tr>
@@ -283,367 +259,377 @@
               </table>
             </div>
           `;
-        }
+    }
 
-        async function renderRanking(mode, userId) {
-          const scoreHeader = document.getElementById('ranking-score-header');
-          scoreHeader.textContent = modeLabels[mode];
-          const ranking = generateDummyRanking(mode, userId);
-          const tbody = document.getElementById('ranking-table-body');
-          tbody.innerHTML = '';
+    async function renderRanking(mode, userId) {
+      const scoreHeader = document.getElementById('ranking-score-header');
+      scoreHeader.textContent = modeLabels[mode];
+      const ranking = generateDummyRanking(mode, userId);
+      const tbody = document.getElementById('ranking-table-body');
+      tbody.innerHTML = '';
 
-          // 上位50名＋自分のみ抽出
-          const myUser = ranking.find(u => u.userId === userId);
-          let visibleRanking = ranking.slice(0, 50);
-          const isMyUserVisible = visibleRanking.some(u => u.userId === userId);
-          if (!isMyUserVisible) visibleRanking = [...visibleRanking, myUser];
+      // 上位50名＋自分のみ抽出
+      const myUser = ranking.find(u => u.userId === userId);
+      let visibleRanking = ranking.slice(0, 50);
+      const isMyUserVisible = visibleRanking.some(u => u.userId === userId);
+      if (!isMyUserVisible) visibleRanking = [...visibleRanking, myUser];
 
-          visibleRanking.forEach(user => {
-            const isMe = user.userId === userId;
-            const tr = document.createElement('tr');
-            if (isMe) tr.style.background = '#fffde7', tr.style.fontWeight = 'bold';
-            tr.setAttribute('data-rank', user.rank);
-            tr.setAttribute('data-userid', user.userId);
-            tr.innerHTML = `
+      visibleRanking.forEach(user => {
+        const isMe = user.userId === userId;
+        const tr = document.createElement('tr');
+        if (isMe) tr.style.background = '#fffde7', tr.style.fontWeight = 'bold';
+        tr.setAttribute('data-rank', user.rank);
+        tr.setAttribute('data-userid', user.userId);
+        tr.innerHTML = `
               <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${user.rank}</td>
               <td style="border-bottom:1px solid #eee; padding:8px;">${isMe ? user.username + '（自分）' : user.username}</td>
               <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">
                 ${user.score}${mode !== 'weather' ? '％' : ''}
               </td>
             `;
-            tbody.appendChild(tr);
-          });
+        tbody.appendChild(tr);
+      });
 
-          // 自分の行のIDを付与（visibleRankingから取得）
-          const myRow = Array.from(tbody.children).find(tr => tr.getAttribute('data-userid') === userId);
-          if (myRow) myRow.setAttribute('id', 'my-user-row');
+      // 自分の行のIDを付与（visibleRankingから取得）
+      const myRow = Array.from(tbody.children).find(tr => tr.getAttribute('data-userid') === userId);
+      if (myRow) myRow.setAttribute('id', 'my-user-row');
 
-          // 固定表示用の領域をテーブル外に設置
-          let fixedTop = document.getElementById('my-user-fixed-top');
-          let fixedBottom = document.getElementById('my-user-fixed-bottom');
-          const tableContainer = document.getElementById('ranking-table-container');
-          if (!fixedTop) {
-            fixedTop = document.createElement('div');
-            fixedTop.id = 'my-user-fixed-top';
-            fixedTop.style.position = 'sticky';
-            fixedTop.style.top = '0';
-            fixedTop.style.zIndex = '10';
-            fixedTop.style.background = 'transparent';
-            fixedTop.style.display = 'none';
-            tableContainer.insertAdjacentElement('beforebegin', fixedTop);
-          }
-          if (!fixedBottom) {
-            fixedBottom = document.createElement('div');
-            fixedBottom.id = 'my-user-fixed-bottom';
-            fixedBottom.style.position = 'sticky';
-            fixedBottom.style.bottom = '0';
-            fixedBottom.style.zIndex = '10';
-            fixedBottom.style.background = 'transparent';
-            fixedBottom.style.display = 'none';
-            tableContainer.insertAdjacentElement('afterend', fixedBottom);
-          }
-          fixedTop.innerHTML = '';
-          fixedBottom.innerHTML = '';
+      // 固定表示用の領域をテーブル外に設置
+      let fixedTop = document.getElementById('my-user-fixed-top');
+      let fixedBottom = document.getElementById('my-user-fixed-bottom');
+      const tableContainer = document.getElementById('ranking-table-container');
+      if (!fixedTop) {
+        fixedTop = document.createElement('div');
+        fixedTop.id = 'my-user-fixed-top';
+        fixedTop.style.position = 'sticky';
+        fixedTop.style.top = '0';
+        fixedTop.style.zIndex = '10';
+        fixedTop.style.background = 'transparent';
+        fixedTop.style.display = 'none';
+        tableContainer.insertAdjacentElement('beforebegin', fixedTop);
+      }
+      if (!fixedBottom) {
+        fixedBottom = document.createElement('div');
+        fixedBottom.id = 'my-user-fixed-bottom';
+        fixedBottom.style.position = 'sticky';
+        fixedBottom.style.bottom = '0';
+        fixedBottom.style.zIndex = '10';
+        fixedBottom.style.background = 'transparent';
+        fixedBottom.style.display = 'none';
+        tableContainer.insertAdjacentElement('afterend', fixedBottom);
+      }
+      fixedTop.innerHTML = '';
+      fixedBottom.innerHTML = '';
 
-          // スクロール判定
-          function checkMyUserVisibility() {
-            const myRow = document.getElementById('my-user-row');
-            if (!myRow) return;
-            const containerRect = tableContainer.getBoundingClientRect();
-            const rowRect = myRow.getBoundingClientRect();
-            fixedTop.style.display = 'none';
-            fixedBottom.style.display = 'none';
-            // 上部
-            if (rowRect.top < containerRect.top) {
-              fixedTop.innerHTML = showMyUserRow(myUser);
-              fixedTop.style.display = '';
-            }
-            // 下部
-            else if (rowRect.bottom > containerRect.bottom) {
-              fixedBottom.innerHTML = showMyUserRow(myUser);
-              fixedBottom.style.display = '';
-            }
-          }
-
-          tableContainer.addEventListener('scroll', checkMyUserVisibility);
-          setTimeout(checkMyUserVisibility, 100);
+      // スクロール判定
+      function checkMyUserVisibility() {
+        const myRow = document.getElementById('my-user-row');
+        if (!myRow) return;
+        const containerRect = tableContainer.getBoundingClientRect();
+        const rowRect = myRow.getBoundingClientRect();
+        fixedTop.style.display = 'none';
+        fixedBottom.style.display = 'none';
+        // 上部
+        if (rowRect.top < containerRect.top) {
+          fixedTop.innerHTML = showMyUserRow(myUser);
+          fixedTop.style.display = '';
         }
+        // 下部
+        else if (rowRect.bottom > containerRect.bottom) {
+          fixedBottom.innerHTML = showMyUserRow(myUser);
+          fixedBottom.style.display = '';
+        }
+      }
 
-        document.addEventListener('DOMContentLoaded', () => {
-          const userId = 'user77';
-          window.currentMode = 'weather';
+      tableContainer.addEventListener('scroll', checkMyUserVisibility);
+      setTimeout(checkMyUserVisibility, 100);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const userId = 'user77';
+      window.currentMode = 'weather';
+      renderRanking(window.currentMode, userId);
+
+      document.querySelectorAll('.ranking-tab').forEach(tab => {
+        tab.addEventListener('click', function () {
+          document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
+          this.classList.add('active');
+          window.currentMode = this.getAttribute('data-mode');
           renderRanking(window.currentMode, userId);
-
-          document.querySelectorAll('.ranking-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-              document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
-              this.classList.add('active');
-              window.currentMode = this.getAttribute('data-mode');
-              renderRanking(window.currentMode, userId);
-            });
-          });
-
-          // --- おみくじコーナー ---
-          let omikujiStreak = 0;
-          let lastOmikuji = null;
-          const omikujiBtn = document.getElementById('omikuji-btn');
-          const omikujiResult = document.getElementById('omikuji-result');
-          const omikujiStreakDiv = document.getElementById('omikuji-streak');
-          if (omikujiBtn) {
-            omikujiBtn.addEventListener('click', () => {
-              const isWin = Math.random() < 0.5;
-              if (isWin) {
-                omikujiResult.textContent = '当たり！';
-                if (lastOmikuji === true || lastOmikuji === null) {
-                  omikujiStreak++;
-                } else {
-                  omikujiStreak = 1;
-                }
-                lastOmikuji = true;
-              } else {
-                omikujiResult.textContent = 'はずれ';
-                omikujiStreak = 0;
-                lastOmikuji = false;
-              }
-              omikujiStreakDiv.textContent = `当たり連続回数: ${omikujiStreak}回`;
-            });
-          }
-
-          // フッターのページ切り替え対応
-          document.querySelectorAll('#footer-nav .nav-button').forEach(btn => {
-            btn.addEventListener('click', function() {
-              const page = this.getAttribute('data-page');
-              document.querySelectorAll('main > section').forEach(sec => {
-                sec.classList.add('hidden');
-              });
-              document.querySelectorAll('#footer-nav .nav-button').forEach(b => b.classList.remove('active'));
-              this.classList.add('active');
-              const showSection = document.getElementById(`page-${page}`);
-              if (showSection) showSection.classList.remove('hidden');
-            });
-          });
-
-          // 天気スコアゲージ（真ん中起点・左右伸長）
-          const weatherGaugeValue = document.getElementById('weather-gauge-value');
-          const weatherGaugeBar = document.getElementById('weather-gauge-bar');
-          const weatherGaugeFill = document.getElementById('weather-gauge-fill');
-          const weatherGaugeZero = document.getElementById('weather-gauge-zero');
-          let weatherScoreRaw = Math.floor(Math.random() * 19999) - 9999;
-          if (weatherGaugeValue && weatherGaugeBar && weatherGaugeFill && weatherGaugeZero) {
-            weatherGaugeValue.textContent = weatherScoreRaw;
-            const maxAbs = 9999;
-            const barWidth = 200; // px
-            let fillWidth = Math.abs(weatherScoreRaw) / maxAbs * (barWidth / 2);
-            fillWidth = Math.min(fillWidth, barWidth / 2);
-            weatherGaugeFill.style.width = fillWidth + 'px';
-            weatherGaugeFill.style.background = getGaugeColor(weatherScoreRaw + maxAbs, 0, maxAbs * 2);
-            weatherGaugeZero.style.left = (barWidth / 2 - 1) + 'px';
-            // 方向と丸み
-            if (weatherScoreRaw >= 0) {
-              weatherGaugeFill.style.left = (barWidth / 2) + 'px';
-              weatherGaugeFill.style.right = 'auto';
-              weatherGaugeFill.classList.remove('left');
-              weatherGaugeFill.classList.add('right');
-            } else {
-              weatherGaugeFill.style.left = 'auto';
-              weatherGaugeFill.style.right = (barWidth / 2) + 'px';
-              weatherGaugeFill.classList.remove('right');
-              weatherGaugeFill.classList.add('left');
-            }
-          }
-
-          // 電車遅延率・乗り遅れ率ゲージ（ダミー値）
-          const delayGauge = document.getElementById('delay-gauge');
-          const delayGaugeValue = document.getElementById('delay-gauge-value');
-          const missedGauge = document.getElementById('missed-gauge');
-          const missedGaugeValue = document.getElementById('missed-gauge-value');
-          let delayValue = (Math.random() * 100).toFixed(2);
-          let missedValue = (Math.random() * 100).toFixed(2);
-          if (delayGauge && delayGaugeValue) {
-            delayGauge.value = delayValue;
-            delayGaugeValue.textContent = `${delayValue}%`;
-            delayGauge.style.setProperty('--gauge-color', getGaugeColor(delayValue, 0, 100));
-            delayGauge.style.background = getGaugeColor(delayValue, 0, 100);
-          }
-          if (missedGauge && missedGaugeValue) {
-            missedGauge.value = missedValue;
-            missedGaugeValue.textContent = `${missedValue}%`;
-            missedGauge.style.setProperty('--gauge-color', getGaugeColor(missedValue, 0, 100));
-            missedGauge.style.background = getGaugeColor(missedValue, 0, 100);
-          }
-
-          // ゲージ色を反映（progressタグの色はブラウザ依存のため、Webkit系でのみ色変更）
-          [weatherGauge, delayGauge, missedGauge].forEach(gauge => {
-            if (gauge) {
-              gauge.style.setProperty('accent-color', gauge.style.background);
-            }
-          });
         });
+      });
 
-        // 値に応じて青～緑～赤のグラデーション色を返す関数
-        function getGaugeColor(value, min, max) {
-          const ratio = (value - min) / (max - min);
-          let r, g, b;
-          if (ratio <= 0.5) {
-            r = Math.round(33 + (76 - 33) * (ratio / 0.5));
-            g = Math.round(150 + (175 - 150) * (ratio / 0.5));
-            b = Math.round(243 + (80 - 243) * (ratio / 0.5));
+      // --- おみくじコーナー ---
+      let omikujiStreak = 0;
+      let lastOmikuji = null;
+      const omikujiBtn = document.getElementById('omikuji-btn');
+      const omikujiResult = document.getElementById('omikuji-result');
+      const omikujiStreakDiv = document.getElementById('omikuji-streak');
+      if (omikujiBtn) {
+        omikujiBtn.addEventListener('click', () => {
+          const isWin = Math.random() < 0.5;
+          if (isWin) {
+            omikujiResult.textContent = '当たり！';
+            if (lastOmikuji === true || lastOmikuji === null) {
+              omikujiStreak++;
+            } else {
+              omikujiStreak = 1;
+            }
+            lastOmikuji = true;
           } else {
-            r = Math.round(76 + (229 - 76) * ((ratio - 0.5) / 0.5));
-            g = Math.round(175 + (57 - 175) * ((ratio - 0.5) / 0.5));
-            b = Math.round(80 + (53 - 80) * ((ratio - 0.5) / 0.5));
+            omikujiResult.textContent = 'はずれ';
+            omikujiStreak = 0;
+            lastOmikuji = false;
           }
-          return `rgb(${r},${g},${b})`;
+          omikujiStreakDiv.textContent = `当たり連続回数: ${omikujiStreak}回`;
+        });
+      }
+
+      // フッターのページ切り替え対応
+      document.querySelectorAll('#footer-nav .nav-button').forEach(btn => {
+        btn.addEventListener('click', function () {
+          const page = this.getAttribute('data-page');
+          document.querySelectorAll('main > section').forEach(sec => {
+            sec.classList.add('hidden');
+          });
+          document.querySelectorAll('#footer-nav .nav-button').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          const showSection = document.getElementById(`page-${page}`);
+          if (showSection) showSection.classList.remove('hidden');
+        });
+      });
+
+      // 天気スコアゲージ（真ん中起点・左右伸長）
+      const weatherGaugeValue = document.getElementById('weather-gauge-value');
+      const weatherGaugeBar = document.getElementById('weather-gauge-bar');
+      const weatherGaugeFill = document.getElementById('weather-gauge-fill');
+      const weatherGaugeZero = document.getElementById('weather-gauge-zero');
+      let weatherScoreRaw = Math.floor(Math.random() * 19999) - 9999;
+      if (weatherGaugeValue && weatherGaugeBar && weatherGaugeFill && weatherGaugeZero) {
+        weatherGaugeValue.textContent = weatherScoreRaw;
+        const maxAbs = 9999;
+        const barWidth = 200; // px
+        let fillWidth = Math.abs(weatherScoreRaw) / maxAbs * (barWidth / 2);
+        fillWidth = Math.min(fillWidth, barWidth / 2);
+        weatherGaugeFill.style.width = fillWidth + 'px';
+        weatherGaugeFill.style.background = getGaugeColor(weatherScoreRaw + maxAbs, 0, maxAbs * 2);
+        weatherGaugeZero.style.left = (barWidth / 2 - 1) + 'px';
+        // 方向と丸み
+        if (weatherScoreRaw >= 0) {
+          weatherGaugeFill.style.left = (barWidth / 2) + 'px';
+          weatherGaugeFill.style.right = 'auto';
+          weatherGaugeFill.classList.remove('left');
+          weatherGaugeFill.classList.add('right');
+        } else {
+          weatherGaugeFill.style.left = 'auto';
+          weatherGaugeFill.style.right = (barWidth / 2) + 'px';
+          weatherGaugeFill.classList.remove('right');
+          weatherGaugeFill.classList.add('left');
         }
+      }
 
-        // おみくじ連続回数の例文
-        const omikujiExamples = [
-          { n: 1, example: "コイン表が出る" },
-          { n: 2, example: "サイコロで偶数が出る" },
-          { n: 3, example: "ジャンケン3連勝" },
-          { n: 4, example: "4連続で信号が青" },
-          { n: 5, example: "年末ジャンボ宝くじ6等当選" },
-          { n: 6, example: "サイコロで6が2回連続" },
-          { n: 7, example: "ジャンケン7連勝" },
-          { n: 8, example: "宝くじ5等当選" },
-          { n: 9, example: "サイコロで6が3回連続" },
-          { n: 10, example: "ジャンケン10連勝" },
-          { n: 11, example: "年末ジャンボ宝くじ4等当選" },
-          { n: 12, example: "サイコロで6が4回連続" },
-          { n: 13, example: "ジャンケン13連勝" },
-          { n: 14, example: "宝くじ3等当選" },
-          { n: 15, example: "サイコロで6が5回連続" },
-          { n: 16, example: "ジャンケン16連勝" },
-          { n: 17, example: "年末ジャンボ宝くじ2等当選" },
-          { n: 18, example: "サイコロで6が6回連続" },
-          { n: 19, example: "ジャンケン19連勝" },
-          { n: 20, example: "宝くじ1等当選" }
-        ];
+      // 電車遅延率・乗り遅れ率ゲージ（ダミー値）
+      const delayGauge = document.getElementById('delay-gauge');
+      const delayGaugeValue = document.getElementById('delay-gauge-value');
+      const missedGauge = document.getElementById('missed-gauge');
+      const missedGaugeValue = document.getElementById('missed-gauge-value');
+      let delayValue = (Math.random() * 100).toFixed(2);
+      let missedValue = (Math.random() * 100).toFixed(2);
+      if (delayGauge && delayGaugeValue) {
+        delayGauge.value = delayValue;
+        delayGaugeValue.textContent = `${delayValue}%`;
+        delayGauge.style.setProperty('--gauge-color', getGaugeColor(delayValue, 0, 100));
+        delayGauge.style.background = getGaugeColor(delayValue, 0, 100);
+      }
+      if (missedGauge && missedGaugeValue) {
+        missedGauge.value = missedValue;
+        missedGaugeValue.textContent = `${missedValue}%`;
+        missedGauge.style.setProperty('--gauge-color', getGaugeColor(missedValue, 0, 100));
+        missedGauge.style.background = getGaugeColor(missedValue, 0, 100);
+      }
 
-        function getOmikujiExample(n) {
-          const found = omikujiExamples.find(e => e.n === n);
-          if (found) return found.example;
-          if (n <= 0) return "";
-          return "超レア現象";
+      // ゲージ色を反映（progressタグの色はブラウザ依存のため、Webkit系でのみ色変更）
+      [weatherGauge, delayGauge, missedGauge].forEach(gauge => {
+        if (gauge) {
+          gauge.style.setProperty('accent-color', gauge.style.background);
         }
+      });
+    });
 
-        function renderOmikujiTable(streak) {
-          const tbody = document.getElementById('omikuji-table-body');
-          tbody.innerHTML = '';
-          // 5枠表示、streakが2なら1~5、streakが5なら4~8
-          let start = Math.max(1, streak - 1);
-          let end = start + 4;
-          for (let i = start; i <= end; i++) {
-            const prob = Math.pow(0.5, i);
-            const probStr = prob < 0.0001 ? prob.toExponential(2) : (prob * 100).toFixed(4) + "%";
-            const example = getOmikujiExample(i);
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
+    // 値に応じて青～緑～赤のグラデーション色を返す関数
+    function getGaugeColor(value, min, max) {
+      const ratio = (value - min) / (max - min);
+      let r, g, b;
+      if (ratio <= 0.5) {
+        r = Math.round(33 + (76 - 33) * (ratio / 0.5));
+        g = Math.round(150 + (175 - 150) * (ratio / 0.5));
+        b = Math.round(243 + (80 - 243) * (ratio / 0.5));
+      } else {
+        r = Math.round(76 + (229 - 76) * ((ratio - 0.5) / 0.5));
+        g = Math.round(175 + (57 - 175) * ((ratio - 0.5) / 0.5));
+        b = Math.round(80 + (53 - 80) * ((ratio - 0.5) / 0.5));
+      }
+      return `rgb(${r},${g},${b})`;
+    }
+
+    // おみくじ連続回数の例文
+    const omikujiExamples = [
+      { n: 1, example: "コイン表が出る" },
+      { n: 2, example: "サイコロで偶数が出る" },
+      { n: 3, example: "ジャンケン3連勝" },
+      { n: 4, example: "4連続で信号が青" },
+      { n: 5, example: "年末ジャンボ宝くじ6等当選" },
+      { n: 6, example: "サイコロで6が2回連続" },
+      { n: 7, example: "ジャンケン7連勝" },
+      { n: 8, example: "宝くじ5等当選" },
+      { n: 9, example: "サイコロで6が3回連続" },
+      { n: 10, example: "ジャンケン10連勝" },
+      { n: 11, example: "年末ジャンボ宝くじ4等当選" },
+      { n: 12, example: "サイコロで6が4回連続" },
+      { n: 13, example: "ジャンケン13連勝" },
+      { n: 14, example: "宝くじ3等当選" },
+      { n: 15, example: "サイコロで6が5回連続" },
+      { n: 16, example: "ジャンケン16連勝" },
+      { n: 17, example: "年末ジャンボ宝くじ2等当選" },
+      { n: 18, example: "サイコロで6が6回連続" },
+      { n: 19, example: "ジャンケン19連勝" },
+      { n: 20, example: "宝くじ1等当選" }
+    ];
+
+    function getOmikujiExample(n) {
+      const found = omikujiExamples.find(e => e.n === n);
+      if (found) return found.example;
+      if (n <= 0) return "";
+      return "超レア現象";
+    }
+
+    function renderOmikujiTable(streak) {
+      const tbody = document.getElementById('omikuji-table-body');
+      tbody.innerHTML = '';
+      // 5枠表示、streakが2なら1~5、streakが5なら4~8
+      let start = Math.max(1, streak - 1);
+      let end = start + 4;
+      for (let i = start; i <= end; i++) {
+        const prob = Math.pow(0.5, i);
+        const probStr = prob < 0.0001 ? prob.toExponential(2) : (prob * 100).toFixed(4) + "%";
+        const example = getOmikujiExample(i);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
               <td style="padding:6px;">${i}回</td>
               <td style="padding:6px;">${probStr}</td>
               <td style="padding:6px;">${example}</td>
             `;
-            // 現在の連続回数は強調
-            if (i === streak) {
-              tr.style.background = "#fffde7";
-              tr.style.fontWeight = "bold";
-            }
-            tbody.appendChild(tr);
-          }
+        // 現在の連続回数は強調
+        if (i === streak) {
+          tr.style.background = "#fffde7";
+          tr.style.fontWeight = "bold";
         }
+        tbody.appendChild(tr);
+      }
+    }
 
-        document.addEventListener('DOMContentLoaded', () => {
-          // ...existing code...
-          let omikujiStreak = 0;
-          let lastOmikuji = null;
-          const omikujiBtn = document.getElementById('omikuji-btn');
-          const omikujiResult = document.getElementById('omikuji-result');
-          const omikujiStreakDiv = document.getElementById('omikuji-streak');
-          if (omikujiBtn) {
-            omikujiBtn.addEventListener('click', () => {
-              const isWin = Math.random() < 0.5;
-              if (isWin) {
-                omikujiResult.textContent = '当たり！';
-                if (lastOmikuji === true || lastOmikuji === null) {
-                  omikujiStreak++;
-                } else {
-                  omikujiStreak = 1;
-                }
-                lastOmikuji = true;
-              } else {
-                omikujiResult.textContent = 'はずれ';
-                omikujiStreak = 0;
-                lastOmikuji = false;
-              }
-              omikujiStreakDiv.textContent = `当たり連続回数: ${omikujiStreak}回`;
-              renderOmikujiTable(omikujiStreak);
-            });
-            // 初期表示
-            renderOmikujiTable(omikujiStreak);
+    document.addEventListener('DOMContentLoaded', () => {
+      // ...existing code...
+      let omikujiStreak = 0;
+      let lastOmikuji = null;
+      const omikujiBtn = document.getElementById('omikuji-btn');
+      const omikujiResult = document.getElementById('omikuji-result');
+      const omikujiStreakDiv = document.getElementById('omikuji-streak');
+      if (omikujiBtn) {
+        omikujiBtn.addEventListener('click', () => {
+          const isWin = Math.random() < 0.5;
+          if (isWin) {
+            omikujiResult.textContent = '当たり！';
+            if (lastOmikuji === true || lastOmikuji === null) {
+              omikujiStreak++;
+            } else {
+              omikujiStreak = 1;
+            }
+            lastOmikuji = true;
+          } else {
+            omikujiResult.textContent = 'はずれ';
+            omikujiStreak = 0;
+            lastOmikuji = false;
           }
-          // ...existing code...
+          omikujiStreakDiv.textContent = `当たり連続回数: ${omikujiStreak}回`;
+          renderOmikujiTable(omikujiStreak);
         });
-        // ...existing code...
+        // 初期表示
+        renderOmikujiTable(omikujiStreak);
+      }
+      // ...existing code...
+    });
+    // ...existing code...
   </script>
-      <style>
-        #ranking-table-container {
-          max-height: 400px;
-          overflow-y: auto;
-          position: relative;
-        }
-        #my-user-fixed-top, #my-user-fixed-bottom {
-          width: 100%;
-        }
-        /* ゲージ色対応（Webkit系のみ） */
-        progress[value]::-webkit-progress-bar {
-          background-color: #eee;
-          border-radius: 10px;
-        }
-        progress[value]::-webkit-progress-value {
-          background: var(--gauge-color, #2196f3);
-          border-radius: 10px;
-        }
-        progress[value] {
-          border-radius: 10px;
-          overflow: hidden;
-        }
-        /* 天気スコア中央起点ゲージ */
-        .center-gauge-bar {
-          position: relative;
-          width: 200px;
-          height: 20px;
-          background: #eee;
-          border-radius: 10px;
-          margin: 0 0 0 0;
-          display: inline-block;
-        }
-        #weather-gauge-fill {
-          position: absolute;
-          top: 0;
-          height: 20px;
-          /* 両端は丸み、中心側は直線 */
-          border-top-left-radius: 0;
-          border-bottom-left-radius: 0;
-          border-top-right-radius: 0;
-          border-bottom-right-radius: 0;
-        }
-        #weather-gauge-fill.right {
-          border-top-right-radius: 10px;
-          border-bottom-right-radius: 10px;
-        }
-        #weather-gauge-fill.left {
-          border-top-left-radius: 10px;
-          border-bottom-left-radius: 10px;
-        }
-        #weather-gauge-zero {
-          position: absolute;
-          top: 0;
-          width: 2px;
-          height: 20px;
-          background: #888;
-          border-radius: 0;
-        }
-      </style>
+  <style>
+    #ranking-table-container {
+      max-height: 400px;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    #my-user-fixed-top,
+    #my-user-fixed-bottom {
+      width: 100%;
+    }
+
+    /* ゲージ色対応（Webkit系のみ） */
+    progress[value]::-webkit-progress-bar {
+      background-color: #eee;
+      border-radius: 10px;
+    }
+
+    progress[value]::-webkit-progress-value {
+      background: var(--gauge-color, #2196f3);
+      border-radius: 10px;
+    }
+
+    progress[value] {
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    /* 天気スコア中央起点ゲージ */
+    .center-gauge-bar {
+      position: relative;
+      width: 200px;
+      height: 20px;
+      background: #eee;
+      border-radius: 10px;
+      margin: 0 0 0 0;
+      display: inline-block;
+    }
+
+    #weather-gauge-fill {
+      position: absolute;
+      top: 0;
+      height: 20px;
+      /* 両端は丸み、中心側は直線 */
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    #weather-gauge-fill.right {
+      border-top-right-radius: 10px;
+      border-bottom-right-radius: 10px;
+    }
+
+    #weather-gauge-fill.left {
+      border-top-left-radius: 10px;
+      border-bottom-left-radius: 10px;
+    }
+
+    #weather-gauge-zero {
+      position: absolute;
+      top: 0;
+      width: 2px;
+      height: 20px;
+      background: #888;
+      border-radius: 0;
+    }
+  </style>
 </body>
 
 </html>

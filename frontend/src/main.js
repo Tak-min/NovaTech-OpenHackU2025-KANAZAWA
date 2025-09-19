@@ -50,8 +50,11 @@ function showPage(pageId) {
     showHeaderImage(null);
   } else {
     footerNav.classList.remove('hidden');
-    // フッターが表示されるタイミングでアイコンのエラーハンドリングを設定
-    setTimeout(() => setupFooterIconErrorHandling(), 100);
+    // フッターが表示されるタイミングでアイコンのsrcを再設定し、エラーハンドリングを設定
+    setTimeout(() => {
+      ensureFooterIconPaths();
+      setupFooterIconErrorHandling();
+    }, 100);
   }
 
   // ヘッダー画像の切り替え
@@ -95,7 +98,7 @@ function showHeaderImage(type) {
     home: '/img/header-home.png',
     map: '/img/header-map.png',
     ranking: '/img/header-ranking.png',
-    settings: '/img/header-settings.png',
+    settings: '/img/header-setting.png',
   };
 
   if (type && images[type]) {
@@ -138,6 +141,10 @@ function setupFooterIconErrorHandling() {
   const footerIcons = document.querySelectorAll('#footer-nav .icon');
 
   footerIcons.forEach(icon => {
+    // 既存のイベントリスナーをクリア
+    icon.onerror = null;
+    icon.onload = null;
+
     icon.onerror = function() {
       console.error(`フッターアイコンの読み込みに失敗しました: ${this.src}`);
       // 画像読み込み失敗時はアイコンを非表示にしてテキストのみ表示
@@ -148,14 +155,47 @@ function setupFooterIconErrorHandling() {
         if (span) {
           span.style.fontSize = '14px';
           span.style.fontWeight = 'bold';
+          span.style.color = '#333'; // テキストを目立たせる
         }
+        // ボタンのスタイルも調整
+        button.style.flexDirection = 'column';
+        button.style.alignItems = 'center';
+        button.style.justifyContent = 'center';
+        button.style.padding = '8px';
       }
     };
 
     icon.onload = function() {
       console.log(`フッターアイコンを正常に読み込みました: ${this.src}`);
+      // 正常に読み込まれた場合は表示を確実に有効化
       this.style.display = 'block';
+      const button = this.parentElement;
+      if (button) {
+        const span = button.querySelector('span');
+        if (span) {
+          span.style.fontSize = ''; // デフォルトに戻す
+          span.style.fontWeight = '';
+          span.style.color = '';
+        }
+        // ボタンのスタイルもデフォルトに戻す
+        button.style.flexDirection = '';
+        button.style.alignItems = '';
+        button.style.justifyContent = '';
+        button.style.padding = '';
+      }
     };
+
+    // 画像の読み込み状態を強制的に確認
+    if (icon.complete) {
+      if (icon.naturalHeight === 0) {
+        // 画像が壊れている場合
+        console.warn(`フッターアイコンが壊れています: ${icon.src}`);
+        icon.onerror();
+      } else {
+        // 正常に読み込まれている場合
+        console.log(`フッターアイコンは既に読み込まれています: ${icon.src}`);
+      }
+    }
   });
 }
 

@@ -320,7 +320,7 @@ input[type="radio"] {
   /* 中央寄せ */
   max-width: 80%;
   /* 幅を制限 */
-  height: 90%;
+  height: 150%;
 }
 
 /* Footer */
@@ -383,7 +383,7 @@ footer button[data-page="ranking"].active img.icon {
 }
 
 footer button[data-page="settings"].active img.icon {
-  content: url('img/settings-yellow.png');
+  content: url('img/setting-yellow.png');
 }
 
 /* 背景画像のコンテナ */
@@ -623,11 +623,18 @@ textarea {
   flex: 1;
   display: flex;
   flex-direction: column;
+<<<<<<< HEAD
   gap: 10px;
   min-width: 200px;
   margin-top: 1rem;
   margin-left: -20px;
+=======
+  gap: 15px;
+  /* min-width: 200px; */
+  max-width: 100px;
+>>>>>>> be164f444443955b57d31e7bdff264367d074728
 }
+
 
 .introduce-container textarea {
   padding: 12px;
