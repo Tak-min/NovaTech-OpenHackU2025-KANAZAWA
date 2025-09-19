@@ -268,7 +268,7 @@ const createTables = async () => {
                 email VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 gender VARCHAR(10), -- 性別を追加
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 missed_train_count INTEGER DEFAULT 0,
                 last_missed_train_at TIMESTAMP WITH TIME ZONE
             );
@@ -283,6 +283,26 @@ const createTables = async () => {
             console.log('Gender column added or already exists.');
         } catch (alterError) {
             console.log('Gender column alter attempted:', alterError.message);
+        }
+
+        // 既存テーブルにmissed_train_countカラムが存在しない場合、追加
+        try {
+            await client.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS missed_train_count INTEGER DEFAULT 0;
+            `);
+            console.log('missed_train_count column added or already exists.');
+        } catch (alterError) {
+            console.log('missed_train_count column alter attempted:', alterError.message);
+        }
+
+        // 既存テーブルにlast_missed_train_atカラムが存在しない場合、追加
+        try {
+            await client.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS last_missed_train_at TIMESTAMP WITH TIME ZONE;
+            `);
+            console.log('last_missed_train_at column added or already exists.');
+        } catch (alterError) {
+            console.log('last_missed_train_at column alter attempted:', alterError.message);
         }
 
         console.log('Creating locations table...');
@@ -421,8 +441,15 @@ app.post('/log-location', authenticateToken, async (req, res) => {
         const apiKey = process.env.WEATHER_API_KEY;
         const apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}`;
 
+        console.log('天気APIリクエスト開始:', { latitude, longitude, apiUrl: apiUrl.replace(apiKey, '***') });
         const weatherResponse = await axios.get(apiUrl);
         const weatherData = weatherResponse.data;
+        console.log('天気APIレスポンス受信:', {
+            city: weatherData.name,
+            weatherCode: weatherData.weather[0].id,
+            description: weatherData.weather[0].description,
+            temperature: weatherData.main.temp
+        });
 
         // OpenWeatherMapの天候コードから、アプリ内のカテゴリに変換
         // https://openweathermap.org/weather-conditions
@@ -444,12 +471,15 @@ app.post('/log-location', authenticateToken, async (req, res) => {
             weather = 'unknown'; // 不明
         }
 
+        console.log('天気カテゴリ変換完了:', { weatherCode, weather, city: weatherData.name });
+
         // データベースに位置情報と天気を保存
         const logQuery = `
       INSERT INTO locations (user_id, geom, weather, recorded_at)
       VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), $4, NOW())
     `;
         await pool.query(logQuery, [userId, longitude, latitude, weather]);
+        console.log('位置情報と天気情報をデータベースに保存完了:', { userId, latitude, longitude, weather });
 
         res.status(201).json({
             message: '位置情報を記録しました',
@@ -479,14 +509,17 @@ app.get('/status', authenticateToken, async (req, res) => {
 
         //乗り遅れ計算ロジック
         const userResult = await pool.query("SELECT missed_train_count FROM users WHERE id = $1", [userId]);
-        const missedTrainCount = userResult.rows[0].missed_train_count;
+        console.log('User query result:', userResult.rows);
+        console.log('missed_train_count from DB:', userResult.rows[0]?.missed_train_count);
+        const missedTrainCount = userResult.rows[0]?.missed_train_count || 0;
+        console.log('Final missedTrainCount:', missedTrainCount);
 
         // 天気ごとのスコアを定義
         const scores = {
             'sunny': 1,
             'cloudy': 0.5,
             'rainy': -1,
-            'snowy': 2, // 雪は少しレアなので高めのプラススコア
+            'snowy': -2, // 雪は少しレアなので高めのプラススコア
             'thunderstorm': -3, // 雷は影響が大きいのでマイナススコア
             'stormy': -2,
         };
