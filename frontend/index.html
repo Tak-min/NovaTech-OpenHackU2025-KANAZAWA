@@ -182,7 +182,10 @@
     <img src="img/setting.png" alt="設定" class="icon">
     <span>設定</span>
   </button>
-
+  <button data-page="omikuji" class="nav-button">
+    <img src="img/omikuji.png" alt="おみくじ" class="icon">
+    <span>おみくじ</span>
+  </button>
       <div id="footer-img-container" class="footer-home-img">
         <img id="footer-img" src="img/footer-4-1.png" alt="フッター画像">
       </div>
@@ -375,6 +378,20 @@
               omikujiStreakDiv.textContent = `当たり連続回数: ${omikujiStreak}回`;
             });
           }
+
+          // フッターのページ切り替え対応
+          document.querySelectorAll('#footer-nav .nav-button').forEach(btn => {
+            btn.addEventListener('click', function() {
+              const page = this.getAttribute('data-page');
+              document.querySelectorAll('main > section').forEach(sec => {
+                sec.classList.add('hidden');
+              });
+              document.querySelectorAll('#footer-nav .nav-button').forEach(b => b.classList.remove('active'));
+              this.classList.add('active');
+              const showSection = document.getElementById(`page-${page}`);
+              if (showSection) showSection.classList.remove('hidden');
+            });
+          });
         });
       </script>
       <style>
