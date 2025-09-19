@@ -11,8 +11,11 @@
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap"
+    rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap"
+    rel="stylesheet">
 </head>
 
 <body>
@@ -46,14 +49,14 @@
           <label for="register-password">パスワード</label>
           <input id="register-password" type="password" placeholder="パスワード" required>
           <label for="register-gender">性別</label>
-            <div class="gender-group">
-              <label class="gender-option">
-                <span class="gender-text">男性</span><input type="radio" name="gender" value="male" required>
-              </label>  
-              <label class="gender-option">
-                <span class="gender-text">女性</span><input type="radio" name="gender" value="female" required>
-              </label>
-            </div>
+          <div class="gender-group">
+            <label class="gender-option">
+              <span class="gender-text">男性</span><input type="radio" name="gender" value="male" required>
+            </label>
+            <label class="gender-option">
+              <span class="gender-text">女性</span><input type="radio" name="gender" value="female" required>
+            </label>
+          </div>
 
           <button type="submit" class="main-btn">新規登録</button>
           <button id="show-login-button" type="button" class="link-btn">ログインはこちら</button>
@@ -64,6 +67,23 @@
         <p>あなたは今・・・</p>
         <h2 id="status-text">判定中...</h2>
         <img id="status-image" src="https://placehold.jp/150x150.png?text=..." alt="判定イラスト">
+        <p id="missed-train-counter" class="jinx-counter">電車に乗り遅れた回数 : ...回</p>
+        <div style="margin-top:16px;">
+          <div>
+            <label for="weather-gauge" style="font-weight:bold;">天気スコア </label>
+            <div id="weather-gauge-bar" class="center-gauge-bar">
+              <div id="weather-gauge-fill"></div>
+              <div id="weather-gauge-zero"></div>
+            </div>
+            <span id="weather-gauge-value" style="margin-left:8px;">--</span>
+          </div>
+          <div style="margin-top:12px;">
+            <label for="missed-gauge" style="font-weight:bold;">電車乗り遅れ率</label>
+            <progress id="missed-gauge" value="0" max="100"
+              style="width:200px; height:20px; vertical-align:middle; background:transparent; border-radius:10px;"></progress>
+            <span id="missed-gauge-value" style="margin-left:8px;">--%</span>
+          </div>
+        </div>
       </section>
 
       <section id="page-map" class="hidden">
@@ -75,9 +95,8 @@
 
       <section id="page-ranking" class="hidden">
         <div id="ranking-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
-          <button class="ranking-tab active" data-mode="weather">天気モード</button>
-          <button class="ranking-tab" data-mode="delay">電車遅延率モード</button>
-          <button class="ranking-tab" data-mode="missed">電車乗り遅れ率モード</button>
+          <button class="ranking-tab active" data-mode="weather">天気スコア</button>
+          <button class="ranking-tab" data-mode="missed">電車乗り遅れ率</button>
         </div>
         <div id="ranking-table-container">
           <table id="ranking-table" style="width: 100%; border-collapse: collapse;">
@@ -89,7 +108,9 @@
               </tr>
             </thead>
             <tbody id="ranking-table-body">
-              <tr><td colspan="3" style="padding: 16px; text-align: center;">ランキングを読み込み中...</td></tr>
+              <tr>
+                <td colspan="3" style="padding: 16px; text-align: center;">ランキングを読み込み中...</td>
+              </tr>
             </tbody>
           </table>
           <div style="margin-top: 16px; font-size: 0.9em; color: #888;">
@@ -98,7 +119,7 @@
         </div>
       </section>
 
-      <section id="page-setting" class="hidden">
+      <section id="page-settings" class="hidden">
         <div class="settings-layout">
 
           <!-- 左側：アイコン設定 -->
@@ -113,16 +134,9 @@
               <button class="select-btn" onclick="document.getElementById('iconInput').click()">
                 📷 アイコン
               </button>
-              <button id="saveBtn" class="save-btn">保存</button>
-              <button id="resetBtn" class="reset-btn">リセット</button>
+              <button id="resetBtn" class="reset-btn">アイコンをリセット</button>
+              <button id="saveBtn" class="save-btn">自己紹介を保存</button>
             </div>
-
-            <div id="imageInfo" class="image-info">
-              <div id="fileName"></div>
-              <div id="fileSize"></div>
-              <div id="imageDimensions"></div>
-            </div>
-
           </div>
 
           <div class="introduce-container">
@@ -133,14 +147,14 @@
         </div>
 
         <div class="settings-container">
-          <div class="setting-item">
+          <div class="settings-item">
             <span>通知設定</span>
             <label class="switch">
               <input type="checkbox" id="notification-switch" checked>
               <span class="slider round"></span>
             </label>
           </div>
-          <div class="setting-item">
+          <div class="settings-item">
             <span>位置情報許可</span>
             <label class="switch">
               <input type="checkbox" id="location-switch">
@@ -149,108 +163,35 @@
           </div>
         </div>
 
-        <div class="email-password-setting">
+        <div class="email-password-settings">
           <span>メールアドレス・パスワードの設定</span>
           <button class="change-button">変更</button>
         </div>
       </section>
-
     </main>
+
     <footer id="footer-nav" class="hidden">
-  <button data-page="home" class="nav-button active">
-    <img src="img/home.png" alt="ホーム" class="icon">
-    <span>ホーム</span>
-  </button>
-  <button data-page="map" class="nav-button">
-    <img src="img/map.png" alt="マップ" class="icon">
-    <span>マップ</span>
-  </button>
-  <button data-page="ranking" class="nav-button">
-    <img src="img/ranking.png" alt="ランキング" class="icon">
-    <span>ランキング</span>
-  </button>
-  <button data-page="setting" class="nav-button">
-    <img src="img/setting.png" alt="設定" class="icon">
-    <span>設定</span>
-  </button>
-
+      <button data-page="home" class="nav-button active">
+        <img src="/img/home.png" alt="ホーム" class="icon">
+        <span>ホーム</span>
+      </button>
+      <button data-page="map" class="nav-button">
+        <img src="/img/map.png" alt="マップ" class="icon">
+        <span>マップ</span>
+      </button>
+      <button data-page="ranking" class="nav-button">
+        <img src="/img/ranking.png" alt="ランキング" class="icon">
+        <span>ランキング</span>
+      </button>
+      <button data-page="settings" class="nav-button">
+        <img src="/img/settings.png" alt="設定" class="icon">
+        <span>設定</span>
+      </button>
       <div id="footer-img-container" class="footer-home-img">
-        <img id="footer-img" src="img/footer-4-1.png" alt="フッター画像">
+        <img id="footer-img" src="/img/footer-4-1.png" alt="フッター画像">
       </div>
-
     </footer>
   </div>
-
-  <script type="module" src="/src/main.js?v=1.1"></script>
-  <script>
-        // --- ランキング画面のUI制御 ---
-        const modeLabels = {
-          weather: '天気スコア',
-          delay: '電車遅延率',
-          missed: '電車乗り遅れ率'
-        };
-
-        function generateDummyRanking(mode, userId) {
-          const ranking = Array.from({ length: 100 }, (_, i) => ({
-            rank: i + 1,
-            username: `ユーザー${i + 1}`,
-            score: mode === 'weather'
-              ? Math.floor(Math.random() * 2000)
-              : (Math.random() * 100).toFixed(2),
-            userId: `user${i + 1}`
-          }));
-          const myRank = 77;
-          const myUser = {
-            rank: myRank,
-            username: '自分',
-            score: mode === 'weather'
-              ? Math.floor(Math.random() * 2000)
-              : (Math.random() * 100).toFixed(2),
-            userId
-          };
-          const top50 = ranking.slice(0, 50);
-          const exists = top50.some(u => u.userId === userId);
-          return exists ? top50 : [...top50, myUser];
-        }
-
-        function renderRanking(mode, userId) {
-          const ranking = generateDummyRanking(mode, userId);
-          const tbody = document.getElementById('ranking-table-body');
-          const scoreHeader = document.getElementById('ranking-score-header');
-          scoreHeader.textContent = modeLabels[mode];
-          tbody.innerHTML = '';
-          ranking.forEach(user => {
-            const tr = document.createElement('tr');
-            if (user.userId === userId) {
-              tr.style.background = '#fffde7';
-              tr.style.fontWeight = 'bold';
-            }
-            tr.innerHTML = `
-              <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${user.rank}</td>
-              <td style="border-bottom:1px solid #eee; padding:8px;">${user.username}</td>
-              <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">
-                ${user.score}${mode !== 'weather' ? '％' : ''}
-              </td>
-            `;
-            tbody.appendChild(tr);
-          });
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-          const userId = 'user77'; // 仮の自分のID
-          let currentMode = 'weather';
-          renderRanking(currentMode, userId);
-
-          document.querySelectorAll('.ranking-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-              document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
-              this.classList.add('active');
-              currentMode = this.getAttribute('data-mode');
-              renderRanking(currentMode, userId);
-            });
-          });
-        });
-      </script>
 </body>
 
 </html>
