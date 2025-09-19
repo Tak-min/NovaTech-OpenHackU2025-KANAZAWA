@@ -192,30 +192,33 @@
 
         // ダミーデータ生成（70件、ユーザ名: ダミー1番～ダミー70番）
         function generateDummyRanking(mode, userId) {
+          // ダミーユーザー生成
           let ranking = Array.from({ length: 70 }, (_, i) => ({
-            rank: i + 1,
             username: `ダミー${i + 1}番`,
             score: mode === 'weather'
               ? Math.floor(Math.random() * 2000)
               : (Math.random() * 100).toFixed(2),
             userId: `dummy${i + 1}`
           }));
-          const myRank = 35;
+          // 自分のスコアもランダム生成
+          const myScore = mode === 'weather'
+            ? Math.floor(Math.random() * 2000)
+            : (Math.random() * 100).toFixed(2);
           const myUser = {
-            rank: myRank,
             username: '自分',
-            score: mode === 'weather'
-              ? Math.floor(Math.random() * 2000)
-              : (Math.random() * 100).toFixed(2),
-            userId
+            score: myScore,
+            userId: userId
           };
+          // 自分を追加
+          ranking.push(myUser);
+          // 並べ替え（天気モードのみスコア降順）
           if (mode === 'weather') {
             ranking.sort((a, b) => b.score - a.score);
-            ranking.forEach((user, idx) => user.rank = idx + 1);
+          } else {
+            ranking.sort((a, b) => b.score - a.score);
           }
-          const idx = ranking.findIndex(u => u.rank === myRank);
-          if (idx !== -1) ranking[idx] = myUser;
-          else ranking.push(myUser);
+          // 順位付与
+          ranking.forEach((user, idx) => user.rank = idx + 1);
           return ranking;
         }
 
@@ -262,9 +265,10 @@
           const myRow = Array.from(tbody.children).find(tr => tr.getAttribute('data-userid') === userId);
           if (myRow) myRow.setAttribute('id', 'my-user-row');
 
-          // 固定表示用の領域を追加
+          // 固定表示用の領域をテーブル外に設置
           let fixedTop = document.getElementById('my-user-fixed-top');
           let fixedBottom = document.getElementById('my-user-fixed-bottom');
+          const tableContainer = document.getElementById('ranking-table-container');
           if (!fixedTop) {
             fixedTop = document.createElement('div');
             fixedTop.id = 'my-user-fixed-top';
@@ -273,7 +277,7 @@
             fixedTop.style.zIndex = '10';
             fixedTop.style.background = 'transparent';
             fixedTop.style.display = 'none';
-            tbody.parentNode.parentNode.insertAdjacentElement('beforebegin', fixedTop);
+            tableContainer.insertAdjacentElement('beforebegin', fixedTop);
           }
           if (!fixedBottom) {
             fixedBottom = document.createElement('div');
@@ -283,13 +287,12 @@
             fixedBottom.style.zIndex = '10';
             fixedBottom.style.background = 'transparent';
             fixedBottom.style.display = 'none';
-            tbody.parentNode.parentNode.insertAdjacentElement('afterend', fixedBottom);
+            tableContainer.insertAdjacentElement('afterend', fixedBottom);
           }
           fixedTop.innerHTML = '';
           fixedBottom.innerHTML = '';
 
           // スクロール判定
-          const tableContainer = document.getElementById('ranking-table-container');
           function checkMyUserVisibility() {
             const myRow = document.getElementById('my-user-row');
             if (!myRow) return;
@@ -297,12 +300,13 @@
             const rowRect = myRow.getBoundingClientRect();
             fixedTop.style.display = 'none';
             fixedBottom.style.display = 'none';
+            // 上部
             if (rowRect.top < containerRect.top) {
-              // 画面上部に表示
               fixedTop.innerHTML = showMyUserRow(myUser);
               fixedTop.style.display = '';
-            } else if (rowRect.bottom > containerRect.bottom) {
-              // 画面下部に表示
+            }
+            // 下部
+            else if (rowRect.bottom > containerRect.bottom) {
               fixedBottom.innerHTML = showMyUserRow(myUser);
               fixedBottom.style.display = '';
             }
