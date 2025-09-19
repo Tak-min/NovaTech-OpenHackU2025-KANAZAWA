@@ -70,14 +70,14 @@ let statusEmojis = {
 
 // 称号に応じた画像を定義
 let statusImages = {
-  '太陽神': './img/pin-big-sunny.png',
-  '晴れ男': './img/pin-sunny.PNG',
-  '晴れ女': './img/pin-sunny.PNG',
+  '太陽神': './img/map-very-yellow.png',
+  '晴れ男': './img/pin-sunny.png',
+  '晴れ女': './img/pin-sunny.png',
   '凡人': './img/map.png',
-  '雨男': './img/pin-rainy.PNG',
-  '雨女': './img/map-snow.PNG',
+  '雨男': './img/pin-rainy.png',
+  '雨女': './img/pin-rainy.png',
   '嵐を呼ぶ者': './img/map-kaze.png',
-  'unknown': './img/map-normal.png'
+  'unknown': './img/map.png'
 };
 
 // 天気に応じたマーカーの色を定義（後方互換のため残す）
