@@ -812,9 +812,10 @@ function initializeMap() {
     return;
   }
 
+  //latitude: 36.57806, longitude: 136.64789
   console.log('Initializing map for the first time.');
   // 初回のみマップを初期化
-  leafletMap = L.map(container).setView([35.681236, 139.767125], 13); // 初期中心を東京駅に設定
+  leafletMap = L.map(container).setView([36.57806, 136.64789], 13); // 初期中心を金沢に設定
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
