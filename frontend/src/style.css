@@ -330,8 +330,8 @@ footer {
   grid-template-columns: repeat(4, 1fr);
   text-align: center;
   padding: 0.5rem 0;
-  border-top: 1px solid #e5e7eb;
-  background-color: #fff;
+  border-top: none;
+  background-color: transparent;
   gap: 10px;
   position: relative;
   z-index: 1; /* 画像の上に表示 */
