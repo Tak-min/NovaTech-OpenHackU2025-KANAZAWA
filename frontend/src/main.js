@@ -50,6 +50,8 @@ function showPage(pageId) {
     showHeaderImage(null);
   } else {
     footerNav.classList.remove('hidden');
+    // フッターが表示されるタイミングでアイコンのエラーハンドリングを設定
+    setTimeout(() => setupFooterIconErrorHandling(), 100);
   }
 
   // ヘッダー画像の切り替え
@@ -97,6 +99,18 @@ function showHeaderImage(type) {
   };
 
   if (type && images[type]) {
+    // 画像読み込み前に現在のsrcをクリア
+    headerImg.src = '';
+    headerImg.onerror = function() {
+      console.error(`ヘッダー画像の読み込みに失敗しました: ${images[type]}`);
+      // 画像読み込み失敗時はタイトルを表示
+      headerImgContainer.style.display = 'none';
+      headerTitle.style.display = 'block';
+      headerTitle.textContent = getPageTitle(type);
+    };
+    headerImg.onload = function() {
+      console.log(`ヘッダー画像を正常に読み込みました: ${images[type]}`);
+    };
     headerImg.src = images[type];
     headerImgContainer.style.display = 'block';
     headerTitle.style.display = 'none';
@@ -106,6 +120,43 @@ function showHeaderImage(type) {
     headerTitle.style.display = 'block';
     console.log('ヘッダー画像を非表示にして、タイトルを表示しました');
   }
+}
+
+// ページタイプからタイトルを取得するヘルパー関数
+function getPageTitle(type) {
+  const titles = {
+    home: 'ホーム',
+    map: 'マップ',
+    ranking: 'ランキング',
+    setting: '設定'
+  };
+  return titles[type] || 'Hare/Ame';
+}
+
+// フッターアイコンの読み込みエラーを処理する関数
+function setupFooterIconErrorHandling() {
+  const footerIcons = document.querySelectorAll('#footer-nav .icon');
+
+  footerIcons.forEach(icon => {
+    icon.onerror = function() {
+      console.error(`フッターアイコンの読み込みに失敗しました: ${this.src}`);
+      // 画像読み込み失敗時はアイコンを非表示にしてテキストのみ表示
+      this.style.display = 'none';
+      const button = this.parentElement;
+      if (button) {
+        const span = button.querySelector('span');
+        if (span) {
+          span.style.fontSize = '14px';
+          span.style.fontWeight = 'bold';
+        }
+      }
+    };
+
+    icon.onload = function() {
+      console.log(`フッターアイコンを正常に読み込みました: ${this.src}`);
+      this.style.display = 'block';
+    };
+  });
 }
 
 // (startLocationTracking, stopLocationTracking, registerForm logic... is unchanged)
@@ -254,14 +305,23 @@ async function checkLoginStatus() {
 
 async function updateHomePageStatus() {
   const token = localStorage.getItem('token');
-  if (!token) return;
+  if (!token) {
+    console.log('updateHomePageStatus: トークンなし');
+    return;
+  }
+
+  console.log('updateHomePageStatus: ステータス取得開始');
   try {
     const response = await fetch(`${API_BASE}/status`, {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
     });
+
+    console.log('updateHomePageStatus: レスポンス受信', response.status);
+
     if (response.ok) {
       const data = await response.json();
+      console.log('updateHomePageStatus: 取得したデータ', data);
 
       const statusTextElement = document.getElementById('status-text');
       const statusImageElement = document.getElementById('status-image');
@@ -275,9 +335,17 @@ async function updateHomePageStatus() {
       };
       const emoji = statusVisuals[data.status] || statusVisuals['デフォルト'];
       statusImageElement.src = `https://placehold.jp/150x150.png?text=${encodeURIComponent(emoji)}`;
+
+      const missedTrainCounter = document.getElementById('missed-train-counter');
+      missedTrainCounter.textContent = `電車に乗り遅れた回数: ${data.missedTrainCount}回`;
+
+      console.log('updateHomePageStatus: 電車の乗り遅れ回数', data.missedTrainCount);
+      console.log('updateHomePageStatus: ステータス更新完了');
+    } else {
+      console.log('updateHomePageStatus: レスポンスエラー', response.status);
     }
   } catch (error) {
-    console.error('ステータスの取得に失敗:', error);
+    console.error('updateHomePageStatus: エラー発生', error);
   }
 }
 
@@ -351,6 +419,7 @@ loginForm.addEventListener('submit', async (event) => {
       // ナビボタンのアクティブ状態をリセット
       navButtons.forEach(btn => btn.classList.remove('active'));
       document.querySelector('.nav-button[data-page="home"]').classList.add('active');
+      console.log('loginForm: ログイン成功処理完了');
     } else {
       console.log('Login failed with status:', response.status);
       alert(`エラー: ${data.message}`);
@@ -630,6 +699,9 @@ let selectedImageData = null;
 // ページ読み込み時に保存されたアイコンを復元
 window.addEventListener('DOMContentLoaded', () => {
   loadSavedIcon();
+
+  // フッターアイコンのエラーハンドリングを設定
+  setupFooterIconErrorHandling();
 
   // ページ読み込み時にログイン状態を確認し、位置情報追跡を開始
   const token = localStorage.getItem('token');
@@ -1220,14 +1292,16 @@ async function loadSavedIcon() {
 
 // 位置情報追跡を開始する関数
 function startLocationTracking() {
+  console.log('startLocationTracking: 位置情報追跡開始');
   if (navigator.geolocation) {
     // 既に追跡中の場合は停止してから再開
     if (locationWatchId !== null) {
       navigator.geolocation.clearWatch(locationWatchId);
       locationWatchId = null;
+      console.log('startLocationTracking: 既存の追跡を停止');
     }
 
-    console.log('位置情報追跡を開始します...');
+    console.log('startLocationTracking: watchPositionリクエスト送信');
     locationWatchId = navigator.geolocation.watchPosition(
       function (position) {
         const latitude = position.coords.latitude;
@@ -1251,18 +1325,25 @@ function startLocationTracking() {
       {
         enableHighAccuracy: true,
         timeout: 30000, // 30秒に延長
-        maximumAge: 300000 // 5分
+        maximumAge: 3000 // 3秒間隔で位置情報を取得
       }
     );
 
-    console.log('位置情報追跡リクエストを送信しました (Watch ID:', locationWatchId, ')');
+    console.log('startLocationTracking: Watch ID割り当て', locationWatchId);
   } else {
+    console.error('startLocationTracking: Geolocation API非対応');
     alert('このブラウザは位置情報に対応していません。');
   }
 }
 
 // 位置情報エラーを処理する関数
 function handleLocationError(error) {
+  console.error('handleLocationError: 位置情報エラー発生', {
+    code: error.code,
+    message: error.message,
+    timestamp: new Date().toISOString()
+  });
+
   let message = '';
   let shouldRetry = false;
 
@@ -1274,45 +1355,51 @@ function handleLocationError(error) {
         '2. 「位置情報」を「許可」に変更\n' +
         '3. ページをリロードしてください\n\n' +
         'または、ブラウザの設定から位置情報のパーミッションをリセットしてください。';
+      console.log('handleLocationError: パーミッション拒否');
       break;
     case error.POSITION_UNAVAILABLE:
       message = '位置情報を取得できませんでした。\nGPSが有効になっているか確認してください。';
       shouldRetry = true;
+      console.log('handleLocationError: 位置情報利用不可');
       break;
     case error.TIMEOUT:
       message = '位置情報の取得がタイムアウトしました。\nネットワーク接続やGPS信号を確認してください。\n\n再度試行します...';
       shouldRetry = true;
+      console.log('handleLocationError: タイムアウト');
       break;
     default:
       message = '位置情報の取得中に不明なエラーが発生しました。';
       shouldRetry = true;
+      console.log('handleLocationError: 不明なエラー');
       break;
   }
 
-  console.log('位置情報エラー処理:', { code: error.code, message: error.message, shouldRetry });
+  console.log('handleLocationError: エラー処理決定', { shouldRetry, message: message.substring(0, 50) + '...' });
 
   // タイムアウトや不明なエラーの場合は自動リトライ
   if (shouldRetry && locationWatchId !== null) {
-    console.log('3秒後に位置情報取得を再試行します...');
+    console.log('handleLocationError: 3秒後にリトライ開始');
     setTimeout(() => {
-      console.log('位置情報取得を再試行します');
+      console.log('handleLocationError: リトライ実行');
       // 現在の追跡を停止してから再開
       stopLocationTracking();
       setTimeout(() => startLocationTracking(), 1000);
     }, 3000);
   } else {
+    console.log('handleLocationError: アラート表示');
     alert(message);
   }
 }
 
 // 位置情報追跡を停止する関数
 function stopLocationTracking() {
+  console.log('stopLocationTracking: 位置情報追跡停止開始', { currentWatchId: locationWatchId });
   if (locationWatchId !== null) {
     navigator.geolocation.clearWatch(locationWatchId);
     locationWatchId = null;
-    console.log('位置情報追跡を停止しました');
+    console.log('stopLocationTracking: 位置情報追跡停止完了');
   } else {
-    console.log('位置情報追跡は既に停止しています');
+    console.log('stopLocationTracking: 既に停止済み');
   }
 }
 
@@ -1320,11 +1407,11 @@ function stopLocationTracking() {
 function sendLocationToServer(latitude, longitude) {
   const token = localStorage.getItem('token');
   if (!token) {
-    console.log('位置情報送信スキップ: 認証トークンなし');
+    console.log('sendLocationToServer: トークンなし');
     return;
   }
 
-  console.log('位置情報送信開始:', { latitude, longitude, endpoint: `${API_BASE}/log-location` });
+  console.log('sendLocationToServer: 送信開始', { latitude, longitude, endpoint: `${API_BASE}/log-location` });
 
   fetch(`${API_BASE}/log-location`, {
     method: 'POST',
@@ -1338,16 +1425,17 @@ function sendLocationToServer(latitude, longitude) {
     })
   })
     .then(response => {
+      console.log('sendLocationToServer: レスポンス受信', response.status);
       if (!response.ok) {
         throw new Error('位置情報送信に失敗しました');
       }
       return response.json();
     })
     .then(data => {
-      console.log('位置情報送信成功:', data);
+      console.log('sendLocationToServer: 送信成功', data);
     })
     .catch(error => {
-      console.error('位置情報送信エラー:', error);
+      console.error('sendLocationToServer: 送信エラー', error);
     });
 }
 
