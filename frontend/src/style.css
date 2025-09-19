@@ -316,6 +316,60 @@ input[type="radio"] {
   padding: 0;
 }
 
+/* 新しいスタイルを追加 */
+#ranking-tabs {
+  display: flex;
+  justify-content: space-around; /* 等間隔に配置 */
+  margin-bottom: 1rem; /* 下に余白を追加 */
+}
+
+button.ranking-tab {
+  background-color: #facc15;
+  color: #fff;
+  font-weight: bold;
+  padding: 0.75rem;
+  border-radius: 2rem;
+  font-weight: bold;
+  display: block;
+  margin: 0 auto;
+  border: none; /* デフォルトのborderを削除 */
+  cursor: pointer; /* カーソルをポインターに変更 */
+  width: 45%; /* ボタンの幅を調整 */
+  text-align: center; /* テキストを中央揃え */
+}
+
+
+.ranking-tab {
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin: 1em auto 0;
+  padding: 15px;
+  border: 0;
+  border-radius: 8px;
+  color: white;
+  font-size: 1em;
+  background: #f6d55c;
+  /*box-shadow: 0 3px 0 hsl(45, 85%, 45%), 0 6px 0 rgba(0,0,0,.15);*/
+  transition: color .3s, background .3s, box-shadow .3s, transform .3s;
+}
+
+.ranking-tab:hover {
+  color: white;
+  background: #ffe066;
+  box-shadow: 0 1px 0 hsl(45, 85%, 55%), 0 3px 0 rgba(0,0,0,.15);
+  transform: translateY(2px);
+}
+
+.ranking-tab:active {
+  color: #f0e68c;
+  background: #f4d03f;
+  box-shadow: 0 0 0 hsl(45, 85%, 45%), 0 0 0 rgba(0,0,0,.15);
+  transform: translateY(4px);
+  transition-duration: .1s;
+}
+
 /* ホーム・マップ・ランキングページ */
 #page-home,
 #page-map,
@@ -408,7 +462,7 @@ footer button[data-page="home"].active img.icon {
 footer button[data-page="map"].active img.icon {
   content: url('img/map-yellow.png');
 }
-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 footer button[data-page="ranking"].active img.icon {
   content: url('img/ranking-yellow.png');
 }
