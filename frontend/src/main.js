@@ -36,6 +36,7 @@ const footerNav = document.getElementById('footer-nav');
 // 位置情報追跡用の変数
 let locationWatchId = null;
 let locationUpdateIntervalId = null; // 定期更新用のID
+let mapMarkersUpdateIntervalId = null; // マップマーカー定期更新用のID
 
 // 選択された画像データを保存する変数（TDZ回避のため var）
 let selectedImageData = null;
@@ -153,7 +154,11 @@ function showPage(pageId) {
 
   // ヘッダー画像の切り替え
   if (pageId === 'page-home') showHeaderImage('home');
-  else if (pageId === 'page-map') showHeaderImage('map');
+  else if (pageId === 'page-map') {
+    showHeaderImage('map');
+    // マップページが表示されたら地図を初期化し、マーカー更新を開始
+    setTimeout(initializeMap, 100);
+  }
   else if (pageId === 'page-ranking') {
     showHeaderImage('ranking');
     // ランキングページが表示されたらデータを更新
@@ -614,6 +619,7 @@ if (logoutBtn) {
     localStorage.removeItem('token');
     stopPeriodicLocationUpdate(); // 定期更新を停止
     stopLocationTracking(); // 位置情報追跡を停止
+    stopMapMarkersUpdate(); // マップマーカー更新を停止
     showPage('page-login');
     alert('ログアウトしました');
   });
@@ -667,11 +673,11 @@ function startPeriodicLocationUpdate() {
     console.log('定期更新は既に開始されています');
     return;
   }
-  console.log('5分ごとの定期更新を開始します');
+  console.log('10秒ごとの定期更新を開始します');
   // まず一度すぐに実行
   sendLocation();
-  // その後、5分ごとに実行
-  locationUpdateIntervalId = setInterval(sendLocation, 5 * 60 * 1000); // 5分 = 300,000ミリ秒
+  // その後、10秒ごとに実行
+  locationUpdateIntervalId = setInterval(sendLocation, 10 * 1000); // 10秒 = 10,000ミリ秒
 }
 
 // 定期的な位置情報更新を停止する関数
@@ -862,7 +868,7 @@ async function loadUserMarkers() {
       const imageUrl = statusImages[status] || statusImages['unknown'];
 
       // 現在のユーザーかどうかで境界線の有無を決定
-      const borderStyle = user.isCurrentUser ? 'border: 2px solid #333;' : 'border: none;';
+      const borderStyle = user.isCurrentUser ? 'border: 2px solid #696969ff;' : 'border: none;';
 
       // カスタムマーカーアイコンを作成（画像ベース）
       const customIcon = L.divIcon({
@@ -935,6 +941,35 @@ function initializeMap() {
 
   // ユーザーのマーカーを読み込む
   loadUserMarkers();
+
+  // マップマーカーの定期更新を開始
+  startMapMarkersUpdate();
+}
+
+// マップマーカーの定期更新を開始する関数
+function startMapMarkersUpdate() {
+  // 既に実行中の場合は何もしない
+  if (mapMarkersUpdateIntervalId) {
+    return;
+  }
+  console.log('マップマーカーの30秒ごとの定期更新を開始します');
+  // 30秒ごとにマーカーを更新
+  mapMarkersUpdateIntervalId = setInterval(() => {
+    // マップページが表示されている場合のみ更新
+    const mapPage = document.getElementById('page-map');
+    if (mapPage && !mapPage.classList.contains('hidden')) {
+      loadUserMarkers();
+    }
+  }, 30 * 1000); // 30秒 = 30,000ミリ秒
+}
+
+// マップマーカーの定期更新を停止する関数
+function stopMapMarkersUpdate() {
+  if (mapMarkersUpdateIntervalId) {
+    console.log('マップマーカーの定期更新を停止します');
+    clearInterval(mapMarkersUpdateIntervalId);
+    mapMarkersUpdateIntervalId = null;
+  }
 }
 
 // アイコン機能
@@ -1594,8 +1629,8 @@ function startLocationTracking() {
       },
       {
         enableHighAccuracy: true,
-        timeout: 30000, // 30秒に延長
-        maximumAge: 3000 // 3秒間隔で位置情報を取得
+        timeout: 15000, // 15秒のタイムアウト
+        maximumAge: 5000 // 5秒間隔で位置情報を更新（歩行時の動きが分かる頻度）
       }
     );
 
