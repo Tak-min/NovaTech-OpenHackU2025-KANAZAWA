@@ -73,11 +73,11 @@ let statusImages = {
   '太陽神': './img/pin-big-sunny.png',
   '晴れ男': './img/pin-sunny.PNG',
   '晴れ女': './img/pin-sunny.PNG',
-  '凡人': './img/map.png',
+  '凡人': './img/pin-nomal.png',
   '雨男': './img/pin-rainy.PNG',
-  '雨女': './img/map-snow.PNG',
+  '雨女': './img/pin-rainy.PNG',
   '嵐を呼ぶ者': './img/map-kaze.png',
-  'unknown': './img/map-normal.png'
+  'unknown': './img/map.png'
 };
 
 // 天気に応じたマーカーの色を定義（後方互換のため残す）
