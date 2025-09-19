@@ -69,9 +69,9 @@ app.use(cors({
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     // ===== 以下のssl設定を追加 =====
-    ssl: {
+    ssl: process.env.NODE_ENV === 'production' ? {
         rejectUnauthorized: false
-    },
+    } : false,
     // 接続タイムアウト設定
     connectionTimeoutMillis: 10000, // 10秒
     query_timeout: 10000, // 10秒

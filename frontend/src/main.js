@@ -516,7 +516,7 @@ async function loadUserMarkers() {
       const recordedDate = new Date(user.recordedAt).toLocaleString('ja-JP');
       marker.bindPopup(`
         <div style="text-align: center;">
-          <strong>${user.username}</strong><br>
+          <strong>ユーザ名：${user.username}</strong><br>
           天気: ${emoji} ${user.weather}<br>
           記録日時: ${recordedDate}
         </div>
