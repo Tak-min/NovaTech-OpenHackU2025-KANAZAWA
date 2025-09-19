@@ -60,7 +60,11 @@ function showPage(pageId) {
   // ヘッダー画像の切り替え
   if (pageId === 'page-home') showHeaderImage('home');
   else if (pageId === 'page-map') showHeaderImage('map');
-  else if (pageId === 'page-ranking') showHeaderImage('ranking');
+  else if (pageId === 'page-ranking') {
+    showHeaderImage('ranking');
+    // ランキングページが表示されたらデータを更新
+    updateRankingPage();
+  }
   else if (pageId === 'page-settings') {
     showHeaderImage('settings');
     // 設定ページが表示されたら初期化関数を呼び出し
@@ -503,32 +507,192 @@ footerNav.classList.add('hidden');
 showPage('page-login');
 
 //ここからはランキング機能
-async function updateRankingPage() {
-  const rankingList = document.getElementById('ranking-list');
-  rankingList.innerHTML = '<li>ランキングを読み込んでいます...</li>'
+async function updateRankingPage(type = 'weather') {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.log('ランキング更新スキップ: 認証トークンなし');
+    return;
+  }
+
+  const scoreHeader = document.getElementById('ranking-score-header');
+  const tbody = document.getElementById('ranking-table-body');
+  const tableContainer = document.getElementById('ranking-table-container');
+
+  // ローディング表示
+  if (scoreHeader) scoreHeader.textContent = '読み込み中...';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">ランキングを読み込んでいます...</td></tr>';
 
   try {
-    const response = await fetch(`${API_BASE}/ranking`);
-    if (!response.ok) {
-      throw new Error('network response was not ok');
-    }
-    const rankingData = await response.json();
-    rankingList.innerHTML = "";
-
-    if (rankingData.length === 0) {
-      rankingList.innerHTML = "<li>まだ誰もランクインしていません</li>";
-      return;
-    }
-
-    rankingData.forEach((user, index) => {
-      const listItem = document.createElement('li');
-      listItem.textContent = `${index + 1}位: ${user.username} (スコア: ${Number(user.score).toFixed(1)})`;
-      rankingList.appendChild(listItem);
+    const response = await fetch(`${API_BASE}/ranking?type=${type}&limit=50`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
     });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('ランキングデータ取得:', data);
+
+    // ヘッダー更新
+    const modeLabels = {
+      weather: '天気スコア',
+      missed: '電車乗り遅れ回数',
+      delay: '電車遅延率'
+    };
+    if (scoreHeader) scoreHeader.textContent = modeLabels[type] || 'ランキング';
+
+    // テーブル更新
+    if (tbody) {
+      tbody.innerHTML = '';
+
+      if (!data.rankings || data.rankings.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">まだランキングデータがありません</td></tr>';
+        return;
+      }
+
+      // 上位ランキングを表示
+      data.rankings.forEach(user => {
+        const tr = document.createElement('tr');
+        if (user.isCurrentUser) {
+          tr.style.background = '#fffde7';
+          tr.style.fontWeight = 'bold';
+        }
+
+        tr.setAttribute('data-rank', user.rank);
+        tr.setAttribute('data-userid', user.id);
+
+        const scoreDisplay = type === 'delay' || type === 'missed' ?
+          `${user.score}${type === 'delay' ? '%' : '回'}` :
+          user.score;
+
+        tr.innerHTML = `
+          <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${user.rank}</td>
+          <td style="border-bottom:1px solid #eee; padding:8px;">${user.isCurrentUser ? user.username + '（自分）' : user.username}</td>
+          <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">${scoreDisplay}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // 自分の順位が上位に含まれていない場合、追加表示
+      if (data.currentUserRank && !data.rankings.find(r => r.isCurrentUser)) {
+        const separatorTr = document.createElement('tr');
+        separatorTr.innerHTML = '<td colspan="3" style="border-bottom:1px solid #ccc; padding: 5px;"><hr style="margin: 0;"></td>';
+        tbody.appendChild(separatorTr);
+
+        const userTr = document.createElement('tr');
+        userTr.style.background = '#fffde7';
+        userTr.style.fontWeight = 'bold';
+        userTr.setAttribute('id', 'my-user-row');
+
+        const scoreDisplay = type === 'delay' || type === 'missed' ?
+          `${data.currentUserRank.score}${type === 'delay' ? '%' : '回'}` :
+          data.currentUserRank.score;
+
+        userTr.innerHTML = `
+          <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${data.currentUserRank.rank}</td>
+          <td style="border-bottom:1px solid #eee; padding:8px;">${data.currentUserRank.username}（自分）</td>
+          <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">${scoreDisplay}</td>
+        `;
+        tbody.appendChild(userTr);
+      }
+
+      // スクロール時の自分の順位固定表示を設定
+      setTimeout(() => setupRankingScrollBehavior(data.currentUserRank), 100);
+    }
+
   } catch (error) {
-    console.error('ランキングの取得に失敗:', error);
-    rankingList.innerHTML = "<li>ランキングの取得に失敗しました</li>";
+    console.error('ランキング取得エラー:', error);
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #f44336;">ランキングの取得に失敗しました</td></tr>';
+    }
   }
+}
+
+// ランキングスクロール時の自分の順位固定表示を設定
+function setupRankingScrollBehavior(currentUserRank) {
+  if (!currentUserRank) return;
+
+  const tableContainer = document.getElementById('ranking-table-container');
+  const myRow = document.getElementById('my-user-row');
+
+  if (!tableContainer || !myRow) return;
+
+  // 既存の固定表示要素をクリア
+  const existingFixedTop = document.getElementById('my-user-fixed-top');
+  const existingFixedBottom = document.getElementById('my-user-fixed-bottom');
+
+  if (existingFixedTop) existingFixedTop.remove();
+  if (existingFixedBottom) existingFixedBottom.remove();
+
+  // 固定表示用の領域をテーブル外に設置
+  let fixedTop = document.createElement('div');
+  fixedTop.id = 'my-user-fixed-top';
+  fixedTop.style.position = 'sticky';
+  fixedTop.style.top = '0';
+  fixedTop.style.zIndex = '10';
+  fixedTop.style.background = 'white';
+  fixedTop.style.border = '1px solid #ddd';
+  fixedTop.style.display = 'none';
+
+  let fixedBottom = document.createElement('div');
+  fixedBottom.id = 'my-user-fixed-bottom';
+  fixedBottom.style.position = 'sticky';
+  fixedBottom.style.bottom = '0';
+  fixedBottom.style.zIndex = '10';
+  fixedBottom.style.background = 'white';
+  fixedBottom.style.border = '1px solid #ddd';
+  fixedBottom.style.display = 'none';
+
+  tableContainer.insertAdjacentElement('beforebegin', fixedTop);
+  tableContainer.insertAdjacentElement('afterend', fixedBottom);
+
+  // 自分の順位情報を表示する関数
+  function showMyUserRow() {
+    const scoreDisplay = window.currentRankingType === 'delay' || window.currentRankingType === 'missed' ?
+      `${currentUserRank.score}${window.currentRankingType === 'delay' ? '%' : '回'}` :
+      currentUserRank.score;
+
+    return `
+      <table style="width:100%; border-collapse: collapse;">
+        <tr style="background:#fffde7; font-weight:bold;">
+          <td style="border:1px solid #ddd; padding:8px; text-align:center;">${currentUserRank.rank}</td>
+          <td style="border:1px solid #ddd; padding:8px;">${currentUserRank.username}（自分）</td>
+          <td style="border:1px solid #ddd; padding:8px; text-align:right;">${scoreDisplay}</td>
+        </tr>
+      </table>
+    `;
+  }
+
+  // スクロール判定
+  function checkMyUserVisibility() {
+    if (!myRow) return;
+
+    const containerRect = tableContainer.getBoundingClientRect();
+    const rowRect = myRow.getBoundingClientRect();
+
+    fixedTop.style.display = 'none';
+    fixedBottom.style.display = 'none';
+
+    // 上部固定表示
+    if (rowRect.top < containerRect.top) {
+      fixedTop.innerHTML = showMyUserRow();
+      fixedTop.style.display = 'block';
+    }
+    // 下部固定表示
+    else if (rowRect.bottom > containerRect.bottom) {
+      fixedBottom.innerHTML = showMyUserRow();
+      fixedBottom.style.display = 'block';
+    }
+  }
+
+  tableContainer.addEventListener('scroll', checkMyUserVisibility);
+  // 初期チェック
+  checkMyUserVisibility();
 }
 
 //ここからは地図機能

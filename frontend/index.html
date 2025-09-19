@@ -377,8 +377,9 @@
             tab.addEventListener('click', function() {
               document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
               this.classList.add('active');
-              window.currentMode = this.getAttribute('data-mode');
-              renderRanking(window.currentMode, userId);
+              const mode = this.getAttribute('data-mode');
+              window.currentRankingType = mode;
+              updateRankingPage(mode);
             });
           });
 
