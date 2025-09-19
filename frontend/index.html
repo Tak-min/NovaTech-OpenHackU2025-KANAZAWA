@@ -11,8 +11,8 @@
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap"
-    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -32,8 +32,8 @@
           <input id="login-email" type="email" placeholder="メールアドレス" required>
           <label for="login-password">パスワード</label>
           <input id="login-password" type="password" placeholder="パスワード" required>
-          <button type="submit">ログイン</button>
-          <button id="show-register-button" type="button">新規登録はこちら</button>
+          <button type="submit" class="main-btn">ログイン</button>
+          <button id="show-register-button" type="button" class="link-btn">新規登録はこちら</button>
         </form>
       </section>
 
@@ -46,12 +46,17 @@
           <label for="register-password">パスワード</label>
           <input id="register-password" type="password" placeholder="パスワード" required>
           <label for="register-gender">性別</label>
-          <div class="gender-group">
-            <label class="gender-option">男性<input type="radio" name="gender" value="male" required></label>
-            <label class="gender-option">女性<input type="radio" name="gender" value="female" required></label>
-          </div>
-          <button type="submit">新規登録</button>
-          <button id="show-login-button" type="button">ログインはこちら</button>
+            <div class="gender-group">
+              <label class="gender-option">
+                <span class="gender-text">男性</span><input type="radio" name="gender" value="male" required>
+              </label>  
+              <label class="gender-option">
+                <span class="gender-text">女性</span><input type="radio" name="gender" value="female" required>
+              </label>
+            </div>
+
+          <button type="submit" class="main-btn">新規登録</button>
+          <button id="show-login-button" type="button" class="link-btn">ログインはこちら</button>
         </form>
       </section>
 

@@ -53,7 +53,7 @@ header {
   font-weight: 400;
   color: rgba(0, 0, 0, 1);
   /* text-gray-700 */
-  font-family: 'Inter'
+  font-family: 'Inter', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
 }
 
 .header-home-img {
@@ -227,6 +227,54 @@ input[type="radio"] {
   margin-right: 0.5rem; /* ラジオボタンとテキストの間隔 */
   width: 20%;
   margin-left: 1rem;
+}
+
+/* メインボタン（ログイン・新規登録） */
+.main-btn {
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin: 1em auto 0;
+  padding: 15px;
+  border: 0;
+  border-radius: 8px;
+  color: white;
+  font-size: 1em;
+  background: #f6d55c; /* 黄色ベース */
+  box-shadow: 0 3px 0 hsl(45, 85%, 45%), 0 6px 0 rgba(0,0,0,.15);
+  transition: color .3s, background .3s, box-shadow .3s, transform .3s;
+}
+
+.main-btn:hover {
+  color: white;
+  background: #ffe066;
+  box-shadow: 0 1px 0 hsl(45, 85%, 55%), 0 3px 0 rgba(0,0,0,.15);
+  transform: translateY(2px);
+}
+
+.main-btn:active {
+  color: #f0e68c;
+  background: #f4d03f;
+  box-shadow: 0 0 0 hsl(45, 85%, 45%), 0 0 0 rgba(0,0,0,.15);
+  transform: translateY(4px);
+  transition-duration: .1s;
+}
+
+/* サブボタン（リンク風） */
+.link-btn {
+  background: none;
+  color: #6ec1e4; /* 薄め水色 */
+  text-decoration: none; /* 下線なし */
+  border: none;
+  padding: 0.5em 0;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: color .2s;
+}
+
+.link-btn:hover {
+  color: #3ba0d6; /* 少し濃く */
 }
 
 /* Home Page */
