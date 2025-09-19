@@ -49,7 +49,7 @@ header {
   font-weight: 400;
   color: rgba(0, 0, 0, 1);
   /* text-gray-700 */
-  font-family: 'Inter'
+  font-family: 'Inter', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
 }
 
 .header-home-img {
