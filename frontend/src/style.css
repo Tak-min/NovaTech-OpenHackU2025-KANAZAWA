@@ -325,43 +325,72 @@ input[type="radio"] {
 
 /* Footer */
 footer {
-  /* ボタンを画像の上に表示 */
-  position: relative; /* z-indexを有効にするため */
-  z-index: 1; /* 画像のz-indexより高い値を指定 */
-  margin-top: -30px; 
-  gap: 10px; /* 各ボタン間に10pxの隙間を空ける */
-
-  /* 以下は元のスタイル */
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   text-align: center;
   padding: 0.5rem 0;
   border-top: 1px solid #e5e7eb;
   background-color: #fff;
+  gap: 10px;
+  position: relative;
+  z-index: 1; /* 画像の上に表示 */
 }
 
+/* ボタンの共通スタイル */
 footer button {
   padding: 0.5rem;
   background: none;
   border: none;
-  color: #6b7280; /* gray-500 */
-  font-family: 'Kiwi Maru';
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
-footer button.active {
+footer button span {
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+/* ボタン内のアイコンの共通スタイル */
+footer button img.icon {
+  width: 30px;
+  height: auto;
+  margin-bottom: 5px;
+}
+
+/* アクティブなボタンのスタイル */
+footer button.active span {
   color: #f59e0b;
-  /* yellow-500 */
 }
 
+footer button[data-page="home"].active img.icon {
+  content: url('img/home-yellow.png');
+}
+
+footer button[data-page="map"].active img.icon {
+  content: url('img/map-yellow.png');
+}
+
+footer button[data-page="ranking"].active img.icon {
+  content: url('img/ranking-yellow.png');
+}
+
+footer button[data-page="setting"].active img.icon {
+  content: url('img/setting-yellow.png');
+}
+
+/* 背景画像のコンテナ */
 .footer-home-img {
   position: absolute;
-  left: 50%;
+  left: 0;
+  right: 0;
   bottom: 0;
-  transform: translateX(-50%); 
-  max-width: 540px;
   width: 100%;
-  display: block; 
-  z-index: -1; /* この行を追加 */
+  max-width: none; /* 制限を解除 */
+  z-index: -1; /* フッターの下に配置 */
 }
 
 .footer-home-img img {
