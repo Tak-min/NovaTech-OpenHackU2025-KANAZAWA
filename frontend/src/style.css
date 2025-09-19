@@ -383,7 +383,7 @@ footer button[data-page="setting"].active img.icon {
 }
 
 /* 背景画像のコンテナ */
-.fooder-home-img {
+.footer-home-img {
   position: absolute;
   left: 0;
   right: 0;
@@ -393,10 +393,12 @@ footer button[data-page="setting"].active img.icon {
   z-index: -1; /* フッターの下に配置 */
 }
 
-.fooder-home-img img {
+.footer-home-img img {
   width: 100%;
   height: auto;
   display: block;
+
+  filter: drop-shadow(0px 4px 10px rgba(0, 0, 0, 0.25));
 }
 
 /* Utility Classes */
