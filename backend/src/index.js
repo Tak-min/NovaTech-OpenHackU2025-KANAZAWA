@@ -14,32 +14,98 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 環境変数のチェック
+if (!process.env.DATABASE_URL) {
+    console.error('DATABASE_URL environment variable is not set');
+    process.exit(1);
+}
+if (!process.env.JWT_SECRET) {
+    console.error('JWT_SECRET environment variable is not set');
+    process.exit(1);
+}
+if (!process.env.WEATHER_API_KEY) {
+    console.error('WEATHER_API_KEY environment variable is not set');
+    process.exit(1);
+}
+
 // JSON形式のリクエストボディを解析できるようにする
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // ペイロードサイズを10MBに設定
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// ===== CORS 設定 (複数オリジン + 環境変数対応) =====
+// 環境変数 FRONTEND_ORIGINS でカンマ区切り指定可能 例: https://example.com,https://foo.app
+const defaultOrigins = [
+    'https://soralog-qnka.onrender.com',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5174'
+];
+const extraOrigins = (process.env.FRONTEND_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...extraOrigins]));
+
+console.log('CORS allowed origins:', allowedOrigins);
+
 app.use(cors({
-  origin: 'https://solalog.onrender.com', // フロントエンドのURLを指定
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // 許可するHTTPメソッド
-  credentials: true // クッキーや認証情報を含むリクエストを許可
+    origin: (origin, callback) => {
+        // origin が undefined の場合 (curl や 同一オリジン) は許可
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        console.warn('Blocked by CORS:', origin);
+        return callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
+// ================================================
 
 // データベース接続プールの設定
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
+    // ===== 以下のssl設定を追加 =====
+    ssl: process.env.NODE_ENV === 'production' ? {
+        rejectUnauthorized: false
+    } : false,
+    // 接続タイムアウト設定
+    connectionTimeoutMillis: 10000, // 10秒
+    query_timeout: 10000, // 10秒
+    idleTimeoutMillis: 30000, // 30秒
+    max: 20, // 最大接続数
 });
 
 const createTables = async () => {
     const client = await pool.connect();
     try {
+        console.log('Creating users table...');
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(50) UNIQUE NOT NULL,
                 email VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
+                gender VARCHAR(10), -- 性別を追加
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
+        console.log('Users table created or already exists.');
 
+        // 既存テーブルにgenderカラムが存在しない場合、追加
+        try {
+            await client.query(`
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10);
+            `);
+            console.log('Gender column added or already exists.');
+        } catch (alterError) {
+            console.log('Gender column alter attempted:', alterError.message);
+        }
+
+        console.log('Creating locations table...');
         await client.query(`
             CREATE TABLE IF NOT EXISTS locations (
                 id SERIAL PRIMARY KEY,
@@ -49,9 +115,41 @@ const createTables = async () => {
                 recorded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log('tables created successfully or already exist.');
+        console.log('Locations table created or already exists.');
+
+        console.log('Creating user_settings table...');
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS user_settings (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                notification_enabled BOOLEAN DEFAULT true,
+                location_enabled BOOLEAN DEFAULT false,
+                introduction_text TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id)
+            );
+        `);
+        console.log('User settings table created or already exists.');
+
+        console.log('Creating user_icons table...');
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS user_icons (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                icon_data TEXT NOT NULL, -- Base64エンコードされた画像データ
+                content_type VARCHAR(50) DEFAULT 'image/jpeg',
+                file_size INTEGER,
+                uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id)
+            );
+        `);
+        console.log('User icons table created or already exists.');
+
+        console.log('All tables created successfully.');
     } catch (err) {
-        console.error("error creating tables:", err.stack);
+        console.error("Error creating tables:", err.stack);
+        throw err; // エラーを投げてサーバー起動を停止
     } finally {
         client.release();
     }
@@ -62,18 +160,41 @@ const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN" の形式
 
+    console.log('Auth header:', authHeader); // デバッグログ
+    console.log('Extracted token:', token ? '***' : null); // トークンを隠してログ出力
+
     if (token == null) {
+        console.log('No token provided'); // デバッグログ
         return res.sendStatus(401); // Unauthorized
     }
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
+            console.log('Token verification failed:', err.message); // デバッグログ
             return res.sendStatus(403); // Forbidden
         }
+        console.log('Token verified for user:', user.username); // デバッグログ
         req.user = user; // リクエストオブジェクトにユーザー情報を付与
         next(); // 次の処理へ
     });
 };
+
+// ===== ルートハンドラー =====
+// [GET] / - APIヘルスチェック
+app.get('/', (req, res) => {
+    res.json({
+        message: 'SoraLog API Server is running',
+        version: '1.0.0',
+        endpoints: {
+            auth: ['POST /register', 'POST /login', 'GET /status'],
+            location: ['POST /log-location'],
+            ranking: ['GET /ranking'],
+            map: ['GET /users-locations'],
+            debug: ['GET /debug/users']
+        },
+        timestamp: new Date().toISOString()
+    });
+});
 
 // [POST] /log-location - ユーザーの位置情報と天気を記録
 app.post('/log-location', authenticateToken, async (req, res) => {
@@ -188,12 +309,12 @@ app.get('/status', authenticateToken, async (req, res) => {
     }
 });
 
-// [GET] /users-locations - 全ユーザーの最新位置情報を取得
+// [GET] /users-locations - 全ユーザーの最新位置情報を取得（位置情報許可設定を考慮）
 app.get('/users-locations', authenticateToken, async (req, res) => {
     try {
-        // 各ユーザーの最新の位置情報を取得
+        // 各ユーザーの最新の位置情報を取得（位置情報許可が有効なユーザーのみ）
         const locationsQuery = `
-      SELECT DISTINCT ON (u.id) 
+      SELECT DISTINCT ON (u.id)
         u.id,
         u.username,
         ST_X(l.geom) as longitude,
@@ -202,6 +323,8 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
         l.recorded_at
       FROM users u
       JOIN locations l ON u.id = l.user_id
+      JOIN user_settings s ON u.id = s.user_id
+      WHERE s.location_enabled = true
       ORDER BY u.id, l.recorded_at DESC
     `;
 
@@ -228,9 +351,9 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
 });
 
 // [GET] /ranking - Get top 10 user rankings
-app.get('/ranking', async (req, res) =>{
-  try{
-    const rankingQuery = `
+app.get('/ranking', async (req, res) => {
+    try {
+        const rankingQuery = `
       SELECT
         u.id,
         u.username,
@@ -256,69 +379,138 @@ app.get('/ranking', async (req, res) =>{
       LIMIT 10;
     `;
 
-    const rankingResult = await pool.query(rankingQuery);
+        const rankingResult = await pool.query(rankingQuery);
 
-    res.json(rankingResult.rows);
-  }catch (error) {
-    console.error('Ranking Error', error);
-    res.status(500).json({message: 'ランキングの取得に失敗しました'});
-  }
+        res.json(rankingResult.rows);
+    } catch (error) {
+        console.error('Ranking Error', error);
+        res.status(500).json({ message: 'ランキングの取得に失敗しました' });
+    }
 });
 
 
 // [POST] /register - 新規ユーザー登録
 app.post('/register', async (req, res) => {
     try {
-        // 1. gender をリクエストボディから受け取る
+        console.log('=== REGISTER ATTEMPT ===');
+        console.log('Register endpoint hit at:', new Date().toISOString());
         const { username, email, password, gender } = req.body;
+        console.log('Request body:', { username, email, passwordLength: password ? password.length : 0, gender });
 
+        // 入力バリデーション
         if (!username || !email || !password) {
-          return res.status(400).json({ message: '必須項目を入力してください' });
+            console.log('Validation failed: Missing required fields');
+            return res.status(400).json({ message: '必須項目を入力してください' });
         }
 
+        // ユーザー名の長さチェック
+        if (username.length < 3 || username.length > 50) {
+            console.log('Validation failed: Invalid username length');
+            return res.status(400).json({ message: 'ユーザー名は3文字以上50文字以下で入力してください' });
+        }
+
+        // メールアドレスの形式チェック
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            console.log('Validation failed: Invalid email format');
+            return res.status(400).json({ message: '有効なメールアドレスを入力してください' });
+        }
+
+        // パスワードの長さチェック
+        if (password.length < 6) {
+            console.log('Validation failed: Password too short');
+            return res.status(400).json({ message: 'パスワードは6文字以上で入力してください' });
+        }
+
+        // 性別のバリデーション
+        const validGenders = ['male', 'female', 'other'];
+        if (gender && !validGenders.includes(gender)) {
+            console.log('Validation failed: Invalid gender');
+            return res.status(400).json({ message: '性別はmale、female、otherのいずれかを選択してください' });
+        }
+
+        console.log('Creating password hash...');
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        // 2. INSERT文に gender を追加
+        console.log('Inserting user into database...');
         const newUser = await pool.query(
-          'INSERT INTO users (username, email, password_hash, gender) VALUES ($1, $2, $3, $4) RETURNING id, username',
-          [username, email, passwordHash, gender]
+            'INSERT INTO users (username, email, password_hash, gender) VALUES ($1, $2, $3, $4) RETURNING id, username',
+            [username, email, passwordHash, gender]
         );
 
-        res.status(201).json({ 
+        console.log('User registered successfully:', newUser.rows[0].username);
+        res.status(201).json({
             message: 'ユーザー登録が成功しました',
-            user: newUser.rows[0] 
+            user: newUser.rows[0]
         });
 
     } catch (error) {
-        // メールアドレスやユーザー名が重複した場合のエラー処理
+        console.error('=== REGISTER ERROR ===');
+        console.error('Error in /register endpoint:', error);
+        console.error('Error code:', error.code);
+        console.error('Error stack:', error.stack);
+
         if (error.code === '23505') {
+            console.log('Duplicate key error - user already exists');
             return res.status(409).json({ message: 'このメールアドレスまたはユーザー名は既に使用されています' });
         }
-        console.error(error);
-        res.status(500).json({ message: 'サーバーエラーが発生しました' });
+        if (error.code === 'ECONNREFUSED') {
+            console.log('Database connection refused');
+            return res.status(503).json({ message: 'データベース接続エラー' });
+        }
+        res.status(500).json({
+            message: 'サーバーエラーが発生しました',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 
 // [POST] /login - ログイン
 app.post('/login', async (req, res) => {
     try {
+        console.log('=== LOGIN ATTEMPT ===');
+        console.log('Login endpoint hit at:', new Date().toISOString());
         const { email, password } = req.body;
+        console.log('Request body:', { email, password: password ? '***' : 'empty' });
 
+        // 入力バリデーション
+        if (!email || !password) {
+            console.log('Validation failed: Missing email or password');
+            return res.status(400).json({ message: 'メールアドレスとパスワードを入力してください' });
+        }
+
+        // メールアドレスの形式チェック
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            console.log('Validation failed: Invalid email format');
+            return res.status(400).json({ message: '有効なメールアドレスを入力してください' });
+        }
+
+        console.log('Querying database for user:', email);
         // 1. メールアドレスでユーザーを検索
-        const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        const userResult = await pool.query('SELECT id, username, password_hash FROM users WHERE email = $1', [email]);
+        console.log('Database query result - rows found:', userResult.rows.length);
+
         if (userResult.rows.length === 0) {
+            console.log('User not found for email:', email);
             return res.status(401).json({ message: 'メールアドレスまたはパスワードが正しくありません' });
         }
         const user = userResult.rows[0];
+        console.log('User found:', { id: user.id, username: user.username });
 
         // 2. パスワードが正しいか照合
+        console.log('Comparing passwords...');
         const isPasswordCorrect = await bcrypt.compare(password, user.password_hash);
+        console.log('Password comparison result:', isPasswordCorrect);
+
         if (!isPasswordCorrect) {
+            console.log('Incorrect password for user:', user.username);
             return res.status(401).json({ message: 'メールアドレスまたはパスワードが正しくありません' });
         }
 
         // 3. 認証トークン(JWT)を生成
+        console.log('Generating JWT token...');
         const payload = {
             id: user.id,
             username: user.username
@@ -328,14 +520,163 @@ app.post('/login', async (req, res) => {
             process.env.JWT_SECRET,
             { expiresIn: '1h' } // トークンの有効期限 (例: 1時間)
         );
+        console.log('JWT token generated successfully');
 
+        console.log('Login successful for user:', user.username);
         res.json({
             message: 'ログインに成功しました',
             token: token
         });
 
     } catch (error) {
-        console.error(error);
+        console.error('=== LOGIN ERROR ===');
+        console.error('Error in /login endpoint:', error);
+        console.error('Error stack:', error.stack);
+        if (error.code === 'ECONNREFUSED') {
+            return res.status(503).json({ message: 'データベース接続エラー' });
+        }
+        res.status(500).json({
+            message: 'サーバーエラーが発生しました',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+
+// ===== ユーザー設定関連API =====
+
+// GET /user/settings - ユーザー設定を取得
+app.get('/user/settings', authenticateToken, async (req, res) => {
+    try {
+        const client = await pool.connect();
+        const result = await client.query(`
+            SELECT notification_enabled, location_enabled, introduction_text
+            FROM user_settings
+            WHERE user_id = $1
+        `, [req.user.id]);
+
+        client.release();
+
+        if (result.rows.length === 0) {
+            // 設定が存在しない場合はデフォルト値を返す
+            return res.json({
+                notification_enabled: true,
+                location_enabled: false,
+                introduction_text: ''
+            });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error in /user/settings GET:', error);
+        res.status(500).json({ message: 'サーバーエラーが発生しました' });
+    }
+});
+
+// PUT /user/settings - ユーザー設定を保存
+app.put('/user/settings', authenticateToken, async (req, res) => {
+    try {
+        const { notification_enabled, location_enabled, introduction_text } = req.body;
+
+        const client = await pool.connect();
+
+        // UPSERT操作（存在しない場合はINSERT、存在する場合はUPDATE）
+        await client.query(`
+            INSERT INTO user_settings (user_id, notification_enabled, location_enabled, introduction_text, updated_at)
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id)
+            DO UPDATE SET
+                notification_enabled = EXCLUDED.notification_enabled,
+                location_enabled = EXCLUDED.location_enabled,
+                introduction_text = EXCLUDED.introduction_text,
+                updated_at = CURRENT_TIMESTAMP
+        `, [req.user.id, notification_enabled, location_enabled, introduction_text]);
+
+        client.release();
+
+        res.json({ message: '設定が保存されました' });
+    } catch (error) {
+        console.error('Error in /user/settings PUT:', error);
+        res.status(500).json({ message: 'サーバーエラーが発生しました' });
+    }
+});
+
+// POST /user/icon - ユーザーアイコンを保存
+app.post('/user/icon', authenticateToken, async (req, res) => {
+    try {
+        const { icon_data, content_type, file_size } = req.body;
+
+        if (!icon_data) {
+            return res.status(400).json({ message: 'アイコンデータが必要です' });
+        }
+
+        const client = await pool.connect();
+
+        // UPSERT操作
+        await client.query(`
+            INSERT INTO user_icons (user_id, icon_data, content_type, file_size, uploaded_at)
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id)
+            DO UPDATE SET
+                icon_data = EXCLUDED.icon_data,
+                content_type = EXCLUDED.content_type,
+                file_size = EXCLUDED.file_size,
+                uploaded_at = CURRENT_TIMESTAMP
+        `, [req.user.id, icon_data, content_type || 'image/jpeg', file_size]);
+
+        client.release();
+
+        res.json({ message: 'アイコンが保存されました' });
+    } catch (error) {
+        console.error('Error in /user/icon POST:', error);
+        res.status(500).json({ message: 'サーバーエラーが発生しました' });
+    }
+});
+
+// GET /user/icon - ユーザーアイコンを取得
+app.get('/user/icon', authenticateToken, async (req, res) => {
+    try {
+        const client = await pool.connect();
+        const result = await client.query(`
+            SELECT icon_data, content_type
+            FROM user_icons
+            WHERE user_id = $1
+        `, [req.user.id]);
+
+        client.release();
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'アイコンが見つかりません' });
+        }
+
+        const icon = result.rows[0];
+        res.setHeader('Content-Type', icon.content_type);
+        res.send(Buffer.from(icon.icon_data, 'base64'));
+    } catch (error) {
+        console.error('Error in /user/icon GET:', error);
+        res.status(500).json({ message: 'サーバーエラーが発生しました' });
+    }
+});
+
+// GET /user/info - ユーザー情報を取得
+app.get('/user/info', authenticateToken, async (req, res) => {
+    try {
+        const client = await pool.connect();
+        const result = await client.query(`
+            SELECT id, username, email, gender
+            FROM users
+            WHERE id = $1
+        `, [req.user.id]);
+
+        client.release();
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'ユーザーが見つかりません' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error in /user/info GET:', error);
         res.status(500).json({ message: 'サーバーエラーが発生しました' });
     }
 });
@@ -344,24 +685,32 @@ app.post('/login', async (req, res) => {
 // サーバー起動とDB接続確認
 app.listen(PORT, async () => {
     console.log(`Server is running on port ${PORT}`);
+    console.log(`CORS origin set to: https://soralog-qnka.onrender.com`);
 
     try {
         const client = await pool.connect();
         console.log('Database connection successful!');
+        console.log('Database URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
         client.release();
         await createTables();
+        console.log('Server startup completed successfully');
     } catch (err) {
         console.error('Database connection error:', err.stack);
+        console.error('Please check your DATABASE_URL environment variable');
+        process.exit(1); // データベース接続に失敗したらサーバーを停止
     }
 });
 
-app.get('/', async (req, res) => {
+app.get('/debug/users', async (req, res) => {
     try {
-        const client = await pool.connect();
-        const result = await client.query('SELECT NOW()');
-        res.send(`hello world! DB time is: ${result.rows[0].now}`);
-        client.release();
-    } catch (err) {
-        res.status(500).send('database connection error');
+        const users = await pool.query('SELECT id, username, email, gender, created_at FROM users ORDER BY created_at DESC LIMIT 10');
+        res.json({
+            success: true,
+            users: users.rows,
+            count: users.rows.length
+        });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ error: 'Failed to fetch users', details: error.message });
     }
 });
