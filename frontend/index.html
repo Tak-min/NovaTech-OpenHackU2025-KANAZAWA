@@ -156,6 +156,14 @@
         </div>
       </section>
 
+      <section id="page-omikuji">
+        <h3>おみくじコーナー</h3>
+        <div>
+          <button id="omikuji-btn" style="padding:8px 24px; font-size:1.2em;">おみくじを引く</button>
+        </div>
+        <div id="omikuji-result" style="margin:16px 0; font-size:1.5em; font-weight:bold;"></div>
+        <div id="omikuji-streak" style="font-size:1em; color:#1976d2;">当たり連続回数: 0回</div>
+      </section>
     </main>
     <footer id="footer-nav" class="hidden">
   <button data-page="home" class="nav-button active">
@@ -341,6 +349,32 @@
               renderRanking(window.currentMode, userId);
             });
           });
+
+          // --- おみくじコーナー ---
+          let omikujiStreak = 0;
+          let lastOmikuji = null;
+          const omikujiBtn = document.getElementById('omikuji-btn');
+          const omikujiResult = document.getElementById('omikuji-result');
+          const omikujiStreakDiv = document.getElementById('omikuji-streak');
+          if (omikujiBtn) {
+            omikujiBtn.addEventListener('click', () => {
+              const isWin = Math.random() < 0.5;
+              if (isWin) {
+                omikujiResult.textContent = '当たり！';
+                if (lastOmikuji === true || lastOmikuji === null) {
+                  omikujiStreak++;
+                } else {
+                  omikujiStreak = 1;
+                }
+                lastOmikuji = true;
+              } else {
+                omikujiResult.textContent = 'はずれ';
+                omikujiStreak = 0;
+                lastOmikuji = false;
+              }
+              omikujiStreakDiv.textContent = `当たり連続回数: ${omikujiStreak}回`;
+            });
+          }
         });
       </script>
       <style>
