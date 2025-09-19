@@ -245,7 +245,14 @@
           const ranking = generateDummyRanking(mode, userId);
           const tbody = document.getElementById('ranking-table-body');
           tbody.innerHTML = '';
-          ranking.forEach(user => {
+
+          // 上位50名＋自分のみ抽出
+          const myUser = ranking.find(u => u.userId === userId);
+          let visibleRanking = ranking.slice(0, 50);
+          const isMyUserVisible = visibleRanking.some(u => u.userId === userId);
+          if (!isMyUserVisible) visibleRanking = [...visibleRanking, myUser];
+
+          visibleRanking.forEach(user => {
             const isMe = user.userId === userId;
             const tr = document.createElement('tr');
             if (isMe) tr.style.background = '#fffde7', tr.style.fontWeight = 'bold';
