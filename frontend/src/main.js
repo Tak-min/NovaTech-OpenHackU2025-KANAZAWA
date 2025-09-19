@@ -50,6 +50,8 @@ function showPage(pageId) {
     showHeaderImage(null);
   } else {
     footerNav.classList.remove('hidden');
+    // フッターが表示されるタイミングでアイコンのエラーハンドリングを設定
+    setTimeout(() => setupFooterIconErrorHandling(), 100);
   }
 
   // ヘッダー画像の切り替え
@@ -97,6 +99,18 @@ function showHeaderImage(type) {
   };
 
   if (type && images[type]) {
+    // 画像読み込み前に現在のsrcをクリア
+    headerImg.src = '';
+    headerImg.onerror = function() {
+      console.error(`ヘッダー画像の読み込みに失敗しました: ${images[type]}`);
+      // 画像読み込み失敗時はタイトルを表示
+      headerImgContainer.style.display = 'none';
+      headerTitle.style.display = 'block';
+      headerTitle.textContent = getPageTitle(type);
+    };
+    headerImg.onload = function() {
+      console.log(`ヘッダー画像を正常に読み込みました: ${images[type]}`);
+    };
     headerImg.src = images[type];
     headerImgContainer.style.display = 'block';
     headerTitle.style.display = 'none';
@@ -106,6 +120,43 @@ function showHeaderImage(type) {
     headerTitle.style.display = 'block';
     console.log('ヘッダー画像を非表示にして、タイトルを表示しました');
   }
+}
+
+// ページタイプからタイトルを取得するヘルパー関数
+function getPageTitle(type) {
+  const titles = {
+    home: 'ホーム',
+    map: 'マップ',
+    ranking: 'ランキング',
+    setting: '設定'
+  };
+  return titles[type] || 'Hare/Ame';
+}
+
+// フッターアイコンの読み込みエラーを処理する関数
+function setupFooterIconErrorHandling() {
+  const footerIcons = document.querySelectorAll('#footer-nav .icon');
+
+  footerIcons.forEach(icon => {
+    icon.onerror = function() {
+      console.error(`フッターアイコンの読み込みに失敗しました: ${this.src}`);
+      // 画像読み込み失敗時はアイコンを非表示にしてテキストのみ表示
+      this.style.display = 'none';
+      const button = this.parentElement;
+      if (button) {
+        const span = button.querySelector('span');
+        if (span) {
+          span.style.fontSize = '14px';
+          span.style.fontWeight = 'bold';
+        }
+      }
+    };
+
+    icon.onload = function() {
+      console.log(`フッターアイコンを正常に読み込みました: ${this.src}`);
+      this.style.display = 'block';
+    };
+  });
 }
 
 // (startLocationTracking, stopLocationTracking, registerForm logic... is unchanged)
@@ -648,6 +699,9 @@ let selectedImageData = null;
 // ページ読み込み時に保存されたアイコンを復元
 window.addEventListener('DOMContentLoaded', () => {
   loadSavedIcon();
+
+  // フッターアイコンのエラーハンドリングを設定
+  setupFooterIconErrorHandling();
 
   // ページ読み込み時にログイン状態を確認し、位置情報追跡を開始
   const token = localStorage.getItem('token');
