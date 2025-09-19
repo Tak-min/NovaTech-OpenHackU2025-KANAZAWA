@@ -134,15 +134,15 @@
               <button class="select-btn" onclick="document.getElementById('iconInput').click()">
                 📷 アイコン
               </button>
-              <button id="saveBtn" class="save-btn">保存</button>
-              <button id="resetBtn" class="reset-btn">リセット</button>
+              <button id="saveBtn" class="save-btn">自己紹介を保存</button>
+              <button id="resetBtn" class="reset-btn">アイコンをリセット</button>
             </div>
 
-            <div id="imageInfo" class="image-info">
+            <!-- <div id="imageInfo" class="image-info">
               <div id="fileName"></div>
               <div id="fileSize"></div>
               <div id="imageDimensions"></div>
-            </div>
+            </div> -->
 
           </div>
 
@@ -191,7 +191,7 @@
         <span>ランキング</span>
       </button>
       <button data-page="settings" class="nav-button">
-        <img src="/img/setting.png" alt="設定" class="icon">
+        <img src="/img/settings.png" alt="設定" class="icon">
         <span>設定</span>
       </button>
       <div id="footer-img-container" class="footer-home-img">
@@ -210,33 +210,33 @@
 
     // ダミーデータ生成（70件、ユーザ名: ダミー1番～ダミー70番）
     function generateDummyRanking(mode, userId) {
-      let ranking = Array.from({ length: 70 }, (_, i) => {
-        let score;
-        if (mode === 'weather') {
-          score = Math.floor(Math.random() * 2000);
-        } else {
-          // 乗り遅れ率は小数（0～100%）
-          score = (Math.random() * 100).toFixed(2);
-        }
-        return {
-          username: `ダミー${i + 1}番`,
-          score: score,
-          userId: `dummy${i + 1}`
-        };
-      });
-      // 自分のスコアもランダム生成
-      let myScore;
-      if (mode === 'weather') {
-        myScore = Math.floor(Math.random() * 2000);
-      } else {
-        myScore = (Math.random() * 100).toFixed(2);
-      }
-      const myUser = {
-        username: '自分',
-        score: myScore,
-        userId: userId
-      };
-      ranking.push(myUser);
+      // let ranking = Array.from({ length: 70 }, (_, i) => {
+      //   let score;
+      //   if (mode === 'weather') {
+      //     score = Math.floor(Math.random() * 2000);
+      //   } else {
+      //     // 乗り遅れ率は小数（0～100%）
+      //     score = (Math.random() * 100).toFixed(2);
+      //   }
+      //   return {
+      //     username: `ダミー${i + 1}番`,
+      //     score: score,
+      //     userId: `dummy${i + 1}`
+      //   };
+      // });
+      // // 自分のスコアもランダム生成
+      // let myScore;
+      // if (mode === 'weather') {
+      //   myScore = Math.floor(Math.random() * 2000);
+      // } else {
+      //   myScore = (Math.random() * 100).toFixed(2);
+      // }
+      // const myUser = {
+      //   username: '自分',
+      //   score: myScore,
+      //   userId: userId
+      // };
+      // ranking.push(myUser);
 
       // 並べ替え（全モードでスコアが高いほど上位）
       ranking.sort((a, b) => b.score - a.score);
@@ -356,112 +356,6 @@
           this.classList.add('active');
           window.currentMode = this.getAttribute('data-mode');
           renderRanking(window.currentMode, userId);
-
-          document.querySelectorAll('.ranking-tab').forEach(tab => {
-            tab.addEventListener('click', function() {
-              document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
-              this.classList.add('active');
-              const mode = this.getAttribute('data-mode');
-              window.currentRankingType = mode;
-              updateRankingPage(mode);
-            });
-          });
-
-          // --- おみくじコーナー ---
-          let omikujiStreak = 0;
-          let lastOmikuji = null;
-          const omikujiBtn = document.getElementById('omikuji-btn');
-          const omikujiResult = document.getElementById('omikuji-result');
-          const omikujiStreakDiv = document.getElementById('omikuji-streak');
-          if (omikujiBtn) {
-            omikujiBtn.addEventListener('click', () => {
-              const isWin = Math.random() < 0.5;
-              if (isWin) {
-                omikujiResult.textContent = '当たり！';
-                if (lastOmikuji === true || lastOmikuji === null) {
-                  omikujiStreak++;
-                } else {
-                  omikujiStreak = 1;
-                }
-                lastOmikuji = true;
-              } else {
-                omikujiResult.textContent = 'はずれ';
-                omikujiStreak = 0;
-                lastOmikuji = false;
-              }
-              omikujiStreakDiv.textContent = `当たり連続回数: ${omikujiStreak}回`;
-            });
-          }
-
-          // フッターのページ切り替え対応
-          document.querySelectorAll('#footer-nav .nav-button').forEach(btn => {
-            btn.addEventListener('click', function() {
-              const page = this.getAttribute('data-page');
-              document.querySelectorAll('main > section').forEach(sec => {
-                sec.classList.add('hidden');
-              });
-              document.querySelectorAll('#footer-nav .nav-button').forEach(b => b.classList.remove('active'));
-              this.classList.add('active');
-              const showSection = document.getElementById(`page-${page}`);
-              if (showSection) showSection.classList.remove('hidden');
-            });
-          });
-
-          // 天気スコアゲージ（真ん中起点・左右伸長）
-          const weatherGaugeValue = document.getElementById('weather-gauge-value');
-          const weatherGaugeBar = document.getElementById('weather-gauge-bar');
-          const weatherGaugeFill = document.getElementById('weather-gauge-fill');
-          const weatherGaugeZero = document.getElementById('weather-gauge-zero');
-          let weatherScoreRaw = Math.floor(Math.random() * 19999) - 9999;
-          if (weatherGaugeValue && weatherGaugeBar && weatherGaugeFill && weatherGaugeZero) {
-            weatherGaugeValue.textContent = weatherScoreRaw;
-            const maxAbs = 9999;
-            const barWidth = 200; // px
-            let fillWidth = Math.abs(weatherScoreRaw) / maxAbs * (barWidth / 2);
-            fillWidth = Math.min(fillWidth, barWidth / 2);
-            weatherGaugeFill.style.width = fillWidth + 'px';
-            weatherGaugeFill.style.background = getGaugeColor(weatherScoreRaw + maxAbs, 0, maxAbs * 2);
-            weatherGaugeZero.style.left = (barWidth / 2 - 1) + 'px';
-            // 方向と丸み
-            if (weatherScoreRaw >= 0) {
-              weatherGaugeFill.style.left = (barWidth / 2) + 'px';
-              weatherGaugeFill.style.right = 'auto';
-              weatherGaugeFill.classList.remove('left');
-              weatherGaugeFill.classList.add('right');
-            } else {
-              weatherGaugeFill.style.left = 'auto';
-              weatherGaugeFill.style.right = (barWidth / 2) + 'px';
-              weatherGaugeFill.classList.remove('right');
-              weatherGaugeFill.classList.add('left');
-            }
-          }
-
-          // 電車遅延率・乗り遅れ率ゲージ（ダミー値）
-          const delayGauge = document.getElementById('delay-gauge');
-          const delayGaugeValue = document.getElementById('delay-gauge-value');
-          const missedGauge = document.getElementById('missed-gauge');
-          const missedGaugeValue = document.getElementById('missed-gauge-value');
-          let delayValue = (Math.random() * 100).toFixed(2);
-          let missedValue = (Math.random() * 100).toFixed(2);
-          if (delayGauge && delayGaugeValue) {
-            delayGauge.value = delayValue;
-            delayGaugeValue.textContent = `${delayValue}%`;
-            delayGauge.style.setProperty('--gauge-color', getGaugeColor(delayValue, 0, 100));
-            delayGauge.style.background = getGaugeColor(delayValue, 0, 100);
-          }
-          if (missedGauge && missedGaugeValue) {
-            missedGauge.value = missedValue;
-            missedGaugeValue.textContent = `${missedValue}%`;
-            missedGauge.style.setProperty('--gauge-color', getGaugeColor(missedValue, 0, 100));
-            missedGauge.style.background = getGaugeColor(missedValue, 0, 100);
-          }
-
-          // ゲージ色を反映（progressタグの色はブラウザ依存のため、Webkit系でのみ色変更）
-          [weatherGauge, delayGauge, missedGauge].forEach(gauge => {
-            if (gauge) {
-              gauge.style.setProperty('accent-color', gauge.style.background);
-            }
-          });
         });
       });
 

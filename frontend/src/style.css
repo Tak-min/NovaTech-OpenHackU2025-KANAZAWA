@@ -849,3 +849,9 @@ input:checked+.slider:before {
 #page-settings textarea#message::placeholder {
   font-family: 'Kiwi Maru', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
 }
+
+/*リセットボタンのフォントサイズを変更*/
+button {
+  font-size: 10px; /* フォントサイズを10pxに設定 */
+  white-space: nowrap; /* 改行を防ぐ */
+}
