@@ -40,7 +40,7 @@ header {
   height: 30px;
   /* ヘッダーの高さ固定 */
   padding-top: 18%;
-  padding-bottom: 4rem;
+  padding-bottom: 2rem;
   /* pointer-events: none;  <-- この行を削除またはコメントアウトしました */
 }
 
