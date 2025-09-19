@@ -72,7 +72,7 @@ let statusImages = {
   '太陽神': '/img/map-very-yellow.png',
   '晴れ男': '/img/map-yellow.png',
   '晴れ女': '/img/map-yellow.png',
-  '凡人': '/img/map-normal.png',
+  '凡人': '/img/map.png',
   '雨男': '/img/map-snow.png',
   '雨女': '/img/map-snow.png',
   '嵐を呼ぶ者': '/img/map-kaze.png',
