@@ -75,9 +75,9 @@
 
       <section id="page-ranking" class="hidden">
         <div id="ranking-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
-          <button class="ranking-tab active" data-mode="weather">天気モード</button>
-          <button class="ranking-tab" data-mode="delay">電車遅延率モード</button>
-          <button class="ranking-tab" data-mode="missed">電車乗り遅れ率モード</button>
+          <button class="ranking-tab active" data-mode="weather">天気スコア</button>
+          <button class="ranking-tab" data-mode="delay">電車遅延率</button>
+          <button class="ranking-tab" data-mode="missed">電車乗り遅れ率</button>
         </div>
         <div id="ranking-table-container">
           <table id="ranking-table" style="width: 100%; border-collapse: collapse;">
@@ -189,16 +189,18 @@
           missed: '電車乗り遅れ率'
         };
 
+        // ダミーデータ生成（70件、ユーザ名: ダミー1番～ダミー70番）
         function generateDummyRanking(mode, userId) {
-          const ranking = Array.from({ length: 100 }, (_, i) => ({
+          let ranking = Array.from({ length: 70 }, (_, i) => ({
             rank: i + 1,
-            username: `ユーザー${i + 1}`,
+            username: `ダミー${i + 1}番`,
             score: mode === 'weather'
               ? Math.floor(Math.random() * 2000)
               : (Math.random() * 100).toFixed(2),
-            userId: `user${i + 1}`
+            userId: `dummy${i + 1}`
           }));
-          const myRank = 77;
+          // 自分の順位（例: 35位）
+          const myRank = 35;
           const myUser = {
             rank: myRank,
             username: '自分',
@@ -207,47 +209,107 @@
               : (Math.random() * 100).toFixed(2),
             userId
           };
-          const top50 = ranking.slice(0, 50);
-          const exists = top50.some(u => u.userId === userId);
-          return exists ? top50 : [...top50, myUser];
+          // 並べ替え（天気モードのみスコア降順）
+          if (mode === 'weather') {
+            ranking.sort((a, b) => b.score - a.score);
+            ranking.forEach((user, idx) => user.rank = idx + 1);
+          }
+          // 自分の順位が既存ランキングにあれば上書き
+          const idx = ranking.findIndex(u => u.rank === myRank);
+          if (idx !== -1) ranking[idx] = myUser;
+          else ranking.push(myUser);
+          return ranking;
         }
 
-        function renderRanking(mode, userId) {
-          const ranking = generateDummyRanking(mode, userId);
+        // 表示範囲の設定（1ページ12件表示、currentStart: 開始順位, currentEnd: 終了順位）
+        let currentStart = 1;
+        let currentEnd = 12;
+
+        function showMyUserRow(myUser, position) {
+          // position: 'top' or 'bottom'
+          return `
+            <tr style="background:#fffde7;font-weight:bold;">
+              <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${myUser.rank}</td>
+              <td style="border-bottom:1px solid #eee; padding:8px;">${myUser.username}（自分）</td>
+              <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">
+                ${myUser.score}${isNaN(myUser.score) ? '' : (currentMode !== 'weather' ? '％' : '')}
+              </td>
+            </tr>
+            <tr><td colspan="3" style="height:4px;"></td></tr>
+          `;
+        }
+
+        async function renderRanking(mode, userId) {
           const tbody = document.getElementById('ranking-table-body');
           const scoreHeader = document.getElementById('ranking-score-header');
           scoreHeader.textContent = modeLabels[mode];
+          tbody.innerHTML = `<tr><td colspan="3" style="padding: 16px; text-align: center;">ランキングを読み込み中...</td></tr>`;
+          const ranking = generateDummyRanking(mode, userId);
+          if (!ranking) {
+            tbody.innerHTML = `<tr><td colspan="3" style="padding: 16px; text-align: center; color: red;">ランキングデータの取得に失敗しました</td></tr>`;
+            return;
+          }
           tbody.innerHTML = '';
-          ranking.forEach(user => {
-            const tr = document.createElement('tr');
-            if (user.userId === userId) {
-              tr.style.background = '#fffde7';
-              tr.style.fontWeight = 'bold';
+
+          // 自分のユーザ情報
+          const myUser = ranking.find(u => u.userId === userId) || ranking.find(u => u.username === '自分');
+          // 表示範囲
+          const visibleRows = ranking.filter(u => u.rank >= currentStart && u.rank <= currentEnd);
+
+          // 自分の順位が表示範囲内か判定
+          const isMyUserVisible = visibleRows.some(u => u.userId === userId);
+
+          // 上部・下部表示判定
+          let topRow = '', bottomRow = '';
+          if (!isMyUserVisible) {
+            if (myUser.rank < currentStart) {
+              topRow = showMyUserRow(myUser, 'top');
+            } else if (myUser.rank > currentEnd) {
+              bottomRow = showMyUserRow(myUser, 'bottom');
             }
-            tr.innerHTML = `
-              <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${user.rank}</td>
-              <td style="border-bottom:1px solid #eee; padding:8px;">${user.username}</td>
-              <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">
-                ${user.score}${mode !== 'weather' ? '％' : ''}
-              </td>
+          }
+
+          // 上部に自分
+          if (topRow) tbody.innerHTML += topRow;
+
+          // 通常表示
+          visibleRows.forEach(user => {
+            const isMe = user.userId === userId;
+            tbody.innerHTML += `
+              <tr${isMe ? ' style="background:#fffde7;font-weight:bold;"' : ''}>
+                <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${user.rank}</td>
+                <td style="border-bottom:1px solid #eee; padding:8px;">${isMe ? user.username + '（自分）' : user.username}</td>
+                <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">
+                  ${user.score}${mode !== 'weather' ? '％' : ''}
+                </td>
+              </tr>
             `;
-            tbody.appendChild(tr);
           });
+
+          // 下部に自分
+          if (bottomRow) tbody.innerHTML += bottomRow;
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-          const userId = 'user77'; // 仮の自分のID
-          let currentMode = 'weather';
-          renderRanking(currentMode, userId);
+          const userId = 'user77'; // 仮の自分のID（本番は認証情報から取得）
+          window.currentMode = 'weather';
+          renderRanking(window.currentMode, userId);
 
           document.querySelectorAll('.ranking-tab').forEach(tab => {
             tab.addEventListener('click', function() {
               document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
               this.classList.add('active');
-              currentMode = this.getAttribute('data-mode');
-              renderRanking(currentMode, userId);
+              window.currentMode = this.getAttribute('data-mode');
+              // 表示範囲をリセット
+              currentStart = 1;
+              currentEnd = 12;
+              renderRanking(window.currentMode, userId);
             });
           });
+
+          // 表示範囲切り替え例（ページ送りが必要ならボタン追加してこの値を変更）
+          // 例: currentStart = 27; currentEnd = 38; renderRanking(...);
+          // 例: currentStart = 38; currentEnd = 49; renderRanking(...);
         });
       </script>
 </body>
