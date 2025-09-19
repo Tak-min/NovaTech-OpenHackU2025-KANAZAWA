@@ -268,8 +268,7 @@
             tbody.appendChild(tr);
           });
 
-          // 自分の行のIDを付与
-          const myUser = ranking.find(u => u.userId === userId);
+          // 自分の行のIDを付与（visibleRankingから取得）
           const myRow = Array.from(tbody.children).find(tr => tr.getAttribute('data-userid') === userId);
           if (myRow) myRow.setAttribute('id', 'my-user-row');
 
