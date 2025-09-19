@@ -243,13 +243,13 @@ app.use(cors({
 }));
 // ================================================
 
+
+const isProduction = process.env.NODE_ENV === 'production';
 // データベース接続プールの設定
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     // ===== 以下のssl設定を追加 =====
-    ssl: process.env.NODE_ENV === 'production' ? {
-        rejectUnauthorized: false
-    } : false,
+    ssl: isProduction ? { rejectUnauthorized: false } : false,
     // 接続タイムアウト設定
     connectionTimeoutMillis: 10000, // 10秒
     query_timeout: 10000, // 10秒
