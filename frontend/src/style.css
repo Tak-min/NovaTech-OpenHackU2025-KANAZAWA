@@ -350,7 +350,7 @@ button.ranking-tab {
   border-radius: 8px;
   color: white;
   font-size: 1em;
-  background: #f6d55c; / 黄色ベース /
+  background: #f6d55c;
   /*box-shadow: 0 3px 0 hsl(45, 85%, 45%), 0 6px 0 rgba(0,0,0,.15);*/
   transition: color .3s, background .3s, box-shadow .3s, transform .3s;
 }
