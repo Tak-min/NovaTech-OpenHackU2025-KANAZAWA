@@ -70,14 +70,14 @@ let statusEmojis = {
 
 // 称号に応じた画像を定義
 let statusImages = {
-  '太陽神': './img/map-very-yellow.png',
-  '晴れ男': './img/map-yellow.png',
-  '晴れ女': './img/map-yellow.png',
-  '凡人': './img/map.png',
-  '雨男': './img/map-snow.png',
-  '雨女': './img/map-snow.png',
+  '太陽神': './img/pin-big-sunny.png',
+  '晴れ男': './img/pin-sunny.PNG',
+  '晴れ女': './img/pin-sunny.PNG',
+  '凡人': './img/pin-nomal.png',
+  '雨男': './img/pin-rainy.PNG',
+  '雨女': './img/pin-rainy.PNG',
   '嵐を呼ぶ者': './img/map-kaze.png',
-  'unknown': './img/map-normal.png'
+  'unknown': './img/map.png'
 };
 
 // 天気に応じたマーカーの色を定義（後方互換のため残す）
@@ -454,6 +454,31 @@ async function checkLoginStatus() {
   }
 }
 
+async function getUserGender() {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`${API_BASE}/user/info`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const userData = await response.json();
+      return userData.gender; // 'male' or 'female'
+    } else {
+      console.error('genderの取得に失敗しました');
+      return null;
+    }
+  } catch (error) {
+    console.error('genderの取得エラー:', error);
+    return null;
+  }
+}
 
 async function updateHomePageStatus() {
   const token = localStorage.getItem('token');
@@ -481,12 +506,30 @@ async function updateHomePageStatus() {
       // バックエンドから受け取った称号を表示
       statusTextElement.textContent = `${data.status}`;
 
-      // 称号に応じた画像と絵文字のマップ
-      const statusVisuals = {
-        '太陽神': '☀️', '晴れ男': '😊', '凡人': '😐', '雨男': '☔', '嵐を呼ぶ者': '⚡️', 'デフォルト': '🤔'
-      };
-      const emoji = statusVisuals[data.status] || statusVisuals['デフォルト'];
-      statusImageElement.src = `https://placehold.jp/150x150.png?text=${encodeURIComponent(emoji)}`;
+      // ユーザーのgenderを取得
+      const gender = await getUserGender();
+      console.log('updateHomePageStatus: 取得したgender', gender);
+
+      // scoreに基づいて画像を選択
+      const score = data.score;
+      let imagePath = 'https://placehold.jp/150x150.png?text=%F0%9F%98%90'; // デフォルト
+      if (score > 0) {
+        // 正のスコア: hare + gender
+        if (gender === 'female') {
+          imagePath = './img/hare_f.png';
+        } else if (gender === 'male') {
+          imagePath = './img/hare_m.png';
+        }
+      } else if (score < 0) {
+        // 負のスコア: ame + gender
+        if (gender === 'female') {
+          imagePath = './img/ame_f.png';
+        } else if (gender === 'male') {
+          imagePath = './img/ame_m.png';
+        }
+      }
+
+      statusImageElement.src = imagePath;
 
       const missedTrainCounter = document.getElementById('missed-train-counter');
       missedTrainCounter.textContent = `電車に乗り遅れた回数: ${data.missedTrainCount}回`;
