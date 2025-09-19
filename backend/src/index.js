@@ -184,7 +184,7 @@ const STATIONS = [
     { name: '乙丸', latitude: 36.51186, longitude: 136.61763 },
     { name: '四十万', latitude: 36.4989, longitude: 136.61566 }
 ];
-const STATION_RADIUS_METERS = 10;
+const STATION_RADIUS_METERS = 70;
 const MISS_COOLDOWN_MINUTES = 30;
 
 
@@ -796,7 +796,7 @@ app.post('/register', async (req, res) => {
         const validGenders = ['male', 'female', 'other'];
         if (gender && !validGenders.includes(gender)) {
             console.log('Validation failed: Invalid gender');
-            return res.status(400).json({ message: '性別はmale、female、otherのいずれかを選択してください' });
+            return res.status(400).json({ message: '性別はmale、femaleのいずれかを選択してください' });
         }
 
         console.log('Creating password hash...');
