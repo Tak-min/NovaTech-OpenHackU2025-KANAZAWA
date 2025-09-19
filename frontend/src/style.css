@@ -283,7 +283,7 @@ input[type="radio"] {
 }
 
 #page-home p{
-  font-family: 'Kiwi Maru';
+  font-family: 'Kiwi Maru', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
   color: #4B4B4B;
 }
 
@@ -291,7 +291,7 @@ input[type="radio"] {
   font-size: 2.25rem;
   font-weight: 500;
   margin: 1rem 0;
-  font-family: 'Kiwi Maru';
+  font-family: 'Kiwi Maru', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
   color: #4B4B4B;
 }
 
@@ -354,7 +354,7 @@ footer button {
 footer button span {
   color: #6b7280;
   white-space: nowrap;
-  font-family: 'Kiwi Maru';
+  font-family: 'Kiwi Maru', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
 }
 
 /* ボタン内のアイコンの共通スタイル */
@@ -367,7 +367,7 @@ footer button img.icon {
 /* アクティブなボタンのスタイル */
 footer button.active span {
   color: #f59e0b;
-  font-family: 'Kiwi Maru';
+  font-family: 'Kiwi Maru', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
 }
 
 footer button[data-page="home"].active img.icon {
@@ -497,21 +497,44 @@ footer button[data-page="settings"].active img.icon {
   padding: 20px;
 }
 
+/* settings page layout */
+#page-settings {
+  max-height: 80vh; /* セクションの最大高さを設定 */
+  overflow-y: auto; /* 縦方向のスクロールを有効化 */
+  padding: 1rem;
+}
+
 /* アイコンコンテナ */
 .icon-container {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   width: 40%;
+  height: 200px; /* 高さを調整 */
+  margin-bottom: 1rem;
 }
 
 /* ファイル選択エリア */
 .file-input-container {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  /*align-items: flex-start;*/
   width: 100%;
+  align-items: center; /* 中央揃え */
+  gap: 10px; /* ボタン間の間隔 */
+  margin-top: 1rem;
 }
+
+.file-input-container input[type="file"] {
+  display: none; /* 非表示 */
+}
+
+.file-input-container button {
+  width: 80%; /* ボタンの幅を統一 */
+  max-width: 200px; /* 最大幅を制限 */
+  margin: 0 auto; /* 水平方向の中央揃え */
+}
+
 
 #iconInput {
   display: none !important;
@@ -522,9 +545,9 @@ footer button[data-page="settings"].active img.icon {
   color: white;
   border: none;
   padding: 3px 3px;
-  margin: 15px auto;
+  margin: 5px auto; /* 15pxから5pxに変更 */
   border-radius: 15px;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
@@ -591,16 +614,19 @@ textarea {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 10px;
   min-width: 200px;
+  height: 228px;
 }
 
 .introduce-container {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 10px;
   min-width: 200px;
+  margin-top: 1rem;
+  margin-left: -20px;
 }
 
 .introduce-container textarea {
@@ -608,6 +634,20 @@ textarea {
   border: 1px solid #ddd;
   border-radius: 4px;
   min-height: 100px;
+  resize: vertical;
+
+  width: 100%;
+  max-width: 100%; /* はみ出し防止 */
+  height: 100px;
+  resize: vertical; /* 縦方向のリサイズのみ許可 */
+  margin-top: 10px;
+}
+
+#message {
+  border-radius: 12px; /* 角丸を大きく */
+  margin-right: 8px; /* 右側に8pxの余白 */
+  width: calc(100% - 8px); /* 右余白分を引いた幅 */
+  padding: 8px;
   resize: vertical;
 }
 
@@ -634,6 +674,7 @@ textarea {
   padding: 20px;
   background-color: #f9f9f9;
   border-radius: 10px;
+  margin-top: none;
 }
 
 .settings-item {
@@ -718,6 +759,10 @@ input:checked+.slider:before {
   justify-content: space-between;
   align-items: center;
   padding: 10px;
+
+  margin-top: 1rem;
+  padding: 1rem;
+  border-top: 1px solid #eee;
 }
 
 .email-password-settings span {
@@ -725,17 +770,25 @@ input:checked+.slider:before {
   color: #333;
 }
 
+/* Change buttonのスタイル調整 */
 .change-button {
   background-color: #e0e0e0;
   color: #666;
   border: none;
   border-radius: 15px;
-  padding: 8px 15px;
-  font-size: 14px;
+  padding: 4px 12px;
+  height: 28px;
+  line-height: 20px;
+  font-size: 0.9rem;
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  justify-content: center
+  white-space: nowrap; /* 改行を防ぐ */
+  min-width: 60px; /* ボタンの最小幅を設定 */
+  display: flex; /* Flexboxを使用 */
+  align-items: center; /* 垂直方向の中央揃え */
+  justify-content: center; /* 水平方向の中央揃え */
 }
+
 .jinx-counter{
   margin-top: 1.5rem;
   font-size: 0.9rem;
@@ -744,4 +797,34 @@ input:checked+.slider:before {
   padding: 0.5rem 1rem;
   border-radius: 999px;
   display: inline-block;
+}
+
+/* 設定ページ全体のフォント設定 */
+#page-settings {
+  font-family: 'Kiwi Maru', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
+}
+
+/* 各要素も明示的に設定 */
+#page-settings .settings-layout,
+#page-settings .icon-container,
+#page-settings .file-input-container,
+#page-settings .icon-placeholder,
+#page-settings .select-btn,
+#page-settings .save-btn,
+#page-settings .reset-btn,
+#page-settings .image-info,
+#page-settings .introduce-container,
+#page-settings .introduce-number,
+#page-settings .introduce-name,
+#page-settings textarea#message,
+#page-settings .settings-container,
+#page-settings .settings-item span,
+#page-settings .email-password-settings,
+#page-settings .change-button {
+  font-family: 'Kiwi Maru', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
+}
+
+/* テキストエリアのプレースホルダーにも適用 */
+#page-settings textarea#message::placeholder {
+  font-family: 'Kiwi Maru', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
 }
