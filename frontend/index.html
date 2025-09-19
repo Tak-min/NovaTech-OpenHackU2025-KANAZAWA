@@ -74,9 +74,28 @@
       </section>
 
       <section id="page-ranking" class="hidden">
-        <ul id="ranking-list">
-          <li>ランキングを読み込み中...</li>
-        </ul>
+        <div id="ranking-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <button class="ranking-tab active" data-mode="weather">天気モード</button>
+          <button class="ranking-tab" data-mode="delay">電車遅延率モード</button>
+          <button class="ranking-tab" data-mode="missed">電車乗り遅れ率モード</button>
+        </div>
+        <div id="ranking-table-container">
+          <table id="ranking-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="border-bottom: 1px solid #ccc; padding: 8px;">順位</th>
+                <th style="border-bottom: 1px solid #ccc; padding: 8px;">ユーザ名</th>
+                <th id="ranking-score-header" style="border-bottom: 1px solid #ccc; padding: 8px;">天気スコア</th>
+              </tr>
+            </thead>
+            <tbody id="ranking-table-body">
+              <tr><td colspan="3" style="padding: 16px; text-align: center;">ランキングを読み込み中...</td></tr>
+            </tbody>
+          </table>
+          <div style="margin-top: 16px; font-size: 0.9em; color: #888;">
+            ※上位50名と自分の順位のみ表示しています
+          </div>
+        </div>
       </section>
 
       <section id="page-setting" class="hidden">
@@ -163,6 +182,75 @@
   </div>
 
   <script type="module" src="/src/main.js?v=1.1"></script>
+  <script>
+        // --- ランキング画面のUI制御 ---
+        const modeLabels = {
+          weather: '天気スコア',
+          delay: '電車遅延率',
+          missed: '電車乗り遅れ率'
+        };
+
+        function generateDummyRanking(mode, userId) {
+          const ranking = Array.from({ length: 100 }, (_, i) => ({
+            rank: i + 1,
+            username: `ユーザー${i + 1}`,
+            score: mode === 'weather'
+              ? Math.floor(Math.random() * 2000)
+              : (Math.random() * 100).toFixed(2),
+            userId: `user${i + 1}`
+          }));
+          const myRank = 77;
+          const myUser = {
+            rank: myRank,
+            username: '自分',
+            score: mode === 'weather'
+              ? Math.floor(Math.random() * 2000)
+              : (Math.random() * 100).toFixed(2),
+            userId
+          };
+          const top50 = ranking.slice(0, 50);
+          const exists = top50.some(u => u.userId === userId);
+          return exists ? top50 : [...top50, myUser];
+        }
+
+        function renderRanking(mode, userId) {
+          const ranking = generateDummyRanking(mode, userId);
+          const tbody = document.getElementById('ranking-table-body');
+          const scoreHeader = document.getElementById('ranking-score-header');
+          scoreHeader.textContent = modeLabels[mode];
+          tbody.innerHTML = '';
+          ranking.forEach(user => {
+            const tr = document.createElement('tr');
+            if (user.userId === userId) {
+              tr.style.background = '#fffde7';
+              tr.style.fontWeight = 'bold';
+            }
+            tr.innerHTML = `
+              <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${user.rank}</td>
+              <td style="border-bottom:1px solid #eee; padding:8px;">${user.username}</td>
+              <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">
+                ${user.score}${mode !== 'weather' ? '％' : ''}
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+          const userId = 'user77'; // 仮の自分のID
+          let currentMode = 'weather';
+          renderRanking(currentMode, userId);
+
+          document.querySelectorAll('.ranking-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+              document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
+              this.classList.add('active');
+              currentMode = this.getAttribute('data-mode');
+              renderRanking(currentMode, userId);
+            });
+          });
+        });
+      </script>
 </body>
 
 </html>
