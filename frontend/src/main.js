@@ -89,7 +89,11 @@ function showPage(pageId) {
   // ヘッダー画像の切り替え
   if (pageId === 'page-home') showHeaderImage('home');
   else if (pageId === 'page-map') showHeaderImage('map');
-  else if (pageId === 'page-ranking') showHeaderImage('ranking');
+  else if (pageId === 'page-ranking') {
+    showHeaderImage('ranking');
+    // ランキングページが表示されたらデータを更新
+    updateRankingPage();
+  }
   else if (pageId === 'page-settings') {
     showHeaderImage('settings');
     // 設定ページが表示されたら初期化関数を呼び出し
@@ -530,14 +534,19 @@ document.getElementById('show-register-button').addEventListener('click', () => 
 document.getElementById('show-login-button').addEventListener('click', () => showPage('page-login'));
 
 // ログアウト処理
-document.getElementById('logout-button').addEventListener('click', () => {
-  console.log('Logout button clicked');
-  localStorage.removeItem('token');
-  stopPeriodicLocationUpdate(); // 定期更新を停止
-  stopLocationTracking(); // 位置情報追跡を停止
-  showPage('page-login');
-  alert('ログアウトしました');
-});
+const logoutBtn = document.getElementById('logout-button');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', () => {
+    console.log('Logout button clicked');
+    localStorage.removeItem('token');
+    stopPeriodicLocationUpdate(); // 定期更新を停止
+    stopLocationTracking(); // 位置情報追跡を停止
+    showPage('page-login');
+    alert('ログアウトしました');
+  });
+} else {
+  console.warn('logout-button not found in DOM');
+}
 
 // 5分ごとに位置情報を送信する関数
 function sendLocation() {
@@ -607,38 +616,138 @@ showPage('page-login');
 
 //ここからはランキング機能
 async function updateRankingPage() {
-  const rankingList = document.getElementById('ranking-list');
-  rankingList.innerHTML = '<li>ランキングを読み込んでいます...</li>';
   const token = localStorage.getItem('token');
   if (!token) {
-    rankingList.innerHTML = '<li>ログインが必要です</li>';
+    console.log('ランキング更新スキップ: 認証トークンなし');
     return;
   }
 
+  const scoreHeader = document.getElementById('ranking-score-header');
+  const tbody = document.getElementById('ranking-table-body');
+
+  if (scoreHeader) scoreHeader.textContent = '天気スコア';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">ランキングを読み込んでいます...</td></tr>';
+
   try {
     const response = await fetch(`${API_BASE}/ranking`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
     });
+
     if (!response.ok) {
-      throw new Error('network response was not ok');
-    }
-    const rankingData = await response.json();
-    rankingList.innerHTML = "";
-
-    if (rankingData.length === 0) {
-      rankingList.innerHTML = "<li>まだ誰もランクインしていません</li>";
-      return;
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    rankingData.forEach((user, index) => {
-      const listItem = document.createElement('li');
-      listItem.textContent = `${index + 1}位: ${user.username} (スコア: ${Number(user.score).toFixed(1)})`;
-      rankingList.appendChild(listItem);
-    });
+    const rankingData = await response.json(); // 配列: [{ username, score }]
+
+    if (!Array.isArray(rankingData)) {
+      throw new Error('Unexpected ranking response shape');
+    }
+
+    if (tbody) {
+      tbody.innerHTML = '';
+      const top = rankingData.slice(0, 50);
+      top.forEach((user, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${idx + 1}</td>
+          <td style="border-bottom:1px solid #eee; padding:8px;">${user.username}</td>
+          <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">${Number(user.score ?? 0).toFixed(1)}</td>
+        `;
+        tbody.appendChild(tr);
+
+        const userTr = document.createElement('tr');
+      if (top.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">まだランキングデータがありません</td></tr>';
+      }
+    }
   } catch (error) {
-    console.error('ランキングの取得に失敗:', error);
-    rankingList.innerHTML = "<li>ランキングの取得に失敗しました</li>";
+    console.error('ランキング取得エラー:', error);
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #f44336;">ランキングの取得に失敗しました</td></tr>';
+    }
   }
+}
+  if (!currentUserRank) return;
+
+  const tableContainer = document.getElementById('ranking-table-container');
+  const myRow = document.getElementById('my-user-row');
+
+  if (!tableContainer || !myRow) return;
+
+  // 既存の固定表示要素をクリア
+  const existingFixedTop = document.getElementById('my-user-fixed-top');
+  const existingFixedBottom = document.getElementById('my-user-fixed-bottom');
+
+  if (existingFixedTop) existingFixedTop.remove();
+  if (existingFixedBottom) existingFixedBottom.remove();
+
+  // 固定表示用の領域をテーブル外に設置
+  let fixedTop = document.createElement('div');
+  fixedTop.id = 'my-user-fixed-top';
+  fixedTop.style.position = 'sticky';
+  fixedTop.style.top = '0';
+  fixedTop.style.zIndex = '10';
+  fixedTop.style.background = 'white';
+  fixedTop.style.border = '1px solid #ddd';
+  fixedTop.style.display = 'none';
+
+  let fixedBottom = document.createElement('div');
+  fixedBottom.id = 'my-user-fixed-bottom';
+  fixedBottom.style.position = 'sticky';
+  fixedBottom.style.bottom = '0';
+  fixedBottom.style.zIndex = '10';
+  fixedBottom.style.background = 'white';
+  fixedBottom.style.border = '1px solid #ddd';
+  fixedBottom.style.display = 'none';
+
+  tableContainer.insertAdjacentElement('beforebegin', fixedTop);
+  tableContainer.insertAdjacentElement('afterend', fixedBottom);
+
+  // 自分の順位情報を表示する関数
+  function showMyUserRow() {
+    const scoreDisplay = window.currentRankingType === 'delay' || window.currentRankingType === 'missed' ?
+      `${currentUserRank.score}${window.currentRankingType === 'delay' ? '%' : '回'}` :
+      currentUserRank.score;
+
+    return `
+      <table style="width:100%; border-collapse: collapse;">
+        <tr style="background:#fffde7; font-weight:bold;">
+          <td style="border:1px solid #ddd; padding:8px; text-align:center;">${currentUserRank.rank}</td>
+          <td style="border:1px solid #ddd; padding:8px;">${currentUserRank.username}（自分）</td>
+          <td style="border:1px solid #ddd; padding:8px; text-align:right;">${scoreDisplay}</td>
+        </tr>
+      </table>
+    `;
+  }
+
+  // スクロール判定
+  function checkMyUserVisibility() {
+    if (!myRow) return;
+
+    const containerRect = tableContainer.getBoundingClientRect();
+    const rowRect = myRow.getBoundingClientRect();
+
+    fixedTop.style.display = 'none';
+    fixedBottom.style.display = 'none';
+
+    // 上部固定表示
+    if (rowRect.top < containerRect.top) {
+      fixedTop.innerHTML = showMyUserRow();
+      fixedTop.style.display = 'block';
+    }
+    // 下部固定表示
+    else if (rowRect.bottom > containerRect.bottom) {
+      fixedBottom.innerHTML = showMyUserRow();
+      fixedBottom.style.display = 'block';
+    }
+  }
+
+  tableContainer.addEventListener('scroll', checkMyUserVisibility);
+  // 初期チェック
+  checkMyUserVisibility();
 }
 
 //ここからは地図機能
@@ -841,7 +950,7 @@ if (iconInput) iconInput.addEventListener('change', function (event) {
     reader.onload = function (e) {
       selectedImageData = e.target.result;
       displayImagePreview(selectedImageData);
-      displayImageInfo(file);
+      //displayImageInfo(file);
       saveBtn.disabled = false;
     };
 

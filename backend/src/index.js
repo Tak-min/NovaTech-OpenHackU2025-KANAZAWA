@@ -623,27 +623,107 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
     }
 });
 
-// [GET] /ranking - スコアランキングを取得
+// [GET] /ranking - Get user rankings with different types
 app.get('/ranking', authenticateToken, async (req, res) => {
     try {
-        console.log('Fetching ranking data...');
+        const { type = 'weather', limit = 50 } = req.query;
+        const userId = req.user.id;
 
-        // usersテーブルのscoreカラムを直接使用してランキングを取得
-        const rankingQuery = `
-            SELECT
-                u.username,
-                u.score
-            FROM
-                users u
-            ORDER BY
-                u.score DESC
-            LIMIT 100;
-        `;
+        let rankingQuery;
+        let scoreColumn;
 
-        const { rows } = await pool.query(rankingQuery);
-        console.log(`Ranking data fetched successfully. Found ${rows.length} users.`);
+        switch (type) {
+            case 'weather':
+                // 天気スコアランキング
+                rankingQuery = `
+                    SELECT
+                        u.id,
+                        u.username,
+                        COALESCE(SUM(
+                            CASE l.weather
+                                WHEN 'sunny' THEN 1
+                                WHEN 'cloudy' THEN 0.5
+                                WHEN 'rainy' THEN -1
+                                WHEN 'snowy' THEN 2
+                                WHEN 'thunderstorm' THEN -3
+                                WHEN 'stormy' THEN -2
+                                ELSE 0
+                            END
+                        ), 0) AS score
+                    FROM users u
+                    LEFT JOIN locations l ON u.id = l.user_id
+                    GROUP BY u.id, u.username
+                    ORDER BY score DESC
+                `;
+                scoreColumn = 'score';
+                break;
 
-        res.json(rows);
+            case 'missed':
+                // 電車乗り遅れランキング（少ないほど上位）
+                rankingQuery = `
+                    SELECT
+                        u.id,
+                        u.username,
+                        COALESCE(u.missed_train_count, 0) AS score
+                    FROM users u
+                    ORDER BY score ASC
+                `;
+                scoreColumn = 'score';
+                break;
+
+            case 'delay':
+                // 電車遅延率ランキング（計算が必要）
+                rankingQuery = `
+                    SELECT
+                        u.id,
+                        u.username,
+                        CASE
+                            WHEN COALESCE(u.missed_train_count, 0) = 0 THEN 0
+                            ELSE ROUND(
+                                (COALESCE(u.missed_train_count, 0) * 100.0) /
+                                GREATEST(COUNT(l.id), 1), 2
+                            )
+                        END AS score
+                    FROM users u
+                    LEFT JOIN locations l ON u.id = l.user_id
+                    GROUP BY u.id, u.username, u.missed_train_count
+                    ORDER BY score ASC
+                `;
+                scoreColumn = 'score';
+                break;
+
+            default:
+                return res.status(400).json({ message: '無効なランキングタイプです' });
+        }
+
+        // ランキングを取得
+        const rankingResult = await pool.query(rankingQuery);
+
+        // 順位を付与
+        const rankings = rankingResult.rows.map((row, index) => ({
+            rank: index + 1,
+            id: row.id,
+            username: row.username,
+            score: parseFloat(row.score) || 0,
+            isCurrentUser: row.id === userId
+        }));
+
+        // 上位N名を取得
+        const topRankings = rankings.slice(0, parseInt(limit));
+
+        // 自分の順位を取得（上位に含まれていない場合）
+        let currentUserRank = null;
+        const currentUserInTop = topRankings.find(r => r.isCurrentUser);
+        if (!currentUserInTop) {
+            currentUserRank = rankings.find(r => r.isCurrentUser);
+        }
+
+        res.json({
+            type: type,
+            rankings: topRankings,
+            currentUserRank: currentUserRank,
+            totalUsers: rankings.length
+        });
 
     } catch (error) {
         console.error('Error in /ranking endpoint:', error);
