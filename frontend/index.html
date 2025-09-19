@@ -64,7 +64,28 @@
         <p>あなたは今・・・</p>
         <h2 id="status-text">判定中...</h2>
         <img id="status-image" src="https://placehold.jp/150x150.png?text=..." alt="判定イラスト">
-        <p id="missed-train-counter" class="jinx-counter">電車に乗り遅れた回数: ...回</p>
+        <p id="missed-train-counter" class="jinx-counter">電車に乗り遅れた回数　: ...回</p>
+        <p id="missed-train-counter" class="jinx-counter">電車遅延に遭遇した回数: ...回</p>
+        <div style="margin-top:16px;">
+          <div>
+            <label for="weather-gauge" style="font-weight:bold;">天気スコア　　</label>
+            <div id="weather-gauge-bar" class="center-gauge-bar">
+              <div id="weather-gauge-fill"></div>
+              <div id="weather-gauge-zero"></div>
+            </div>
+            <span id="weather-gauge-value" style="margin-left:8px;">--</span>
+          </div>
+          <div style="margin-top:12px;">
+            <label for="delay-gauge" style="font-weight:bold;">電車遅延率　　</label>
+            <progress id="delay-gauge" value="0" max="100" style="width:200px; height:20px; vertical-align:middle; background:transparent; border-radius:10px;"></progress>
+            <span id="delay-gauge-value" style="margin-left:8px;">--%</span>
+          </div>
+          <div style="margin-top:12px;">
+            <label for="missed-gauge" style="font-weight:bold;">電車乗り遅れ率</label>
+            <progress id="missed-gauge" value="0" max="100" style="width:200px; height:20px; vertical-align:middle; background:transparent; border-radius:10px;"></progress>
+            <span id="missed-gauge-value" style="margin-left:8px;">--%</span>
+          </div>
+        </div>
       </section>
 
       <section id="page-map" class="hidden">
@@ -182,7 +203,10 @@
     <img src="img/setting.png" alt="設定" class="icon">
     <span>設定</span>
   </button>
-
+  <button data-page="omikuji" class="nav-button">
+    <img src="img/omikuji.png" alt="おみくじ" class="icon">
+    <span>おみくじ</span>
+  </button>
       <div id="footer-img-container" class="footer-home-img">
         <img id="footer-img" src="img/footer-4-1.png" alt="フッター画像">
       </div>
@@ -375,7 +399,93 @@
               omikujiStreakDiv.textContent = `当たり連続回数: ${omikujiStreak}回`;
             });
           }
+
+          // フッターのページ切り替え対応
+          document.querySelectorAll('#footer-nav .nav-button').forEach(btn => {
+            btn.addEventListener('click', function() {
+              const page = this.getAttribute('data-page');
+              document.querySelectorAll('main > section').forEach(sec => {
+                sec.classList.add('hidden');
+              });
+              document.querySelectorAll('#footer-nav .nav-button').forEach(b => b.classList.remove('active'));
+              this.classList.add('active');
+              const showSection = document.getElementById(`page-${page}`);
+              if (showSection) showSection.classList.remove('hidden');
+            });
+          });
+
+          // 天気スコアゲージ（真ん中起点・左右伸長）
+          const weatherGaugeValue = document.getElementById('weather-gauge-value');
+          const weatherGaugeBar = document.getElementById('weather-gauge-bar');
+          const weatherGaugeFill = document.getElementById('weather-gauge-fill');
+          const weatherGaugeZero = document.getElementById('weather-gauge-zero');
+          let weatherScoreRaw = Math.floor(Math.random() * 19999) - 9999;
+          if (weatherGaugeValue && weatherGaugeBar && weatherGaugeFill && weatherGaugeZero) {
+            weatherGaugeValue.textContent = weatherScoreRaw;
+            const maxAbs = 9999;
+            const barWidth = 200; // px
+            let fillWidth = Math.abs(weatherScoreRaw) / maxAbs * (barWidth / 2);
+            fillWidth = Math.min(fillWidth, barWidth / 2);
+            weatherGaugeFill.style.width = fillWidth + 'px';
+            weatherGaugeFill.style.background = getGaugeColor(weatherScoreRaw + maxAbs, 0, maxAbs * 2);
+            weatherGaugeZero.style.left = (barWidth / 2 - 1) + 'px';
+            // 方向と丸み
+            if (weatherScoreRaw >= 0) {
+              weatherGaugeFill.style.left = (barWidth / 2) + 'px';
+              weatherGaugeFill.style.right = 'auto';
+              weatherGaugeFill.classList.remove('left');
+              weatherGaugeFill.classList.add('right');
+            } else {
+              weatherGaugeFill.style.left = 'auto';
+              weatherGaugeFill.style.right = (barWidth / 2) + 'px';
+              weatherGaugeFill.classList.remove('right');
+              weatherGaugeFill.classList.add('left');
+            }
+          }
+
+          // 電車遅延率・乗り遅れ率ゲージ（ダミー値）
+          const delayGauge = document.getElementById('delay-gauge');
+          const delayGaugeValue = document.getElementById('delay-gauge-value');
+          const missedGauge = document.getElementById('missed-gauge');
+          const missedGaugeValue = document.getElementById('missed-gauge-value');
+          let delayValue = (Math.random() * 100).toFixed(2);
+          let missedValue = (Math.random() * 100).toFixed(2);
+          if (delayGauge && delayGaugeValue) {
+            delayGauge.value = delayValue;
+            delayGaugeValue.textContent = `${delayValue}%`;
+            delayGauge.style.setProperty('--gauge-color', getGaugeColor(delayValue, 0, 100));
+            delayGauge.style.background = getGaugeColor(delayValue, 0, 100);
+          }
+          if (missedGauge && missedGaugeValue) {
+            missedGauge.value = missedValue;
+            missedGaugeValue.textContent = `${missedValue}%`;
+            missedGauge.style.setProperty('--gauge-color', getGaugeColor(missedValue, 0, 100));
+            missedGauge.style.background = getGaugeColor(missedValue, 0, 100);
+          }
+
+          // ゲージ色を反映（progressタグの色はブラウザ依存のため、Webkit系でのみ色変更）
+          [weatherGauge, delayGauge, missedGauge].forEach(gauge => {
+            if (gauge) {
+              gauge.style.setProperty('accent-color', gauge.style.background);
+            }
+          });
         });
+
+        // 値に応じて青～緑～赤のグラデーション色を返す関数
+        function getGaugeColor(value, min, max) {
+          const ratio = (value - min) / (max - min);
+          let r, g, b;
+          if (ratio <= 0.5) {
+            r = Math.round(33 + (76 - 33) * (ratio / 0.5));
+            g = Math.round(150 + (175 - 150) * (ratio / 0.5));
+            b = Math.round(243 + (80 - 243) * (ratio / 0.5));
+          } else {
+            r = Math.round(76 + (229 - 76) * ((ratio - 0.5) / 0.5));
+            g = Math.round(175 + (57 - 175) * ((ratio - 0.5) / 0.5));
+            b = Math.round(80 + (53 - 80) * ((ratio - 0.5) / 0.5));
+          }
+          return `rgb(${r},${g},${b})`;
+        }
       </script>
       <style>
         #ranking-table-container {
@@ -385,6 +495,55 @@
         }
         #my-user-fixed-top, #my-user-fixed-bottom {
           width: 100%;
+        }
+        /* ゲージ色対応（Webkit系のみ） */
+        progress[value]::-webkit-progress-bar {
+          background-color: #eee;
+          border-radius: 10px;
+        }
+        progress[value]::-webkit-progress-value {
+          background: var(--gauge-color, #2196f3);
+          border-radius: 10px;
+        }
+        progress[value] {
+          border-radius: 10px;
+          overflow: hidden;
+        }
+        /* 天気スコア中央起点ゲージ */
+        .center-gauge-bar {
+          position: relative;
+          width: 200px;
+          height: 20px;
+          background: #eee;
+          border-radius: 10px;
+          margin: 0 0 0 0;
+          display: inline-block;
+        }
+        #weather-gauge-fill {
+          position: absolute;
+          top: 0;
+          height: 20px;
+          /* 両端は丸み、中心側は直線 */
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
+        }
+        #weather-gauge-fill.right {
+          border-top-right-radius: 10px;
+          border-bottom-right-radius: 10px;
+        }
+        #weather-gauge-fill.left {
+          border-top-left-radius: 10px;
+          border-bottom-left-radius: 10px;
+        }
+        #weather-gauge-zero {
+          position: absolute;
+          top: 0;
+          width: 2px;
+          height: 20px;
+          background: #888;
+          border-radius: 0;
         }
       </style>
 </body>
