@@ -56,8 +56,8 @@ function showPage(pageId) {
   if (pageId === 'page-home') showHeaderImage('home');
   else if (pageId === 'page-map') showHeaderImage('map');
   else if (pageId === 'page-ranking') showHeaderImage('ranking');
-  else if (pageId === 'page-setting') {
-    showHeaderImage('setting');
+  else if (pageId === 'page-settings') {
+    showHeaderImage('settings');
     // 設定ページが表示されたら初期化関数を呼び出し
     initializeSettingsPage();
     // 設定ページが表示されたらユーザー情報を更新
@@ -72,13 +72,13 @@ function showPage(pageId) {
     'page-home': 'ホーム',
     'page-map': 'マップ',
     'page-ranking': 'ランキング',
-    'page-setting': '設定'
+    'page-settings': '設定'
   };
   headerTitle.textContent = titles[pageId] || 'Hare/Ame';
 
   // #appにクラスを付け替える
   const app = document.getElementById('app');
-  if (pageId === 'page-home' || pageId === 'page-map' || pageId === 'page-ranking' || pageId === 'page-setting') {
+  if (pageId === 'page-home' || pageId === 'page-map' || pageId === 'page-ranking' || pageId === 'page-settings') {
     app.classList.add('bg-sky');
   } else {
     app.classList.remove('bg-sky');
@@ -93,7 +93,7 @@ function showHeaderImage(type) {
     home: '/img/header-home.png',
     map: '/img/header-map.png',
     ranking: '/img/header-ranking.png',
-    setting: '/img/header-setting.png',
+    settings: '/img/header-settings.png',
   };
 
   if (type && images[type]) {
@@ -380,7 +380,7 @@ navButtons.forEach(button => {
       setTimeout(initializeMap, 100);
     } else if (button.dataset.page === "ranking") {
       updateRankingPage();
-    } else if (button.dataset.page === "setting") {
+    } else if (button.dataset.page === "settings") {
       console.log('設定ページが表示されました');
     }
   });
@@ -1403,7 +1403,7 @@ async function checkLocationPermission() {
 
 // 位置情報設定のスイッチを更新する関数
 async function updateLocationSwitch() {
-  const locationSwitch = document.querySelector('#page-setting input[type="checkbox"]:last-of-type');
+  const locationSwitch = document.querySelector('#page-settings input[type="checkbox"]:last-of-type');
   if (!locationSwitch) return;
 
   const permissionState = await checkLocationPermission();

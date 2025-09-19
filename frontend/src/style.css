@@ -74,7 +74,7 @@ header {
   display: block;
 }
 
-#header-setting-img {
+#header-settings-img {
   position: absolute;
   /* 画面上で固定配置 */
   top: 20px;
@@ -309,7 +309,7 @@ input[type="radio"] {
 #page-home,
 #page-map,
 #page-ranking,
-#page-setting {
+#page-settings {
   background-color: white;
   /* 背景を白にする */
   padding: 1rem;
@@ -324,36 +324,19 @@ input[type="radio"] {
 }
 
 /* Footer */
-/*footer {
+footer {
   position: relative;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   text-align: center;
   padding: 0.5rem 0;
   border-top: 1px solid #e5e7eb;
-  background-color: #fff;
+
+  background-color: transparent; /* 白を消す */
+  border-top: none; /* 線も不要なら削除 */
   gap: 10px;
   position: relative;
-  z-index: 1; 
-}*/
-
-footer {
-  position: relative; /* 子要素のabsolute配置の基準にする */
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  text-align: center;
-  padding: 0.5rem 0;
-  background-color: transparent; /* 背景画像に隠れるように透明にする */
-  border-top: none; /* ボーダーを削除 */
-  gap: 10px;
-}
-
-.nav-buttons-container {
-  display: grid;
-  grid-template-columns: subgrid;
-  grid-column: 1 / -1; /* グリッド全体を使用 */
-  position: relative;
-  z-index: 2; /* ボタンを画像より前面に表示 */
+  z-index: 1; /* 画像の上に表示 */
 }
 
 /* ボタンの共通スタイル */
@@ -399,29 +382,19 @@ footer button[data-page="ranking"].active img.icon {
   content: url('img/ranking-yellow.png');
 }
 
-footer button[data-page="setting"].active img.icon {
-  content: url('img/setting-yellow.png');
+footer button[data-page="settings"].active img.icon {
+  content: url('img/settings-yellow.png');
 }
 
 /* 背景画像のコンテナ */
-/*.footer-home-img {
+.footer-home-img {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   width: 100%;
-  max-width: none;
-  z-index: -1; 
-}*/
-
-.fooder-home-img {
-  position: absolute; /* 親要素（footer）を基準に配置 */
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  max-width: 540px;
-  width: 100%;
-  z-index: 1; /* ボタンより背面に表示 */
+  max-width: none; /* 制限を解除 */
+  z-index: -1; /* フッターの下に配置 */
 }
 
 .footer-home-img img {
@@ -464,7 +437,7 @@ footer button[data-page="setting"].active img.icon {
   #page-home,
   #page-map,
   #page-ranking,
-  #page-setting {
+  #page-settings {
     max-width: 600px;
   }
 
@@ -663,14 +636,14 @@ textarea {
   border-radius: 10px;
 }
 
-.setting-item {
+.settings-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
 }
 
-.setting-item span {
+.settings-item span {
   font-size: 16px;
   color: #333;
 }
@@ -688,6 +661,12 @@ textarea {
   opacity: 0;
   width: 0;
   height: 0;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  cursor: pointer;
+  z-index: 2; /* スライダーより前面に */
 }
 
 /* The slider */
@@ -700,6 +679,7 @@ textarea {
   bottom: 0;
   background-color: #ccc;
   transition: .4s;
+  z-index: 1; /* input の下に */
 }
 
 .slider:before {
@@ -733,14 +713,14 @@ input:checked+.slider:before {
 
 /*メールアドレス、パスワード変更*/
 
-.email-password-setting {
+.email-password-settings {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px;
 }
 
-.email-password-setting span {
+.email-password-settings span {
   font-size: 16px;
   color: #333;
 }
