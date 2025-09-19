@@ -69,14 +69,14 @@ let statusEmojis = {
 
 // 称号に応じた画像を定義
 let statusImages = {
-  '太陽神': '/img/map-very-yellow.png',
-  '晴れ男': '/img/map-yellow.png',
-  '晴れ女': '/img/map-yellow.png',
-  '凡人': '/img/map.png',
-  '雨男': '/img/map-snow.png',
-  '雨女': '/img/map-snow.png',
-  '嵐を呼ぶ者': '/img/map-kaze.png',
-  'unknown': '/img/map-normal.png'
+  '太陽神': './img/map-very-yellow.png',
+  '晴れ男': './img/map-yellow.png',
+  '晴れ女': './img/map-yellow.png',
+  '凡人': './img/map.png',
+  '雨男': './img/map-snow.png',
+  '雨女': './img/map-snow.png',
+  '嵐を呼ぶ者': './img/map-kaze.png',
+  'unknown': './img/map-normal.png'
 };
 
 // 天気に応じたマーカーの色を定義（後方互換のため残す）
@@ -104,10 +104,10 @@ let weatherEmojis = {
 // フッターのアイコンsrcを期待どおりに補正する（存在しない場合はスキップ）
 function ensureFooterIconPaths() {
   const expected = {
-    home: '/img/home.png',
-    map: '/img/map.png',
-    ranking: '/img/ranking.png',
-    settings: '/img/setting.png'
+    home: './img/home.png',
+    map: './img/map.png',
+    ranking: './img/ranking.png',
+    settings: './img/setting.png'
   };
   document.querySelectorAll('#footer-nav .nav-button').forEach(btn => {
     const page = btn.getAttribute('data-page');
@@ -193,10 +193,10 @@ const headerImg = document.getElementById('header-img');
 
 function showHeaderImage(type) {
   const images = {
-    home: '/img/header-home.png',
-    map: '/img/header-map.png',
-    ranking: '/img/header-ranking.png',
-    settings: '/img/header-setting.png',
+    home: './img/header-home.png',
+    map: './img/header-map.png',
+    ranking: './img/header-ranking.png',
+    settings: './img/header-setting.png',
   };
 
   if (type && images[type]) {
