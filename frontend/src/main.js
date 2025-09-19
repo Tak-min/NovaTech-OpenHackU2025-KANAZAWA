@@ -870,7 +870,6 @@ if (iconInput) iconInput.addEventListener('change', function (event) {
     reader.onload = function (e) {
       selectedImageData = e.target.result;
       displayImagePreview(selectedImageData);
-      //displayImageInfo(file);
       saveBtn.disabled = false;
     };
 
@@ -1008,7 +1007,6 @@ function initializeSettingsPage() {
         reader.onload = function (event) {
           selectedImageData = e.target.result;
           displayImagePreview(selectedImageData);
-          displayImageInfo(file);
           if (saveBtn) saveBtn.disabled = false;
         };
         reader.readAsDataURL(file);

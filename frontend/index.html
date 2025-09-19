@@ -134,16 +134,9 @@
               <button class="select-btn" onclick="document.getElementById('iconInput').click()">
                 📷 アイコン
               </button>
-              <button id="saveBtn" class="save-btn">自己紹介を保存</button>
               <button id="resetBtn" class="reset-btn">アイコンをリセット</button>
+              <button id="saveBtn" class="save-btn">自己紹介を保存</button>
             </div>
-
-            <!-- <div id="imageInfo" class="image-info">
-              <div id="fileName"></div>
-              <div id="fileSize"></div>
-              <div id="imageDimensions"></div>
-            </div> -->
-
           </div>
 
           <div class="introduce-container">
@@ -210,33 +203,7 @@
 
     // ダミーデータ生成（70件、ユーザ名: ダミー1番～ダミー70番）
     function generateDummyRanking(mode, userId) {
-      // let ranking = Array.from({ length: 70 }, (_, i) => {
-      //   let score;
-      //   if (mode === 'weather') {
-      //     score = Math.floor(Math.random() * 2000);
-      //   } else {
-      //     // 乗り遅れ率は小数（0～100%）
-      //     score = (Math.random() * 100).toFixed(2);
-      //   }
-      //   return {
-      //     username: `ダミー${i + 1}番`,
-      //     score: score,
-      //     userId: `dummy${i + 1}`
-      //   };
-      // });
-      // // 自分のスコアもランダム生成
-      // let myScore;
-      // if (mode === 'weather') {
-      //   myScore = Math.floor(Math.random() * 2000);
-      // } else {
-      //   myScore = (Math.random() * 100).toFixed(2);
-      // }
-      // const myUser = {
-      //   username: '自分',
-      //   score: myScore,
-      //   userId: userId
-      // };
-      // ranking.push(myUser);
+ 
 
       // 並べ替え（全モードでスコアが高いほど上位）
       ranking.sort((a, b) => b.score - a.score);
