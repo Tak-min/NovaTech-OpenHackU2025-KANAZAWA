@@ -96,7 +96,7 @@
       <section id="page-ranking" class="hidden">
         <div id="ranking-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
           <button class="ranking-tab active" data-mode="weather">天気スコア</button>
-          <button class="ranking-tab" data-mode="missed">電車乗り遅れ率</button>
+          <button class="ranking-tab" data-mode="missed">電車乗り遅れ回数</button>
         </div>
         <div id="ranking-table-container">
           <table id="ranking-table" style="width: 100%; border-collapse: collapse;">
@@ -184,7 +184,7 @@
         <span>ランキング</span>
       </button>
       <button data-page="settings" class="nav-button">
-        <img src="/img/settings.png" alt="設定" class="icon">
+        <img src="/img/setting.png" alt="設定" class="icon">
         <span>設定</span>
       </button>
       <div id="footer-img-container" class="footer-home-img">
@@ -203,7 +203,7 @@
 
     // ダミーデータ生成（70件、ユーザ名: ダミー1番～ダミー70番）
     function generateDummyRanking(mode, userId) {
- 
+
 
       // 並べ替え（全モードでスコアが高いほど上位）
       ranking.sort((a, b) => b.score - a.score);
@@ -473,7 +473,7 @@
       border-radius: 0;
     }
 
-    .reset-btn{
+    .reset-btn {
       width: auto;
     }
   </style>

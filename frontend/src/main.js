@@ -43,7 +43,43 @@ let selectedImageData = null;
 let leafletMap = null;
 let userMarkers = [];
 
-// 天気に応じたマーカーの色を定義（TDZ回避のため var）
+// 称号に応じたマーカーの色を定義
+let statusColors = {
+  '太陽神': '#FFD700',        // 金色
+  '晴れ男': '#FFA500',        // オレンジ
+  '晴れ女': '#FF69B4',        // ホットピンク
+  '凡人': '#87CEEB',          // スカイブルー
+  '雨男': '#4169E1',          // ロイヤルブルー
+  '雨女': '#9370DB',          // ミディアムパープル
+  '嵐を呼ぶ者': '#8B0000',    // ダークレッド
+  'unknown': '#808080'        // グレー（フォールバック）
+};
+
+// 称号に応じた絵文字を定義（後方互換のため残す）
+let statusEmojis = {
+  '太陽神': '🌟',
+  '晴れ男': '☀️',
+  '晴れ女': '🌞',
+  '凡人': '😐',
+  '雨男': '🌧️',
+  '雨女': '💜',
+  '嵐を呼ぶ者': '⚡',
+  'unknown': '❓'
+};
+
+// 称号に応じた画像を定義
+let statusImages = {
+  '太陽神': '/img/map-very-yellow.png',
+  '晴れ男': '/img/map-yellow.png',
+  '晴れ女': '/img/map-yellow.png',
+  '凡人': '/img/map-normal.png',
+  '雨男': '/img/map-snow.png',
+  '雨女': '/img/map-snow.png',
+  '嵐を呼ぶ者': '/img/map-kaze.png',
+  'unknown': '/img/map-normal.png'
+};
+
+// 天気に応じたマーカーの色を定義（後方互換のため残す）
 let weatherColors = {
   'sunny': '#FFD700',      // 金色
   'cloudy': '#87CEEB',     // スカイブルー
@@ -54,7 +90,7 @@ let weatherColors = {
   'unknown': '#808080'     // グレー
 };
 
-// 天気に応じた絵文字を定義（TDZ回避のため var）
+// 天気に応じた絵文字を定義（後方互換のため残す）
 let weatherEmojis = {
   'sunny': '☀️',
   'cloudy': '☁️',
@@ -81,6 +117,7 @@ function ensureFooterIconPaths() {
     if (!should) return;
     const current = img.getAttribute('src');
     if (current !== should) {
+      console.log(`フッターアイコンパスを修正: ${page} ${current} → ${should}`);
       img.setAttribute('src', should);
     }
   });
@@ -202,6 +239,11 @@ function setupFooterIconErrorHandling() {
   const footerIcons = document.querySelectorAll('#footer-nav .icon');
 
   footerIcons.forEach(icon => {
+    // 既にイベントハンドラーが設定されている場合はスキップ
+    if (icon.hasAttribute('data-error-handler-set')) {
+      return;
+    }
+
     // 既存のイベントリスナーをクリア
     icon.onerror = null;
     icon.onload = null;
@@ -257,6 +299,9 @@ function setupFooterIconErrorHandling() {
         console.log(`フッターアイコンは既に読み込まれています: ${icon.src}`);
       }
     }
+
+    // エラーハンドラー設定完了フラグを設定
+    icon.setAttribute('data-error-handler-set', 'true');
   });
 }
 
@@ -643,21 +688,57 @@ footerNav.classList.add('hidden');
 showPage('page-login');
 
 //ここからはランキング機能
-async function updateRankingPage() {
+// 現在のランキングタイプを管理する変数
+let currentRankingType = 'weather';
+
+// ランキングタブの初期化
+function initializeRankingTabs() {
+  const rankingTabs = document.querySelectorAll('.ranking-tab');
+
+  rankingTabs.forEach(tab => {
+    tab.addEventListener('click', function () {
+      // 全てのタブからactiveクラスを削除
+      rankingTabs.forEach(t => t.classList.remove('active'));
+
+      // クリックされたタブにactiveクラスを追加
+      this.classList.add('active');
+
+      // data-mode属性からランキングタイプを取得
+      const rankingType = this.getAttribute('data-mode') || 'weather';
+
+      console.log(`ランキングタブ切り替え: ${rankingType}`);
+
+      // ランキングデータを更新
+      updateRankingPage(rankingType);
+    });
+  });
+}
+
+async function updateRankingPage(type = currentRankingType) {
   const token = localStorage.getItem('token');
   if (!token) {
     console.log('ランキング更新スキップ: 認証トークンなし');
     return;
   }
 
+  // 現在のランキングタイプを更新
+  currentRankingType = type;
+
   const scoreHeader = document.getElementById('ranking-score-header');
   const tbody = document.getElementById('ranking-table-body');
 
-  if (scoreHeader) scoreHeader.textContent = '天気スコア';
+  // ランキングタイプに応じてヘッダーテキストを変更
+  const headerTexts = {
+    'weather': '天気スコア',
+    'missed': '電車乗り遅れ回数',
+    'delay': '電車遅延率(%)'
+  };
+
+  if (scoreHeader) scoreHeader.textContent = headerTexts[type] || '天気スコア';
   if (tbody) tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">ランキングを読み込んでいます...</td></tr>';
 
   try {
-    const response = await fetch(`${API_BASE}/ranking`, {
+    const response = await fetch(`${API_BASE}/ranking?type=${type}&limit=50`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -668,25 +749,48 @@ async function updateRankingPage() {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const rankingData = await response.json(); // 配列: [{ username, score }]
+    const rankingResponse = await response.json();
 
-    if (!Array.isArray(rankingData)) {
+    // 新しいAPIレスポンス形式に対応
+    if (!rankingResponse.rankings || !Array.isArray(rankingResponse.rankings)) {
       throw new Error('Unexpected ranking response shape');
     }
 
+    const rankings = rankingResponse.rankings;
+
     if (tbody) {
       tbody.innerHTML = '';
-      const top = rankingData.slice(0, 50);
-      top.forEach((user, idx) => {
+      rankings.forEach((user) => {
         const tr = document.createElement('tr');
+
+        // スコア表示の形式を調整
+        let scoreDisplay;
+        if (type === 'weather') {
+          scoreDisplay = Number(user.score ?? 0).toFixed(1);
+        } else if (type === 'missed') {
+          scoreDisplay = Math.floor(user.score ?? 0).toString();
+        } else if (type === 'delay') {
+          scoreDisplay = Number(user.score ?? 0).toFixed(2) + '%';
+        } else {
+          scoreDisplay = Number(user.score ?? 0).toFixed(1);
+        }
+
         tr.innerHTML = `
-          <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${idx + 1}</td>
-          <td style="border-bottom:1px solid #eee; padding:8px;">${user.username}</td>
-          <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">${Number(user.score ?? 0).toFixed(1)}</td>
+          <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${user.rank}</td>
+          <td style="border-bottom:1px solid #eee; padding:8px;">${user.username}${user.isCurrentUser ? ' (あなた)' : ''}</td>
+          <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">${scoreDisplay}</td>
         `;
+
+        // 自分のランキングを強調表示
+        if (user.isCurrentUser) {
+          tr.style.backgroundColor = '#e3f2fd';
+          tr.style.fontWeight = 'bold';
+        }
+
         tbody.appendChild(tr);
       });
-      if (top.length === 0) {
+
+      if (rankings.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">まだランキングデータがありません</td></tr>';
       }
     }
@@ -752,25 +856,30 @@ async function loadUserMarkers() {
       if (!leafletMap) {
         return; // マップ未初期化ならスキップ
       }
-      const color = weatherColors[user.weather] || weatherColors['unknown'];
-      const emoji = weatherEmojis[user.weather] || weatherEmojis['unknown'];
 
-      // カスタムマーカーアイコンを作成
+      // 称号に基づいて画像を決定
+      const status = user.status || 'unknown';
+      const imageUrl = statusImages[status] || statusImages['unknown'];
+
+      // カスタムマーカーアイコンを作成（画像ベース）
       const customIcon = L.divIcon({
         html: `
           <div class="user-marker" style="
-            background-color: ${color};
-            border: 2px solid #333;
-            border-radius: 50%;
             width: 30px;
             height: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            position: relative;
           ">
-            ${emoji}
+            <img src="${imageUrl}" alt="${status}" style="
+              width: 30px;
+              height: 30px;
+              border-radius: 50%;
+              border: 2px solid #333;
+              box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+              object-fit: cover;
+            " onerror="this.style.display='none'; this.parentNode.innerHTML='${statusEmojis[status] || statusEmojis['unknown']}'; this.parentNode.style.backgroundColor='${statusColors[status] || statusColors['unknown']}'; this.parentNode.style.borderRadius='50%'; this.parentNode.style.fontSize='16px';">
           </div>
         `,
         className: '', // Leafletのデフォルトクラスを無効化
@@ -780,7 +889,7 @@ async function loadUserMarkers() {
 
       const marker = L.marker([user.latitude, user.longitude], { icon: customIcon })
         .addTo(leafletMap)
-        .bindPopup(`<b>${user.username}</b><br>天気: ${user.weather}<br>記録日時: ${new Date(user.recordedAt).toLocaleString()}`);
+        .bindPopup(`<b>${user.username}</b><br>称号: ${status}<br>スコア: ${user.score || 0}<br>天気: ${user.weather}<br>記録日時: ${new Date(user.recordedAt).toLocaleString()}`);
 
       userMarkers.push(marker);
     });
@@ -854,6 +963,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // フッターアイコンのエラーハンドリングを設定
   setupFooterIconErrorHandling();
+
+  // ランキングタブの切り替え機能を初期化
+  initializeRankingTabs();
 
   // ページ読み込み時にログイン状態を確認し、位置情報追跡を開始
   const token = localStorage.getItem('token');

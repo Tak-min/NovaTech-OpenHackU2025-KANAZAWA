@@ -585,11 +585,13 @@ app.get('/status', authenticateToken, async (req, res) => {
 // [GET] /users-locations - 全ユーザーの最新位置情報を取得（位置情報許可設定を考慮）
 app.get('/users-locations', authenticateToken, async (req, res) => {
     try {
-        // 各ユーザーの最新の位置情報を取得（位置情報許可が有効なユーザーのみ）
+        // 各ユーザーの最新の位置情報と称号計算に必要な情報を取得（位置情報許可が有効なユーザーのみ）
         const locationsQuery = `
       SELECT DISTINCT ON (u.id)
         u.id,
         u.username,
+        u.score,
+        u.gender,
         ST_X(l.geom) as longitude,
         ST_Y(l.geom) as latitude,
         l.weather,
@@ -603,14 +605,33 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
 
         const result = await pool.query(locationsQuery);
 
-        const userLocations = result.rows.map(row => ({
-            id: row.id,
-            username: row.username,
-            latitude: parseFloat(row.latitude),
-            longitude: parseFloat(row.longitude),
-            weather: row.weather,
-            recordedAt: row.recorded_at
-        }));
+        const userLocations = result.rows.map(row => {
+            const totalScore = row.score !== null ? parseFloat(row.score) : 0;
+            const gender = row.gender;
+
+            // スコアに応じた称号を決定（genderで晴れ/雨の呼称を出し分け）
+            let status = '凡人';
+            if (totalScore > 50) {
+                status = '太陽神';
+            } else if (totalScore > 10) {
+                status = (gender === 'female') ? '晴れ女' : '晴れ男';
+            } else if (totalScore < -50) {
+                status = '嵐を呼ぶ者';
+            } else if (totalScore < -10) {
+                status = (gender === 'female') ? '雨女' : '雨男';
+            }
+
+            return {
+                id: row.id,
+                username: row.username,
+                latitude: parseFloat(row.latitude),
+                longitude: parseFloat(row.longitude),
+                weather: row.weather,
+                recordedAt: row.recorded_at,
+                status: status,  // 称号を追加
+                score: totalScore  // スコアも追加（デバッグ用）
+            };
+        });
 
         res.json({
             success: true,
