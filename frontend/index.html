@@ -200,7 +200,6 @@
               : (Math.random() * 100).toFixed(2),
             userId: `dummy${i + 1}`
           }));
-          // 自分の順位（例: 35位）
           const myRank = 35;
           const myUser = {
             rank: myRank,
@@ -210,89 +209,112 @@
               : (Math.random() * 100).toFixed(2),
             userId
           };
-          // 並べ替え（天気モードのみスコア降順）
           if (mode === 'weather') {
             ranking.sort((a, b) => b.score - a.score);
             ranking.forEach((user, idx) => user.rank = idx + 1);
           }
-          // 自分の順位が既存ランキングにあれば上書き
           const idx = ranking.findIndex(u => u.rank === myRank);
           if (idx !== -1) ranking[idx] = myUser;
           else ranking.push(myUser);
           return ranking;
         }
 
-        // 表示範囲の設定（1ページ12件表示、currentStart: 開始順位, currentEnd: 終了順位）
-        let currentStart = 1;
-        let currentEnd = 12;
-
-        function showMyUserRow(myUser, position) {
-          // position: 'top' or 'bottom'
+        function showMyUserRow(myUser) {
           return `
-            <tr style="background:#fffde7;font-weight:bold;">
-              <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${myUser.rank}</td>
-              <td style="border-bottom:1px solid #eee; padding:8px;">${myUser.username}（自分）</td>
-              <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">
-                ${myUser.score}${isNaN(myUser.score) ? '' : (currentMode !== 'weather' ? '％' : '')}
-              </td>
-            </tr>
-            <tr><td colspan="3" style="height:4px;"></td></tr>
+            <div id="my-user-fixed" style="background:#fffde7;font-weight:bold;position:sticky;z-index:2;padding:4px 0;">
+              <table style="width:100%;">
+                <tr>
+                  <td style="padding:8px; text-align:center;">${myUser.rank}</td>
+                  <td style="padding:8px;">${myUser.username}（自分）</td>
+                  <td style="padding:8px; text-align:right;">
+                    ${myUser.score}${isNaN(myUser.score) ? '' : (window.currentMode !== 'weather' ? '％' : '')}
+                  </td>
+                </tr>
+              </table>
+            </div>
           `;
         }
 
         async function renderRanking(mode, userId) {
-          const tbody = document.getElementById('ranking-table-body');
           const scoreHeader = document.getElementById('ranking-score-header');
           scoreHeader.textContent = modeLabels[mode];
-          tbody.innerHTML = `<tr><td colspan="3" style="padding: 16px; text-align: center;">ランキングを読み込み中...</td></tr>`;
           const ranking = generateDummyRanking(mode, userId);
-          if (!ranking) {
-            tbody.innerHTML = `<tr><td colspan="3" style="padding: 16px; text-align: center; color: red;">ランキングデータの取得に失敗しました</td></tr>`;
-            return;
-          }
+          const tbody = document.getElementById('ranking-table-body');
           tbody.innerHTML = '';
+          ranking.forEach(user => {
+            const isMe = user.userId === userId;
+            const tr = document.createElement('tr');
+            if (isMe) tr.style.background = '#fffde7', tr.style.fontWeight = 'bold';
+            tr.setAttribute('data-rank', user.rank);
+            tr.setAttribute('data-userid', user.userId);
+            tr.innerHTML = `
+              <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${user.rank}</td>
+              <td style="border-bottom:1px solid #eee; padding:8px;">${isMe ? user.username + '（自分）' : user.username}</td>
+              <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">
+                ${user.score}${mode !== 'weather' ? '％' : ''}
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
 
-          // 自分のユーザ情報
-          const myUser = ranking.find(u => u.userId === userId) || ranking.find(u => u.username === '自分');
-          // 表示範囲
-          const visibleRows = ranking.filter(u => u.rank >= currentStart && u.rank <= currentEnd);
+          // 自分の行のIDを付与
+          const myUser = ranking.find(u => u.userId === userId);
+          const myRow = Array.from(tbody.children).find(tr => tr.getAttribute('data-userid') === userId);
+          if (myRow) myRow.setAttribute('id', 'my-user-row');
 
-          // 自分の順位が表示範囲内か判定
-          const isMyUserVisible = visibleRows.some(u => u.userId === userId);
+          // 固定表示用の領域を追加
+          let fixedTop = document.getElementById('my-user-fixed-top');
+          let fixedBottom = document.getElementById('my-user-fixed-bottom');
+          if (!fixedTop) {
+            fixedTop = document.createElement('div');
+            fixedTop.id = 'my-user-fixed-top';
+            fixedTop.style.position = 'sticky';
+            fixedTop.style.top = '0';
+            fixedTop.style.zIndex = '10';
+            fixedTop.style.background = 'transparent';
+            fixedTop.style.display = 'none';
+            tbody.parentNode.parentNode.insertAdjacentElement('beforebegin', fixedTop);
+          }
+          if (!fixedBottom) {
+            fixedBottom = document.createElement('div');
+            fixedBottom.id = 'my-user-fixed-bottom';
+            fixedBottom.style.position = 'sticky';
+            fixedBottom.style.bottom = '0';
+            fixedBottom.style.zIndex = '10';
+            fixedBottom.style.background = 'transparent';
+            fixedBottom.style.display = 'none';
+            tbody.parentNode.parentNode.insertAdjacentElement('afterend', fixedBottom);
+          }
+          fixedTop.innerHTML = '';
+          fixedBottom.innerHTML = '';
 
-          // 上部・下部表示判定
-          let topRow = '', bottomRow = '';
-          if (!isMyUserVisible) {
-            if (myUser.rank < currentStart) {
-              topRow = showMyUserRow(myUser, 'top');
-            } else if (myUser.rank > currentEnd) {
-              bottomRow = showMyUserRow(myUser, 'bottom');
+          // スクロール判定
+          const tableContainer = document.getElementById('ranking-table-container');
+          function checkMyUserVisibility() {
+            const myRow = document.getElementById('my-user-row');
+            if (!myRow) return;
+            const containerRect = tableContainer.getBoundingClientRect();
+            const rowRect = myRow.getBoundingClientRect();
+            fixedTop.style.display = 'none';
+            fixedBottom.style.display = 'none';
+            if (rowRect.top < containerRect.top) {
+              // 画面上部に表示
+              fixedTop.innerHTML = showMyUserRow(myUser);
+              fixedTop.style.display = '';
+            } else if (rowRect.bottom > containerRect.bottom) {
+              // 画面下部に表示
+              fixedBottom.innerHTML = showMyUserRow(myUser);
+              fixedBottom.style.display = '';
             }
           }
 
-          // 上部に自分
-          if (topRow) tbody.innerHTML += topRow;
-
-          // 通常表示
-          visibleRows.forEach(user => {
-            const isMe = user.userId === userId;
-            tbody.innerHTML += `
-              <tr${isMe ? ' style="background:#fffde7;font-weight:bold;"' : ''}>
-                <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${user.rank}</td>
-                <td style="border-bottom:1px solid #eee; padding:8px;">${isMe ? user.username + '（自分）' : user.username}</td>
-                <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">
-                  ${user.score}${mode !== 'weather' ? '％' : ''}
-                </td>
-              </tr>
-            `;
-          });
-
-          // 下部に自分
-          if (bottomRow) tbody.innerHTML += bottomRow;
+          tableContainer.addEventListener('scroll', checkMyUserVisibility);
+          // 初回判定
+          setTimeout(checkMyUserVisibility, 100);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-          const userId = 'user77'; // 仮の自分のID（本番は認証情報から取得）
+          const userId = 'user77';
           window.currentMode = 'weather';
           renderRanking(window.currentMode, userId);
 
@@ -301,18 +323,21 @@
               document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
               this.classList.add('active');
               window.currentMode = this.getAttribute('data-mode');
-              // 表示範囲をリセット
-              currentStart = 1;
-              currentEnd = 12;
               renderRanking(window.currentMode, userId);
             });
           });
-
-          // 表示範囲切り替え例（ページ送りが必要ならボタン追加してこの値を変更）
-          // 例: currentStart = 27; currentEnd = 38; renderRanking(...);
-          // 例: currentStart = 38; currentEnd = 49; renderRanking(...);
         });
       </script>
+      <style>
+        #ranking-table-container {
+          max-height: 400px;
+          overflow-y: auto;
+          position: relative;
+        }
+        #my-user-fixed-top, #my-user-fixed-bottom {
+          width: 100%;
+        }
+      </style>
 </body>
 
 </html>
