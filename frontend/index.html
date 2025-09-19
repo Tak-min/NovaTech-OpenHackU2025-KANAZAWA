@@ -162,19 +162,6 @@
   </div>
 
   <script type="module" src="/src/main.js?v=1.1">
-    document.addEventListener('DOMContentLoaded', () => {
-  const navButtons = document.querySelectorAll('.nav-button');
-
-  navButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      // 現在アクティブなボタンから 'active' クラスを削除
-      document.querySelector('.nav-button.active').classList.remove('active');
-
-      // クリックされたボタンに 'active' クラスを追加
-      button.classList.add('active');
-    });
-  });
-});
   </script>
 </body>
 
