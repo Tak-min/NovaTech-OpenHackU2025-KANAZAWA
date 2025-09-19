@@ -951,7 +951,7 @@ if (iconInput) iconInput.addEventListener('change', function (event) {
     reader.onload = function (e) {
       selectedImageData = e.target.result;
       displayImagePreview(selectedImageData);
-      displayImageInfo(file);
+      //displayImageInfo(file);
       saveBtn.disabled = false;
     };
 
