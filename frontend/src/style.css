@@ -4,6 +4,7 @@ body {
   /* light sky blue */
   font-family: sans-serif;
   margin: 0;
+  padding: 0; /*paddingを追加*/
 }
 
 /* App Container */
@@ -276,6 +277,13 @@ input[type="radio"] {
 
 /* Footer */
 footer {
+  /* ボタンを画像の上に表示 */
+  position: relative; /* z-indexを有効にするため */
+  z-index: 1; /* 画像のz-indexより高い値を指定 */
+  margin-top: -30px; 
+  gap: 10px; /* 各ボタン間に10pxの隙間を空ける */
+
+  /* 以下は元のスタイル */
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   text-align: center;
@@ -297,11 +305,21 @@ footer button.active {
   /* yellow-500 */
 }
 
-.fooder-img{
-  display: flex;
+.fooder-home-img {
+  position: absolute;
+  left: 50%;
   bottom: 0;
-  left: 0; 
-  width: 100%; 
+  transform: translateX(-50%); 
+  max-width: 540px;
+  width: 100%;
+  display: block; 
+  z-index: -1; /* この行を追加 */
+}
+
+.fooder-home-img img {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 /* Utility Classes */
