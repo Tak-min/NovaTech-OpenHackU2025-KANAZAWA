@@ -474,7 +474,7 @@ async function updateHomePageStatus() {
       const statusImageElement = document.getElementById('status-image');
 
       // バックエンドから受け取った称号を表示
-      statusTextElement.textContent = `${data.status}です`;
+      statusTextElement.textContent = `${data.status}`;
 
       // 称号に応じた画像と絵文字のマップ
       const statusVisuals = {
