@@ -831,7 +831,7 @@ input:checked+.slider:before {
 }
 
 /*リセットボタンのフォントサイズを変更*/
-.reset-btn {
+button {
   font-size: 10px; /* フォントサイズを10pxに設定 */
   white-space: nowrap; /* 改行を防ぐ */
 }
