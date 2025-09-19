@@ -2,7 +2,7 @@
 body {
   background-color: #e0f2fe;
   /* light sky blue */
-  font-family: 'Kiwi Maru', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif;
+  font-family: sans-serif;
   margin: 0;
   padding: 0;
   /*paddingを追加*/
@@ -343,6 +343,8 @@ input[type="radio"] {
 
   background-color: transparent;
   border-top: none;
+  border-top: none;
+  background-color: transparent;
   gap: 10px;
   position: relative;
   z-index: 1; 
