@@ -193,32 +193,37 @@
 
         // ダミーデータ生成（70件、ユーザ名: ダミー1番～ダミー70番）
         function generateDummyRanking(mode, userId) {
-          // ダミーユーザー生成
-          let ranking = Array.from({ length: 70 }, (_, i) => ({
-            username: `ダミー${i + 1}番`,
-            score: mode === 'weather'
-              ? Math.floor(Math.random() * 2000)
-              : (Math.random() * 100).toFixed(2),
-            userId: `dummy${i + 1}`
-          }));
+          let ranking = Array.from({ length: 70 }, (_, i) => {
+            let score;
+            if (mode === 'weather') {
+              score = Math.floor(Math.random() * 2000);
+            } else {
+              // 遅延率・乗り遅れ率は小数（0～100%）
+              score = (Math.random() * 100).toFixed(2);
+            }
+            return {
+              username: `ダミー${i + 1}番`,
+              score: score,
+              userId: `dummy${i + 1}`
+            };
+          });
           // 自分のスコアもランダム生成
-          const myScore = mode === 'weather'
-            ? Math.floor(Math.random() * 2000)
-            : (Math.random() * 100).toFixed(2);
+          let myScore;
+          if (mode === 'weather') {
+            myScore = Math.floor(Math.random() * 2000);
+          } else {
+            myScore = (Math.random() * 100).toFixed(2);
+          }
           const myUser = {
             username: '自分',
             score: myScore,
             userId: userId
           };
-          // 自分を追加
           ranking.push(myUser);
-          // 並べ替え（天気モードのみスコア降順）
-          if (mode === 'weather') {
-            ranking.sort((a, b) => b.score - a.score);
-          } else {
-            ranking.sort((a, b) => b.score - a.score);
-          }
-          // 順位付与
+
+          // 並べ替え（全モードでスコアが高いほど上位）
+          ranking.sort((a, b) => b.score - a.score);
+
           ranking.forEach((user, idx) => user.rank = idx + 1);
           return ranking;
         }
@@ -231,7 +236,7 @@
                   <td style="padding:8px; text-align:center;">${myUser.rank}</td>
                   <td style="padding:8px;">${myUser.username}（自分）</td>
                   <td style="padding:8px; text-align:right;">
-                    ${myUser.score}${isNaN(myUser.score) ? '' : (window.currentMode !== 'weather' ? '％' : '')}
+                    ${myUser.score}${window.currentMode !== 'weather' ? '％' : ''}
                   </td>
                 </tr>
               </table>
@@ -320,7 +325,6 @@
           }
 
           tableContainer.addEventListener('scroll', checkMyUserVisibility);
-          // 初回判定
           setTimeout(checkMyUserVisibility, 100);
         }
 
