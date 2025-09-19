@@ -898,7 +898,6 @@ if (iconInput) iconInput.addEventListener('change', function (event) {
     reader.onload = function (e) {
       selectedImageData = e.target.result;
       displayImagePreview(selectedImageData);
-      //displayImageInfo(file);
       saveBtn.disabled = false;
     };
 
@@ -1038,7 +1037,6 @@ function initializeSettingsPage() {
           // 正しくは FileReader の onload イベント(event)から result を取得する
           selectedImageData = event.target.result;
           displayImagePreview(selectedImageData);
-          displayImageInfo(file);
           if (saveBtn) saveBtn.disabled = false;
         };
         reader.readAsDataURL(file);
@@ -1668,3 +1666,211 @@ async function updateLocationSwitch() {
     });
 }
 
+//以下元HTML内<script>から移動
+
+// --- ランキング画面のUI制御 ---
+const modeLabels = {
+  weather: '天気スコア',
+  missed: '電車乗り遅れ率'
+};
+
+// データの並び替え
+function generateDummyRanking(mode, userId) {
+  // 並べ替え（全モードでスコアが高いほど上位）
+  ranking.sort((a, b) => b.score - a.score);
+
+  ranking.forEach((user, idx) => user.rank = idx + 1);
+  return ranking;
+}
+
+function showMyUserRow(myUser) {
+  return `
+            <div id="my-user-fixed" style="background:#fffde7;font-weight:bold;position:sticky;z-index:2;padding:4px 0;">
+              <table style="width:100%;">
+                <tr>
+                  <td style="padding:8px; text-align:center;">${myUser.rank}</td>
+                  <td style="padding:8px;">${myUser.username}（自分）</td>
+                  <td style="padding:8px; text-align:right;">
+                    ${myUser.score}${window.currentMode !== 'weather' ? '％' : ''}
+                  </td>
+                </tr>
+              </table>
+            </div>
+          `;
+}
+
+async function renderRanking(mode, userId) {
+  const scoreHeader = document.getElementById('ranking-score-header');
+  scoreHeader.textContent = modeLabels[mode];
+  const ranking = generateDummyRanking(mode, userId);
+  const tbody = document.getElementById('ranking-table-body');
+  tbody.innerHTML = '';
+
+  // 上位50名＋自分のみ抽出
+  const myUser = ranking.find(u => u.userId === userId);
+  let visibleRanking = ranking.slice(0, 50);
+  const isMyUserVisible = visibleRanking.some(u => u.userId === userId);
+  if (!isMyUserVisible) visibleRanking = [...visibleRanking, myUser];
+
+  visibleRanking.forEach(user => {
+    const isMe = user.userId === userId;
+    const tr = document.createElement('tr');
+    if (isMe) tr.style.background = '#fffde7', tr.style.fontWeight = 'bold';
+    tr.setAttribute('data-rank', user.rank);
+    tr.setAttribute('data-userid', user.userId);
+    tr.innerHTML = `
+              <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${user.rank}</td>
+              <td style="border-bottom:1px solid #eee; padding:8px;">${isMe ? user.username + '（自分）' : user.username}</td>
+              <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">
+                ${user.score}${mode !== 'weather' ? '％' : ''}
+              </td>
+            `;
+    tbody.appendChild(tr);
+  });
+
+  // 自分の行のIDを付与（visibleRankingから取得）
+  const myRow = Array.from(tbody.children).find(tr => tr.getAttribute('data-userid') === userId);
+  if (myRow) myRow.setAttribute('id', 'my-user-row');
+
+  // 固定表示用の領域をテーブル外に設置
+  let fixedTop = document.getElementById('my-user-fixed-top');
+  let fixedBottom = document.getElementById('my-user-fixed-bottom');
+  const tableContainer = document.getElementById('ranking-table-container');
+  if (!fixedTop) {
+    fixedTop = document.createElement('div');
+    fixedTop.id = 'my-user-fixed-top';
+    fixedTop.style.position = 'sticky';
+    fixedTop.style.top = '0';
+    fixedTop.style.zIndex = '10';
+    fixedTop.style.background = 'transparent';
+    fixedTop.style.display = 'none';
+    tableContainer.insertAdjacentElement('beforebegin', fixedTop);
+  }
+  if (!fixedBottom) {
+    fixedBottom = document.createElement('div');
+    fixedBottom.id = 'my-user-fixed-bottom';
+    fixedBottom.style.position = 'sticky';
+    fixedBottom.style.bottom = '0';
+    fixedBottom.style.zIndex = '10';
+    fixedBottom.style.background = 'transparent';
+    fixedBottom.style.display = 'none';
+    tableContainer.insertAdjacentElement('afterend', fixedBottom);
+  }
+  fixedTop.innerHTML = '';
+  fixedBottom.innerHTML = '';
+
+  // スクロール判定
+  function checkMyUserVisibility() {
+    const myRow = document.getElementById('my-user-row');
+    if (!myRow) return;
+    const containerRect = tableContainer.getBoundingClientRect();
+    const rowRect = myRow.getBoundingClientRect();
+    fixedTop.style.display = 'none';
+    fixedBottom.style.display = 'none';
+    // 上部
+    if (rowRect.top < containerRect.top) {
+      fixedTop.innerHTML = showMyUserRow(myUser);
+      fixedTop.style.display = '';
+    }
+    // 下部
+    else if (rowRect.bottom > containerRect.bottom) {
+      fixedBottom.innerHTML = showMyUserRow(myUser);
+      fixedBottom.style.display = '';
+    }
+  }
+
+  tableContainer.addEventListener('scroll', checkMyUserVisibility);
+  setTimeout(checkMyUserVisibility, 100);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const userId = 'user77';
+  window.currentMode = 'weather';
+  renderRanking(window.currentMode, userId);
+
+  document.querySelectorAll('.ranking-tab').forEach(tab => {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      window.currentMode = this.getAttribute('data-mode');
+      renderRanking(window.currentMode, userId);
+    });
+  });
+
+  // フッターのページ切り替え対応
+  document.querySelectorAll('#footer-nav .nav-button').forEach(btn => {
+    btn.addEventListener('click', function () {
+      const page = this.getAttribute('data-page');
+      document.querySelectorAll('main > section').forEach(sec => {
+        sec.classList.add('hidden');
+      });
+      document.querySelectorAll('#footer-nav .nav-button').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      const showSection = document.getElementById(`page-${page}`);
+      if (showSection) showSection.classList.remove('hidden');
+    });
+  });
+
+  // 天気スコアゲージ（真ん中起点・左右伸長）
+  const weatherGaugeValue = document.getElementById('weather-gauge-value');
+  const weatherGaugeBar = document.getElementById('weather-gauge-bar');
+  const weatherGaugeFill = document.getElementById('weather-gauge-fill');
+  const weatherGaugeZero = document.getElementById('weather-gauge-zero');
+  let weatherScoreRaw = Math.floor(Math.random() * 19999) - 999;
+  if (weatherGaugeValue && weatherGaugeBar && weatherGaugeFill && weatherGaugeZero) {
+    weatherGaugeValue.textContent = weatherScoreRaw;
+    const maxAbs = 999;
+    const barWidth = 200; // px
+    let fillWidth = Math.abs(weatherScoreRaw) / maxAbs * (barWidth / 2);
+    fillWidth = Math.min(fillWidth, barWidth / 2);
+    weatherGaugeFill.style.width = fillWidth + 'px';
+    weatherGaugeFill.style.background = getGaugeColor(weatherScoreRaw + maxAbs, 0, maxAbs * 2);
+    weatherGaugeZero.style.left = (barWidth / 2 - 1) + 'px';
+    // 方向と丸み
+    if (weatherScoreRaw >= 0) {
+      weatherGaugeFill.style.left = (barWidth / 2) + 'px';
+      weatherGaugeFill.style.right = 'auto';
+      weatherGaugeFill.classList.remove('left');
+      weatherGaugeFill.classList.add('right');
+    } else {
+      weatherGaugeFill.style.left = 'auto';
+      weatherGaugeFill.style.right = (barWidth / 2) + 'px';
+      weatherGaugeFill.classList.remove('right');
+      weatherGaugeFill.classList.add('left');
+    }
+  }
+
+  // 電車乗り遅れ率ゲージ（ダミー値）
+  const missedGauge = document.getElementById('missed-gauge');
+  const missedGaugeValue = document.getElementById('missed-gauge-value');
+  let missedValue = (Math.random() * 100).toFixed(2);
+  if (missedGauge && missedGaugeValue) {
+    missedGauge.value = missedValue;
+    missedGaugeValue.textContent = `${missedValue}%`;
+    missedGauge.style.setProperty('--gauge-color', getGaugeColor(missedValue, 0, 100));
+    missedGauge.style.background = getGaugeColor(missedValue, 0, 100);
+  }
+
+  // ゲージ色を反映（progressタグの色はブラウザ依存のため、Webkit系でのみ色変更）
+  [weatherGauge, missedGauge].forEach(gauge => {
+    if (gauge) {
+      gauge.style.setProperty('accent-color', gauge.style.background);
+    }
+  });
+});
+
+// 値に応じて青～緑～赤のグラデーション色を返す関数
+function getGaugeColor(value, min, max) {
+  const ratio = (value - min) / (max - min);
+  let r, g, b;
+  if (ratio <= 0.5) {
+    r = Math.round(33 + (76 - 33) * (ratio / 0.5));
+    g = Math.round(150 + (175 - 150) * (ratio / 0.5));
+    b = Math.round(243 + (80 - 243) * (ratio / 0.5));
+  } else {
+    r = Math.round(76 + (229 - 76) * ((ratio - 0.5) / 0.5));
+    g = Math.round(175 + (57 - 175) * ((ratio - 0.5) / 0.5));
+    b = Math.round(80 + (53 - 80) * ((ratio - 0.5) / 0.5));
+  }
+  return `rgb(${r},${g},${b})`;
+}
