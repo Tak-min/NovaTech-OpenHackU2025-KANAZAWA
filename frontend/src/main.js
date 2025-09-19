@@ -275,6 +275,10 @@ async function updateHomePageStatus() {
       };
       const emoji = statusVisuals[data.status] || statusVisuals['デフォルト'];
       statusImageElement.src = `https://placehold.jp/150x150.png?text=${encodeURIComponent(emoji)}`;
+
+      const missedTrainCounter = document.getElementById('missed-train-counter');
+      missedTrainCounter.textCount = '電車に乗り遅れた回数: ${data.missedTrainCounter}回';
+      
     }
   } catch (error) {
     console.error('ステータスの取得に失敗:', error);
@@ -1251,7 +1255,7 @@ function startLocationTracking() {
       {
         enableHighAccuracy: true,
         timeout: 30000, // 30秒に延長
-        maximumAge: 300000 // 5分
+        maximumAge: 3000 // 3秒間隔で位置情報を取得
       }
     );
 

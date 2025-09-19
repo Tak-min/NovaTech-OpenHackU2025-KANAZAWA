@@ -725,3 +725,12 @@ input:checked+.slider:before {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   justify-content: center
 }
+.jinx-counter{
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  color: var(--text-light);
+  background-color: #f3f4f6;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  display: inline-block;
+}
