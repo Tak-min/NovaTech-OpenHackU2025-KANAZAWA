@@ -124,6 +124,42 @@ function ensureFooterIconPaths() {
   });
 }
 
+// フッターアイコンのアクティブ状態を更新する関数
+function updateFooterIconStates() {
+  const iconPaths = {
+    home: {
+      normal: './img/home.png',
+      active: './img/home-yellow.png'
+    },
+    map: {
+      normal: './img/map.png',
+      active: './img/map-yellow.png'
+    },
+    ranking: {
+      normal: './img/ranking.png',
+      active: './img/ranking-yellow.png'
+    },
+    settings: {
+      normal: './img/setting.png',
+      active: './img/setting-yellow.png'
+    }
+  };
+
+  document.querySelectorAll('#footer-nav .nav-button').forEach(btn => {
+    const page = btn.getAttribute('data-page');
+    const img = btn.querySelector('img.icon');
+    if (!img || !iconPaths[page]) return;
+
+    const isActive = btn.classList.contains('active');
+    const newSrc = isActive ? iconPaths[page].active : iconPaths[page].normal;
+
+    if (img.getAttribute('src') !== newSrc) {
+      console.log(`フッターアイコン状態更新: ${page} ${isActive ? 'active' : 'normal'} → ${newSrc}`);
+      img.setAttribute('src', newSrc);
+    }
+  });
+}
+
 // 既存の loadUserInfo を呼ぶ薄いラッパー（後方互換）
 function updateUserInfo() {
   if (typeof loadUserInfo === 'function') {
@@ -148,6 +184,7 @@ function showPage(pageId) {
     // フッターが表示されるタイミングでアイコンのsrcを再設定し、エラーハンドリングを設定
     setTimeout(() => {
       ensureFooterIconPaths();
+      updateFooterIconStates(); // アクティブ状態に応じたアイコン更新
       setupFooterIconErrorHandling();
     }, 100);
   }
@@ -440,6 +477,8 @@ async function checkLoginStatus() {
 
       updateHomePageStatus();
       document.querySelector('.nav-button[data-page="home"]').classList.add('active');
+      // ホームボタンをアクティブにした後、アイコン状態を更新
+      setTimeout(updateFooterIconStates, 100);
     } else {
       console.log('Invalid session token. Response status:', response.status);
       localStorage.removeItem('token');
@@ -615,6 +654,8 @@ loginForm.addEventListener('submit', async (event) => {
       // ナビボタンのアクティブ状態をリセット
       navButtons.forEach(btn => btn.classList.remove('active'));
       document.querySelector('.nav-button[data-page="home"]').classList.add('active');
+      // ホームボタンをアクティブにした後、アイコン状態を更新
+      setTimeout(updateFooterIconStates, 100);
       console.log('loginForm: ログイン成功処理完了');
     } else {
       console.log('Login failed with status:', response.status);
@@ -638,6 +679,9 @@ navButtons.forEach(button => {
     showPage(pageId);
     navButtons.forEach(btn => btn.classList.remove('active'));
     button.classList.add('active');
+
+    // アクティブなタブのアイコンを更新
+    updateFooterIconStates();
 
     if (button.dataset.page === "home") {
       updateHomePageStatus();
