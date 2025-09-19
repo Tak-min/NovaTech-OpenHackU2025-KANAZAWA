@@ -184,6 +184,20 @@
         </div>
         <div id="omikuji-result" style="margin:16px 0; font-size:1.5em; font-weight:bold;"></div>
         <div id="omikuji-streak" style="font-size:1em; color:#1976d2;">当たり連続回数: 0回</div>
+        <div style="margin-top:16px;">
+          <table id="omikuji-table" style="width:100%; border-collapse:collapse; text-align:center;">
+            <thead>
+              <tr>
+                <th style="padding:6px; border-bottom:1px solid #ccc;">連続回数</th>
+                <th style="padding:6px; border-bottom:1px solid #ccc;">確率</th>
+                <th style="padding:6px; border-bottom:1px solid #ccc;">例</th>
+              </tr>
+            </thead>
+            <tbody id="omikuji-table-body">
+              <!-- JSで動的生成 -->
+            </tbody>
+          </table>
+        </div>
       </section>
     </main>
     <footer id="footer-nav" class="hidden">
@@ -486,7 +500,96 @@
           }
           return `rgb(${r},${g},${b})`;
         }
-      </script>
+
+        // おみくじ連続回数の例文
+        const omikujiExamples = [
+          { n: 1, example: "コイン表が出る" },
+          { n: 2, example: "サイコロで偶数が出る" },
+          { n: 3, example: "ジャンケン3連勝" },
+          { n: 4, example: "4連続で信号が青" },
+          { n: 5, example: "年末ジャンボ宝くじ6等当選" },
+          { n: 6, example: "サイコロで6が2回連続" },
+          { n: 7, example: "ジャンケン7連勝" },
+          { n: 8, example: "宝くじ5等当選" },
+          { n: 9, example: "サイコロで6が3回連続" },
+          { n: 10, example: "ジャンケン10連勝" },
+          { n: 11, example: "年末ジャンボ宝くじ4等当選" },
+          { n: 12, example: "サイコロで6が4回連続" },
+          { n: 13, example: "ジャンケン13連勝" },
+          { n: 14, example: "宝くじ3等当選" },
+          { n: 15, example: "サイコロで6が5回連続" },
+          { n: 16, example: "ジャンケン16連勝" },
+          { n: 17, example: "年末ジャンボ宝くじ2等当選" },
+          { n: 18, example: "サイコロで6が6回連続" },
+          { n: 19, example: "ジャンケン19連勝" },
+          { n: 20, example: "宝くじ1等当選" }
+        ];
+
+        function getOmikujiExample(n) {
+          const found = omikujiExamples.find(e => e.n === n);
+          if (found) return found.example;
+          if (n <= 0) return "";
+          return "超レア現象";
+        }
+
+        function renderOmikujiTable(streak) {
+          const tbody = document.getElementById('omikuji-table-body');
+          tbody.innerHTML = '';
+          // 5枠表示、streakが2なら1~5、streakが5なら4~8
+          let start = Math.max(1, streak - 1);
+          let end = start + 4;
+          for (let i = start; i <= end; i++) {
+            const prob = Math.pow(0.5, i);
+            const probStr = prob < 0.0001 ? prob.toExponential(2) : (prob * 100).toFixed(4) + "%";
+            const example = getOmikujiExample(i);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td style="padding:6px;">${i}回</td>
+              <td style="padding:6px;">${probStr}</td>
+              <td style="padding:6px;">${example}</td>
+            `;
+            // 現在の連続回数は強調
+            if (i === streak) {
+              tr.style.background = "#fffde7";
+              tr.style.fontWeight = "bold";
+            }
+            tbody.appendChild(tr);
+          }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+          // ...existing code...
+          let omikujiStreak = 0;
+          let lastOmikuji = null;
+          const omikujiBtn = document.getElementById('omikuji-btn');
+          const omikujiResult = document.getElementById('omikuji-result');
+          const omikujiStreakDiv = document.getElementById('omikuji-streak');
+          if (omikujiBtn) {
+            omikujiBtn.addEventListener('click', () => {
+              const isWin = Math.random() < 0.5;
+              if (isWin) {
+                omikujiResult.textContent = '当たり！';
+                if (lastOmikuji === true || lastOmikuji === null) {
+                  omikujiStreak++;
+                } else {
+                  omikujiStreak = 1;
+                }
+                lastOmikuji = true;
+              } else {
+                omikujiResult.textContent = 'はずれ';
+                omikujiStreak = 0;
+                lastOmikuji = false;
+              }
+              omikujiStreakDiv.textContent = `当たり連続回数: ${omikujiStreak}回`;
+              renderOmikujiTable(omikujiStreak);
+            });
+            // 初期表示
+            renderOmikujiTable(omikujiStreak);
+          }
+          // ...existing code...
+        });
+        // ...existing code...
+  </script>
       <style>
         #ranking-table-container {
           max-height: 400px;
