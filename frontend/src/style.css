@@ -93,6 +93,7 @@ main {
   flex-grow: 1;
   overflow-y: auto;
   padding: 1rem;
+  margin-bottom: 100px;
 }
 
 section {
@@ -324,7 +325,7 @@ input[type="radio"] {
 }
 
 /* Footer */
-footer {
+/*footer {
   position: relative;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -332,11 +333,30 @@ footer {
   padding: 0.5rem 0;
   border-top: 1px solid #e5e7eb;
 
-  background-color: transparent; /* 白を消す */
-  border-top: none; /* 線も不要なら削除 */
+  background-color: transparent;
+  border-top: none;
   gap: 10px;
   position: relative;
-  z-index: 1; /* 画像の上に表示 */
+  z-index: 1; 
+}*/
+
+footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  text-align: center;
+  padding: 0.5rem 0;
+  border-top: 1px solid #d1d5db;
+  height: 60px; /* フッターの高さを設定 */
+  background-color: white; /* 背景色を設定 */
+  z-index: 10; /* 他の要素より前面に表示 */
+
+  background-color: transparent;
+  border-top: none;
+  gap: 10px;
 }
 
 /* ボタンの共通スタイル */
