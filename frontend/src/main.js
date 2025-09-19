@@ -137,14 +137,14 @@ function showHeaderImage(type) {
   if (type && images[type]) {
     // 画像読み込み前に現在のsrcをクリア
     headerImg.src = '';
-    headerImg.onerror = function() {
+    headerImg.onerror = function () {
       console.error(`ヘッダー画像の読み込みに失敗しました: ${images[type]}`);
       // 画像読み込み失敗時はタイトルを表示
       headerImgContainer.style.display = 'none';
       headerTitle.style.display = 'block';
       headerTitle.textContent = getPageTitle(type);
     };
-    headerImg.onload = function() {
+    headerImg.onload = function () {
       console.log(`ヘッダー画像を正常に読み込みました: ${images[type]}`);
     };
     headerImg.src = images[type];
@@ -178,7 +178,7 @@ function setupFooterIconErrorHandling() {
     icon.onerror = null;
     icon.onload = null;
 
-    icon.onerror = function() {
+    icon.onerror = function () {
       console.error(`フッターアイコンの読み込みに失敗しました: ${this.src}`);
       // 画像読み込み失敗時はアイコンを非表示にしてテキストのみ表示
       this.style.display = 'none';
@@ -198,7 +198,7 @@ function setupFooterIconErrorHandling() {
       }
     };
 
-    icon.onload = function() {
+    icon.onload = function () {
       console.log(`フッターアイコンを正常に読み込みました: ${this.src}`);
       // 正常に読み込まれた場合は表示を確実に有効化
       this.style.display = 'block';
@@ -657,8 +657,7 @@ async function updateRankingPage() {
           <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">${Number(user.score ?? 0).toFixed(1)}</td>
         `;
         tbody.appendChild(tr);
-
-        const userTr = document.createElement('tr');
+      });
       if (top.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">まだランキングデータがありません</td></tr>';
       }
@@ -669,85 +668,6 @@ async function updateRankingPage() {
       tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #f44336;">ランキングの取得に失敗しました</td></tr>';
     }
   }
-}
-  if (!currentUserRank) return;
-
-  const tableContainer = document.getElementById('ranking-table-container');
-  const myRow = document.getElementById('my-user-row');
-
-  if (!tableContainer || !myRow) return;
-
-  // 既存の固定表示要素をクリア
-  const existingFixedTop = document.getElementById('my-user-fixed-top');
-  const existingFixedBottom = document.getElementById('my-user-fixed-bottom');
-
-  if (existingFixedTop) existingFixedTop.remove();
-  if (existingFixedBottom) existingFixedBottom.remove();
-
-  // 固定表示用の領域をテーブル外に設置
-  let fixedTop = document.createElement('div');
-  fixedTop.id = 'my-user-fixed-top';
-  fixedTop.style.position = 'sticky';
-  fixedTop.style.top = '0';
-  fixedTop.style.zIndex = '10';
-  fixedTop.style.background = 'white';
-  fixedTop.style.border = '1px solid #ddd';
-  fixedTop.style.display = 'none';
-
-  let fixedBottom = document.createElement('div');
-  fixedBottom.id = 'my-user-fixed-bottom';
-  fixedBottom.style.position = 'sticky';
-  fixedBottom.style.bottom = '0';
-  fixedBottom.style.zIndex = '10';
-  fixedBottom.style.background = 'white';
-  fixedBottom.style.border = '1px solid #ddd';
-  fixedBottom.style.display = 'none';
-
-  tableContainer.insertAdjacentElement('beforebegin', fixedTop);
-  tableContainer.insertAdjacentElement('afterend', fixedBottom);
-
-  // 自分の順位情報を表示する関数
-  function showMyUserRow() {
-    const scoreDisplay = window.currentRankingType === 'delay' || window.currentRankingType === 'missed' ?
-      `${currentUserRank.score}${window.currentRankingType === 'delay' ? '%' : '回'}` :
-      currentUserRank.score;
-
-    return `
-      <table style="width:100%; border-collapse: collapse;">
-        <tr style="background:#fffde7; font-weight:bold;">
-          <td style="border:1px solid #ddd; padding:8px; text-align:center;">${currentUserRank.rank}</td>
-          <td style="border:1px solid #ddd; padding:8px;">${currentUserRank.username}（自分）</td>
-          <td style="border:1px solid #ddd; padding:8px; text-align:right;">${scoreDisplay}</td>
-        </tr>
-      </table>
-    `;
-  }
-
-  // スクロール判定
-  function checkMyUserVisibility() {
-    if (!myRow) return;
-
-    const containerRect = tableContainer.getBoundingClientRect();
-    const rowRect = myRow.getBoundingClientRect();
-
-    fixedTop.style.display = 'none';
-    fixedBottom.style.display = 'none';
-
-    // 上部固定表示
-    if (rowRect.top < containerRect.top) {
-      fixedTop.innerHTML = showMyUserRow();
-      fixedTop.style.display = 'block';
-    }
-    // 下部固定表示
-    else if (rowRect.bottom > containerRect.bottom) {
-      fixedBottom.innerHTML = showMyUserRow();
-      fixedBottom.style.display = 'block';
-    }
-  }
-
-  tableContainer.addEventListener('scroll', checkMyUserVisibility);
-  // 初期チェック
-  checkMyUserVisibility();
 }
 
 //ここからは地図機能
