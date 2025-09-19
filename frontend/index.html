@@ -11,7 +11,8 @@
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru&family=M+PLUS+Rounded+1c:wght@500&display=swap"
+    rel="stylesheet">
 </head>
 
 <body>
@@ -63,6 +64,8 @@
       <section id="page-map" class="hidden">
         <h3>地図表示</h3>
         <div id="map"></div>
+        <button id="test-location-btn"
+          style="margin-top: 10px; padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">テスト位置情報を追加</button>
       </section>
 
       <section id="page-ranking" class="hidden">
@@ -99,8 +102,8 @@
           </div>
 
           <div class="introduce-container">
-            <span class="introduce-number">ID：123456765432</span>
-            <span class="introduce-name">ユーザ名：Nikashi</span>
+            <span class="introduce-number">ID：読み込み中...</span>
+            <span class="introduce-name">ユーザ名：読み込み中...</span>
             <textarea id="message" name="message" placeholder="自己紹介"></textarea>
           </div>
         </div>
@@ -109,14 +112,14 @@
           <div class="setting-item">
             <span>通知設定</span>
             <label class="switch">
-              <input type="checkbox" checked>
+              <input type="checkbox" id="notification-switch" checked>
               <span class="slider round"></span>
             </label>
           </div>
           <div class="setting-item">
             <span>位置情報許可</span>
             <label class="switch">
-              <input type="checkbox">
+              <input type="checkbox" id="location-switch">
               <span class="slider round"></span>
             </label>
           </div>

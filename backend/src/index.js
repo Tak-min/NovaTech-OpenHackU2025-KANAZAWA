@@ -29,7 +29,8 @@ if (!process.env.WEATHER_API_KEY) {
 }
 
 // JSON形式のリクエストボディを解析できるようにする
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // ペイロードサイズを10MBに設定
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ===== CORS 設定 (複数オリジン + 環境変数対応) =====
 // 環境変数 FRONTEND_ORIGINS でカンマ区切り指定可能 例: https://example.com,https://foo.app
@@ -68,7 +69,7 @@ app.use(cors({
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     // ===== 以下のssl設定を追加 =====
-ssl: process.env.NODE_ENV === 'production' ? {
+    ssl: process.env.NODE_ENV === 'production' ? {
         rejectUnauthorized: false
     } : false,
     // 接続タイムアウト設定
@@ -115,6 +116,36 @@ const createTables = async () => {
             );
         `);
         console.log('Locations table created or already exists.');
+
+        console.log('Creating user_settings table...');
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS user_settings (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                notification_enabled BOOLEAN DEFAULT true,
+                location_enabled BOOLEAN DEFAULT false,
+                introduction_text TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id)
+            );
+        `);
+        console.log('User settings table created or already exists.');
+
+        console.log('Creating user_icons table...');
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS user_icons (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                icon_data TEXT NOT NULL, -- Base64エンコードされた画像データ
+                content_type VARCHAR(50) DEFAULT 'image/jpeg',
+                file_size INTEGER,
+                uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id)
+            );
+        `);
+        console.log('User icons table created or already exists.');
+
         console.log('All tables created successfully.');
     } catch (err) {
         console.error("Error creating tables:", err.stack);
@@ -278,12 +309,12 @@ app.get('/status', authenticateToken, async (req, res) => {
     }
 });
 
-// [GET] /users-locations - 全ユーザーの最新位置情報を取得
+// [GET] /users-locations - 全ユーザーの最新位置情報を取得（位置情報許可設定を考慮）
 app.get('/users-locations', authenticateToken, async (req, res) => {
     try {
-        // 各ユーザーの最新の位置情報を取得
+        // 各ユーザーの最新の位置情報を取得（位置情報許可が有効なユーザーのみ）
         const locationsQuery = `
-      SELECT DISTINCT ON (u.id) 
+      SELECT DISTINCT ON (u.id)
         u.id,
         u.username,
         ST_X(l.geom) as longitude,
@@ -292,6 +323,8 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
         l.recorded_at
       FROM users u
       JOIN locations l ON u.id = l.user_id
+      JOIN user_settings s ON u.id = s.user_id
+      WHERE s.location_enabled = true
       ORDER BY u.id, l.recorded_at DESC
     `;
 
@@ -506,6 +539,145 @@ app.post('/login', async (req, res) => {
             message: 'サーバーエラーが発生しました',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
+    }
+});
+
+
+// ===== ユーザー設定関連API =====
+
+// GET /user/settings - ユーザー設定を取得
+app.get('/user/settings', authenticateToken, async (req, res) => {
+    try {
+        const client = await pool.connect();
+        const result = await client.query(`
+            SELECT notification_enabled, location_enabled, introduction_text
+            FROM user_settings
+            WHERE user_id = $1
+        `, [req.user.id]);
+
+        client.release();
+
+        if (result.rows.length === 0) {
+            // 設定が存在しない場合はデフォルト値を返す
+            return res.json({
+                notification_enabled: true,
+                location_enabled: false,
+                introduction_text: ''
+            });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error in /user/settings GET:', error);
+        res.status(500).json({ message: 'サーバーエラーが発生しました' });
+    }
+});
+
+// PUT /user/settings - ユーザー設定を保存
+app.put('/user/settings', authenticateToken, async (req, res) => {
+    try {
+        const { notification_enabled, location_enabled, introduction_text } = req.body;
+
+        const client = await pool.connect();
+
+        // UPSERT操作（存在しない場合はINSERT、存在する場合はUPDATE）
+        await client.query(`
+            INSERT INTO user_settings (user_id, notification_enabled, location_enabled, introduction_text, updated_at)
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id)
+            DO UPDATE SET
+                notification_enabled = EXCLUDED.notification_enabled,
+                location_enabled = EXCLUDED.location_enabled,
+                introduction_text = EXCLUDED.introduction_text,
+                updated_at = CURRENT_TIMESTAMP
+        `, [req.user.id, notification_enabled, location_enabled, introduction_text]);
+
+        client.release();
+
+        res.json({ message: '設定が保存されました' });
+    } catch (error) {
+        console.error('Error in /user/settings PUT:', error);
+        res.status(500).json({ message: 'サーバーエラーが発生しました' });
+    }
+});
+
+// POST /user/icon - ユーザーアイコンを保存
+app.post('/user/icon', authenticateToken, async (req, res) => {
+    try {
+        const { icon_data, content_type, file_size } = req.body;
+
+        if (!icon_data) {
+            return res.status(400).json({ message: 'アイコンデータが必要です' });
+        }
+
+        const client = await pool.connect();
+
+        // UPSERT操作
+        await client.query(`
+            INSERT INTO user_icons (user_id, icon_data, content_type, file_size, uploaded_at)
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id)
+            DO UPDATE SET
+                icon_data = EXCLUDED.icon_data,
+                content_type = EXCLUDED.content_type,
+                file_size = EXCLUDED.file_size,
+                uploaded_at = CURRENT_TIMESTAMP
+        `, [req.user.id, icon_data, content_type || 'image/jpeg', file_size]);
+
+        client.release();
+
+        res.json({ message: 'アイコンが保存されました' });
+    } catch (error) {
+        console.error('Error in /user/icon POST:', error);
+        res.status(500).json({ message: 'サーバーエラーが発生しました' });
+    }
+});
+
+// GET /user/icon - ユーザーアイコンを取得
+app.get('/user/icon', authenticateToken, async (req, res) => {
+    try {
+        const client = await pool.connect();
+        const result = await client.query(`
+            SELECT icon_data, content_type
+            FROM user_icons
+            WHERE user_id = $1
+        `, [req.user.id]);
+
+        client.release();
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'アイコンが見つかりません' });
+        }
+
+        const icon = result.rows[0];
+        res.setHeader('Content-Type', icon.content_type);
+        res.send(Buffer.from(icon.icon_data, 'base64'));
+    } catch (error) {
+        console.error('Error in /user/icon GET:', error);
+        res.status(500).json({ message: 'サーバーエラーが発生しました' });
+    }
+});
+
+// GET /user/info - ユーザー情報を取得
+app.get('/user/info', authenticateToken, async (req, res) => {
+    try {
+        const client = await pool.connect();
+        const result = await client.query(`
+            SELECT id, username, email, gender
+            FROM users
+            WHERE id = $1
+        `, [req.user.id]);
+
+        client.release();
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'ユーザーが見つかりません' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error in /user/info GET:', error);
+        res.status(500).json({ message: 'サーバーエラーが発生しました' });
     }
 });
 
