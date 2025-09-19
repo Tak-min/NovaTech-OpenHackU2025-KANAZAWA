@@ -96,7 +96,7 @@ main {
 
   background-color: #fff;
   border-radius: 1rem;
-  margin: 0 20px 110px 20px;
+  margin: 0 20px 100px 20px;
 }
 
 section {
@@ -855,4 +855,8 @@ input:checked+.slider:before {
 button {
   font-size: 10px; /* フォントサイズを10pxに設定 */
   white-space: nowrap; /* 改行を防ぐ */
+}
+
+.ranking-tab{
+  
 }

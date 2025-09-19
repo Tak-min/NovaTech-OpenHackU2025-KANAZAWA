@@ -560,13 +560,13 @@ app.get('/status', authenticateToken, async (req, res) => {
 
         // スコアに応じた称号を決定（genderで晴れ/雨の呼称を出し分け）
         let status = '凡人';
-        if (totalScore > 50) {
+        if (totalScore > 500) {
             status = '太陽神';
-        } else if (totalScore > 10) {
+        } else if (totalScore > 100) {
             status = (gender === 'female') ? '晴れ女' : '晴れ男';
-        } else if (totalScore < -50) {
+        } else if (totalScore < -500) {
             status = '嵐を呼ぶ者';
-        } else if (totalScore < -10) {
+        } else if (totalScore < -100) {
             status = (gender === 'female') ? '雨女' : '雨男';
         }
 
@@ -613,13 +613,13 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
 
             // スコアに応じた称号を決定（genderで晴れ/雨の呼称を出し分け）
             let status = '凡人';
-            if (totalScore > 50) {
+            if (totalScore > 500) {
                 status = '太陽神';
-            } else if (totalScore > 10) {
+            } else if (totalScore > 100) {
                 status = (gender === 'female') ? '晴れ女' : '晴れ男';
-            } else if (totalScore < -50) {
+            } else if (totalScore < -500) {
                 status = '嵐を呼ぶ者';
-            } else if (totalScore < -10) {
+            } else if (totalScore < -100) {
                 status = (gender === 'female') ? '雨女' : '雨男';
             }
 
