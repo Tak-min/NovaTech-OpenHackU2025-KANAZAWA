@@ -70,14 +70,14 @@ let statusEmojis = {
 
 // 称号に応じた画像を定義
 let statusImages = {
-  '太陽神': './img/pin-big-sunny.png',
-  '晴れ男': './img/pin-sunny.PNG',
-  '晴れ女': './img/pin-sunny.PNG',
-  '凡人': './img/pin-nomal.png',
-  '雨男': './img/pin-rainy.PNG',
-  '雨女': './img/pin-rainy.PNG',
+  '太陽神': './img/map-very-yellow.png',
+  '晴れ男': './img/map-yellow.png',
+  '晴れ女': './img/map-yellow.png',
+  '凡人': './img/map.png',
+  '雨男': './img/map-snow.png',
+  '雨女': './img/map-snow.png',
   '嵐を呼ぶ者': './img/map-kaze.png',
-  'unknown': './img/map.png'
+  'unknown': './img/map-normal.png'
 };
 
 // 天気に応じたマーカーの色を定義（後方互換のため残す）
@@ -519,6 +519,7 @@ async function getUserGender() {
   }
 }
 
+
 async function updateHomePageStatus() {
   const token = localStorage.getItem('token');
   if (!token) {
@@ -569,17 +570,69 @@ async function updateHomePageStatus() {
       }
 
       statusImageElement.src = imagePath;
-
+      
       const missedTrainCounter = document.getElementById('missed-train-counter');
       missedTrainCounter.textContent = `電車に乗り遅れた回数: ${data.missedTrainCount}回`;
 
       console.log('updateHomePageStatus: 電車の乗り遅れ回数', data.missedTrainCount);
       console.log('updateHomePageStatus: ステータス更新完了');
+      // 天気スコア（totalScore）を取得してゲージに反映
+      try {
+        const totalScore = typeof data.score !== 'undefined' ? Number(data.score) : null;
+        if (totalScore !== null && !Number.isNaN(totalScore)) {
+          updateWeatherGaugeFromScore(totalScore);
+        } else {
+          console.log('updateHomePageStatus: totalScoreが無効なのでゲージは更新しません');
+        }
+      } catch (err) {
+        console.error('updateHomePageStatus: ゲージ更新中にエラー', err);
+      }
     } else {
       console.log('updateHomePageStatus: レスポンスエラー', response.status);
     }
   } catch (error) {
     console.error('updateHomePageStatus: エラー発生', error);
+  }
+}
+
+// totalScore を元に #weather-gauge-fill と #weather-gauge-value を更新するヘルパー
+function updateWeatherGaugeFromScore(totalScore) {
+  const weatherGaugeValue = document.getElementById('weather-gauge-value');
+  const weatherGaugeBar = document.getElementById('weather-gauge-bar');
+  const weatherGaugeFill = document.getElementById('weather-gauge-fill');
+  const weatherGaugeZero = document.getElementById('weather-gauge-zero');
+
+  if (!weatherGaugeValue || !weatherGaugeBar || !weatherGaugeFill || !weatherGaugeZero) {
+    console.warn('updateWeatherGaugeFromScore: ゲージ要素が見つかりません');
+    return;
+  }
+
+  // 表示用の値は整数で表示
+  weatherGaugeValue.textContent = Math.round(totalScore);
+
+  const maxAbs = 1000; // 見た目上の最大スコア
+  const barWidth = 200; // CSSで指定している幅に合わせる
+
+  // 値を -maxAbs .. +maxAbs の範囲にクランプ
+  const clamped = Math.max(-maxAbs, Math.min(maxAbs, totalScore));
+  let fillWidth = Math.abs(clamped) / maxAbs * (barWidth / 2);
+  fillWidth = Math.min(fillWidth, barWidth / 2);
+
+  weatherGaugeFill.style.width = fillWidth + 'px';
+  // 色は既存の getGaugeColor を利用（値を 0..2*maxAbs に変換）
+  weatherGaugeFill.style.background = getGaugeColor(clamped + maxAbs, 0, maxAbs * 2);
+  weatherGaugeZero.style.left = (barWidth / 2 - 1) + 'px';
+
+  if (clamped >= 0) {
+    weatherGaugeFill.style.left = (barWidth / 2) + 'px';
+    weatherGaugeFill.style.right = 'auto';
+    weatherGaugeFill.classList.remove('left');
+    weatherGaugeFill.classList.add('right');
+  } else {
+    weatherGaugeFill.style.left = 'auto';
+    weatherGaugeFill.style.right = (barWidth / 2) + 'px';
+    weatherGaugeFill.classList.remove('right');
+    weatherGaugeFill.classList.add('left');
   }
 }
 
