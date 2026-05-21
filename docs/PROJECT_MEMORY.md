@@ -371,5 +371,6 @@ Render 上のバックエンド公開URLがHTTP応答せず、DB外部接続も�
 - 既存の `locations.geom` がある場合でも `NOT NULL` を外し、新しい insert が `geom` なしで通るようにした。
 - 駅との距離計算は SQL の `ST_Distance` ではなく、Node.js 側の Haversine 計算へ変更した。
 - `/users-locations` は `ST_X` / `ST_Y` ではなく `locations.longitude` / `locations.latitude` を返すようにした。
+- Render の本番実行で devDependencies の `nodemon` が無い場合でも起動できるように、backend Dockerfile の `CMD` を `npm run dev` から `npm start` に変更した。
 
 これにより Render の通常 PostgreSQL だけでアプリが起動できる構成に寄せた。将来的に地理空間クエリを本格的に使う場合は、PostGIS 有効化をRender側で確認した上で別途マイグレーションする。
