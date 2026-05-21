@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+ブラウザ操作とドキュメント生成.docx
+
+.DS_Store
+Thumbs.db

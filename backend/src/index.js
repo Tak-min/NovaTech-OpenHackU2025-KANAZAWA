@@ -186,6 +186,70 @@ const STATIONS = [
 ];
 const STATION_RADIUS_METERS = 70;
 const MISS_COOLDOWN_MINUTES = 30;
+const LOG_LOCATION_MIN_INTERVAL_SECONDS = Number.parseInt(
+    process.env.LOG_LOCATION_MIN_INTERVAL_SECONDS || '300',
+    10
+);
+const rawLocationPublicPrecisionDecimals = Number.parseInt(
+    process.env.LOCATION_PUBLIC_PRECISION_DECIMALS || '3',
+    10
+);
+const LOCATION_PUBLIC_PRECISION_DECIMALS = Number.isFinite(rawLocationPublicPrecisionDecimals)
+    ? Math.max(0, Math.min(5, rawLocationPublicPrecisionDecimals))
+    : 3;
+const isProduction = process.env.NODE_ENV === 'production';
+
+const WEATHER_SCORE_MAP = {
+    sunny: 1,
+    cloudy: 0.5,
+    rainy: -1,
+    snowy: 2,
+    thunderstorm: -3,
+    stormy: -2
+};
+
+const getWeatherScore = (weather) => WEATHER_SCORE_MAP[weather] ?? 0;
+
+const getUserStatus = (score, gender) => {
+    if (score > 500) return '太陽神';
+    if (score > 100) return gender === 'female' ? '晴れ女' : '晴れ男';
+    if (score < -500) return '嵐を呼ぶ者';
+    if (score < -100) return gender === 'female' ? '雨女' : '雨男';
+    return '凡人';
+};
+
+const getWeatherStats = (counts = {}) => {
+    const sunnyCount = Number(counts.sunny || 0);
+    const cloudyCount = Number(counts.cloudy || 0);
+    const snowyCount = Number(counts.snowy || 0);
+    const rainyCount = Number(counts.rainy || 0);
+    const stormyCount = Number(counts.stormy || 0);
+    const thunderstormCount = Number(counts.thunderstorm || 0);
+    const totalRecords = Object.values(counts).reduce((sum, value) => sum + Number(value || 0), 0);
+    const positiveWeatherCount = sunnyCount + cloudyCount + snowyCount;
+    const negativeWeatherCount = rainyCount + stormyCount + thunderstormCount;
+
+    return {
+        totalRecords,
+        positiveWeatherCount,
+        negativeWeatherCount,
+        positiveRate: totalRecords > 0 ? Math.round((positiveWeatherCount / totalRecords) * 1000) / 10 : 0,
+        negativeRate: totalRecords > 0 ? Math.round((negativeWeatherCount / totalRecords) * 1000) / 10 : 0
+    };
+};
+
+const getStatusReason = (stats) => {
+    if (!stats.totalRecords) {
+        return 'まだ天気ログが少ないため、これからジンクスを育てていきます';
+    }
+
+    return `${stats.totalRecords}件の天気ログから判定中。晴れ・くもり・雪寄りが${stats.positiveRate}%、雨・荒天寄りが${stats.negativeRate}%です`;
+};
+
+if (isProduction) {
+    console.log = () => { };
+    console.warn = () => { };
+}
 
 
 // Expressアプリの初期化
@@ -243,8 +307,6 @@ app.use(cors({
 }));
 // ================================================
 
-
-const isProduction = process.env.NODE_ENV === 'production';
 // データベース接続プールの設定
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -260,6 +322,10 @@ const pool = new Pool({
 const createTables = async () => {
     const client = await pool.connect();
     try {
+        console.log('Ensuring PostGIS extension...');
+        await client.query('CREATE EXTENSION IF NOT EXISTS postgis;');
+        console.log('PostGIS extension is available.');
+
         console.log('Creating users table...');
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
@@ -390,16 +456,21 @@ const authenticateToken = (req, res, next) => {
 // ===== ルートハンドラー =====
 // [GET] / - APIヘルスチェック
 app.get('/', (req, res) => {
+    const endpoints = {
+        auth: ['POST /register', 'POST /login', 'GET /status'],
+        location: ['POST /log-location'],
+        ranking: ['GET /ranking'],
+        map: ['GET /users-locations']
+    };
+
+    if (!isProduction) {
+        endpoints.debug = ['GET /debug/users'];
+    }
+
     res.json({
         message: 'SoraLog API Server is running',
         version: '1.0.0',
-        endpoints: {
-            auth: ['POST /register', 'POST /login', 'GET /status'],
-            location: ['POST /log-location'],
-            ranking: ['GET /ranking'],
-            map: ['GET /users-locations'],
-            debug: ['GET /debug/users']
-        },
+        endpoints,
         timestamp: new Date().toISOString()
     });
 });
@@ -413,8 +484,46 @@ app.post('/log-location', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: '緯度と経度が必要です' });
     }
 
+    const normalizedLatitude = Number(latitude);
+    const normalizedLongitude = Number(longitude);
+
+    if (
+        !Number.isFinite(normalizedLatitude) ||
+        !Number.isFinite(normalizedLongitude) ||
+        normalizedLatitude < -90 ||
+        normalizedLatitude > 90 ||
+        normalizedLongitude < -180 ||
+        normalizedLongitude > 180
+    ) {
+        return res.status(400).json({ message: '緯度または経度の値が不正です' });
+    }
+
     const client = await pool.connect();
     try {
+        if (Number.isFinite(LOG_LOCATION_MIN_INTERVAL_SECONDS) && LOG_LOCATION_MIN_INTERVAL_SECONDS > 0) {
+            const latestLocation = await client.query(`
+                SELECT
+                    recorded_at,
+                    recorded_at + ($2::int * INTERVAL '1 second') AS next_allowed_at
+                FROM locations
+                WHERE user_id = $1
+                ORDER BY recorded_at DESC
+                LIMIT 1
+            `, [userId, LOG_LOCATION_MIN_INTERVAL_SECONDS]);
+
+            if (latestLocation.rows.length > 0) {
+                const nextAllowedAt = latestLocation.rows[0].next_allowed_at;
+                if (nextAllowedAt && new Date(nextAllowedAt) > new Date()) {
+                    return res.status(200).json({
+                        message: '位置情報の記録間隔内のためスキップしました',
+                        skipped: true,
+                        reason: 'rate_limited',
+                        nextAllowedAt
+                    });
+                }
+            }
+        }
+
         await client.query('BEGIN');
 
         // 近接駅チェックと乗り遅れカウント（クールダウン考慮）
@@ -426,8 +535,8 @@ app.post('/log-location', authenticateToken, async (req, res) => {
                 ) as distance;
             `;
             const distanceResult = await client.query(distanceQuery, [
-                longitude,
-                latitude,
+                normalizedLongitude,
+                normalizedLatitude,
                 station.longitude,
                 station.latitude
             ]);
@@ -454,8 +563,8 @@ app.post('/log-location', authenticateToken, async (req, res) => {
 
         // 天気情報を取得
         const apiKey = process.env.WEATHER_API_KEY;
-        const apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}`;
-        console.log('天気APIリクエスト開始:', { latitude, longitude, apiUrl: apiUrl.replace(apiKey, '***') });
+        const apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${normalizedLatitude}&lon=${normalizedLongitude}&appid=${apiKey}`;
+        console.log('天気APIリクエスト開始:', { latitude: normalizedLatitude, longitude: normalizedLongitude, apiUrl: apiUrl.replace(apiKey, '***') });
         const weatherResponse = await axios.get(apiUrl);
         const weatherData = weatherResponse.data;
         console.log('天気APIレスポンス受信:', {
@@ -489,18 +598,10 @@ app.post('/log-location', authenticateToken, async (req, res) => {
             INSERT INTO locations (user_id, geom, weather, recorded_at)
             VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), $4, NOW())
         `;
-        await client.query(insertLocation, [userId, longitude, latitude, weather]);
+        await client.query(insertLocation, [userId, normalizedLongitude, normalizedLatitude, weather]);
 
         // 天気に応じたスコア変動を計算し、ユーザーの累積スコアを更新
-        const scoreMap = {
-            sunny: 1,
-            cloudy: 0.5,
-            rainy: -1,
-            snowy: 2,
-            thunderstorm: -3,
-            stormy: -2
-        };
-        const scoreChange = scoreMap[weather] ?? 0;
+        const scoreChange = getWeatherScore(weather);
         await client.query('UPDATE users SET score = score + $1 WHERE id = $2', [scoreChange, userId]);
 
         await client.query('COMMIT');
@@ -557,24 +658,17 @@ app.get('/status', authenticateToken, async (req, res) => {
         const gender = user.gender; // 'male' | 'female' | 'other' | null
         const counts = user.counts || {};
         const missedTrainCount = user.missed_train_count || 0;
-
-        // スコアに応じた称号を決定（genderで晴れ/雨の呼称を出し分け）
-        let status = '凡人';
-        if (totalScore > 500) {
-            status = '太陽神';
-        } else if (totalScore > 100) {
-            status = (gender === 'female') ? '晴れ女' : '晴れ男';
-        } else if (totalScore < -500) {
-            status = '嵐を呼ぶ者';
-        } else if (totalScore < -100) {
-            status = (gender === 'female') ? '雨女' : '雨男';
-        }
+        const stats = getWeatherStats(counts);
+        const status = getUserStatus(totalScore, gender);
+        const statusReason = getStatusReason(stats);
 
         res.json({
             status,
             score: totalScore,
             counts,
-            missedTrainCount
+            missedTrainCount,
+            stats,
+            statusReason
         });
     } catch (error) {
         console.error('Error in /status:', error);
@@ -585,6 +679,8 @@ app.get('/status', authenticateToken, async (req, res) => {
 // [GET] /users-locations - 全ユーザーの最新位置情報を取得（位置情報許可設定を考慮）
 app.get('/users-locations', authenticateToken, async (req, res) => {
     try {
+        const currentUserId = req.user.id;
+
         // 各ユーザーの最新の位置情報と称号計算に必要な情報を取得（位置情報許可が有効なユーザーのみ）
         const locationsQuery = `
       SELECT DISTINCT ON (u.id)
@@ -592,8 +688,14 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
         u.username,
         u.score,
         u.gender,
-        ST_X(l.geom) as longitude,
-        ST_Y(l.geom) as latitude,
+        CASE
+          WHEN u.id = $1 THEN ST_X(l.geom)
+          ELSE ROUND(ST_X(l.geom)::numeric, $2)::double precision
+        END as longitude,
+        CASE
+          WHEN u.id = $1 THEN ST_Y(l.geom)
+          ELSE ROUND(ST_Y(l.geom)::numeric, $2)::double precision
+        END as latitude,
         l.weather,
         l.recorded_at
       FROM users u
@@ -603,25 +705,11 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
       ORDER BY u.id, l.recorded_at DESC
     `;
 
-        const result = await pool.query(locationsQuery);
-
-        const currentUserId = req.user.id; // 現在のユーザーIDを取得
+        const result = await pool.query(locationsQuery, [currentUserId, LOCATION_PUBLIC_PRECISION_DECIMALS]);
 
         const userLocations = result.rows.map(row => {
             const totalScore = row.score !== null ? parseFloat(row.score) : 0;
-            const gender = row.gender;
-
-            // スコアに応じた称号を決定（genderで晴れ/雨の呼称を出し分け）
-            let status = '凡人';
-            if (totalScore > 500) {
-                status = '太陽神';
-            } else if (totalScore > 100) {
-                status = (gender === 'female') ? '晴れ女' : '晴れ男';
-            } else if (totalScore < -500) {
-                status = '嵐を呼ぶ者';
-            } else if (totalScore < -100) {
-                status = (gender === 'female') ? '雨女' : '雨男';
-            }
+            const status = getUserStatus(totalScore, row.gender);
 
             return {
                 id: row.id,
@@ -651,6 +739,7 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
 app.get('/ranking', authenticateToken, async (req, res) => {
     try {
         const { type = 'weather', limit = 50 } = req.query;
+        const requestedLimit = Math.max(1, Math.min(100, Number.parseInt(limit, 10) || 50));
         const userId = req.user.id;
 
         let rankingQuery;
@@ -733,7 +822,7 @@ app.get('/ranking', authenticateToken, async (req, res) => {
         }));
 
         // 上位N名を取得
-        const topRankings = rankings.slice(0, parseInt(limit));
+        const topRankings = rankings.slice(0, requestedLimit);
 
         // 自分の順位を取得（上位に含まれていない場合）
         let currentUserRank = null;
@@ -1072,16 +1161,18 @@ app.listen(PORT, async () => {
     }
 });
 
-app.get('/debug/users', async (req, res) => {
-    try {
-        const users = await pool.query('SELECT id, username, email, gender, created_at FROM users ORDER BY created_at DESC LIMIT 10');
-        res.json({
-            success: true,
-            users: users.rows,
-            count: users.rows.length
-        });
-    } catch (error) {
-        console.error('Error fetching users:', error);
-        res.status(500).json({ error: 'Failed to fetch users', details: error.message });
-    }
-});
+if (!isProduction) {
+    app.get('/debug/users', async (req, res) => {
+        try {
+            const users = await pool.query('SELECT id, username, email, gender, created_at FROM users ORDER BY created_at DESC LIMIT 10');
+            res.json({
+                success: true,
+                users: users.rows,
+                count: users.rows.length
+            });
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            res.status(500).json({ error: 'Failed to fetch users', details: error.message });
+        }
+    });
+}

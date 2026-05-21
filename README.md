@@ -49,7 +49,18 @@ DATABASE_URL=postgres://myuser:mypassword@db:5432/hare_ame_db
 
 # JWT（認証）用の秘密鍵
 JWT_SECRET=this_is_a_super_secret_key
+
+# OpenWeatherMap API Key
+WEATHER_API_KEY=your_openweathermap_api_key
+
+# 位置情報ログの最小記録間隔（秒）
+LOG_LOCATION_MIN_INTERVAL_SECONDS=300
+
+# 他ユーザーの地図表示座標を丸める桁数（3で約100m単位）
+LOCATION_PUBLIC_PRECISION_DECIMALS=3
 ```
+
+実運用・展示環境では、`JWT_SECRET` と `WEATHER_API_KEY` を公開リポジトリにコミットしないでください。ローカルでは `.env.example` を `.env` にコピーし、各自の値に置き換えて使います。
 
 ### ステップ3: バックエンド環境の起動
 

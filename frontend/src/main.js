@@ -9,6 +9,8 @@ console.log('[API] Initial window.location:', typeof window !== 'undefined' ? wi
 console.log('[API] Initial window.location.host:', typeof window !== 'undefined' ? window.location.host : 'no window');
 
 const isLocalHost = typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.host);
+const IS_DEVELOPMENT = Boolean(import.meta.env && import.meta.env.DEV);
+const LOCATION_UPDATE_INTERVAL_MS = IS_DEVELOPMENT ? 10 * 1000 : 5 * 60 * 1000;
 console.log('[API] isLocalHost:', isLocalHost);
 
 if (isLocalHost) {
@@ -542,9 +544,13 @@ async function updateHomePageStatus() {
 
       const statusTextElement = document.getElementById('status-text');
       const statusImageElement = document.getElementById('status-image');
+      const statusReasonElement = document.getElementById('status-reason');
 
       // バックエンドから受け取った称号を表示
       statusTextElement.textContent = `${data.status}`;
+      if (statusReasonElement) {
+        statusReasonElement.textContent = data.statusReason || '天気ログを集計中です';
+      }
 
       // ユーザーのgenderを取得
       const gender = await getUserGender();
@@ -634,6 +640,23 @@ function updateWeatherGaugeFromScore(totalScore) {
     weatherGaugeFill.classList.remove('right');
     weatherGaugeFill.classList.add('left');
   }
+}
+
+function getGaugeColor(value, min, max) {
+  const ratio = (value - min) / (max - min);
+  let r, g, b;
+
+  if (ratio <= 0.5) {
+    r = Math.round(33 + (76 - 33) * (ratio / 0.5));
+    g = Math.round(150 + (175 - 150) * (ratio / 0.5));
+    b = Math.round(243 + (80 - 243) * (ratio / 0.5));
+  } else {
+    r = Math.round(76 + (229 - 76) * ((ratio - 0.5) / 0.5));
+    g = Math.round(175 + (57 - 175) * ((ratio - 0.5) / 0.5));
+    b = Math.round(80 + (53 - 80) * ((ratio - 0.5) / 0.5));
+  }
+
+  return `rgb(${r},${g},${b})`;
 }
 
 const loginForm = document.getElementById('login-form');
@@ -767,7 +790,7 @@ if (logoutBtn) {
   console.warn('logout-button not found in DOM');
 }
 
-// 5分ごとに位置情報を送信する関数
+// 定期的に位置情報を送信する関数
 function sendLocation() {
   const token = localStorage.getItem('token');
   if (!token) {
@@ -813,11 +836,10 @@ function startPeriodicLocationUpdate() {
     console.log('定期更新は既に開始されています');
     return;
   }
-  console.log('10秒ごとの定期更新を開始します');
+  console.log(`${Math.round(LOCATION_UPDATE_INTERVAL_MS / 1000)}秒ごとの定期更新を開始します`);
   // まず一度すぐに実行
   sendLocation();
-  // その後、10秒ごとに実行
-  locationUpdateIntervalId = setInterval(sendLocation, 10 * 1000); // 10秒 = 10,000ミリ秒
+  locationUpdateIntervalId = setInterval(sendLocation, LOCATION_UPDATE_INTERVAL_MS);
 }
 
 // 定期的な位置情報更新を停止する関数
@@ -881,7 +903,7 @@ async function updateRankingPage(type = currentRankingType) {
   };
 
   if (scoreHeader) scoreHeader.textContent = headerTexts[type] || '天気スコア';
-  if (tbody) tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">ランキングを読み込んでいます...</td></tr>';
+  renderRankingState(tbody, 'ランキングを読み込んでいます...');
 
   try {
     const response = await fetch(`${API_BASE}/ranking?type=${type}&limit=50`, {
@@ -921,31 +943,43 @@ async function updateRankingPage(type = currentRankingType) {
           scoreDisplay = Number(user.score ?? 0).toFixed(1);
         }
 
-        tr.innerHTML = `
-          <td style="border-bottom:1px solid #eee; padding:8px; text-align:center;">${user.rank}</td>
-          <td style="border-bottom:1px solid #eee; padding:8px;">${user.username}${user.isCurrentUser ? ' (あなた)' : ''}</td>
-          <td style="border-bottom:1px solid #eee; padding:8px; text-align:right;">${scoreDisplay}</td>
-        `;
+        const rankCell = document.createElement('td');
+        const nameCell = document.createElement('td');
+        const scoreCell = document.createElement('td');
+        rankCell.textContent = user.rank;
+        nameCell.textContent = `${user.username}${user.isCurrentUser ? ' (あなた)' : ''}`;
+        scoreCell.textContent = scoreDisplay;
+        tr.append(rankCell, nameCell, scoreCell);
 
         // 自分のランキングを強調表示
         if (user.isCurrentUser) {
-          tr.style.backgroundColor = '#e3f2fd';
-          tr.style.fontWeight = 'bold';
+          tr.classList.add('ranking-current-user');
         }
 
         tbody.appendChild(tr);
       });
 
       if (rankings.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px;">まだランキングデータがありません</td></tr>';
+        renderRankingState(tbody, 'まだランキングデータがありません');
       }
     }
   } catch (error) {
     console.error('ランキング取得エラー:', error);
-    if (tbody) {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #f44336;">ランキングの取得に失敗しました</td></tr>';
-    }
+    renderRankingState(tbody, 'ランキングの取得に失敗しました', true);
   }
+}
+
+function renderRankingState(tbody, message, isError = false) {
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+  const row = document.createElement('tr');
+  const cell = document.createElement('td');
+  cell.colSpan = 3;
+  cell.className = isError ? 'table-state error' : 'table-state';
+  cell.textContent = message;
+  row.appendChild(cell);
+  tbody.appendChild(row);
 }
 
 //ここからは地図機能
@@ -1166,40 +1200,6 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// ファイル選択時の処理
-if (iconInput) iconInput.addEventListener('change', function (event) {
-  const file = event.target.files[0];
-
-  if (file) {
-    // ファイルタイプのチェック
-    if (!file.type.startsWith('image/')) {
-      alert('画像ファイルを選択してください。');
-      return;
-    }
-
-    // ファイルサイズのチェック（5MB以下）
-    if (file.size > 5 * 1024 * 1024) {
-      alert('ファイルサイズは5MB以下にしてください。');
-      return;
-    }
-
-    // FileReaderを使用して画像を読み込み
-    const reader = new FileReader();
-
-    reader.onload = function (e) {
-      selectedImageData = e.target.result;
-      displayImagePreview(selectedImageData);
-      saveBtn.disabled = false;
-    };
-
-    reader.onerror = function () {
-      alert('ファイルの読み込みに失敗しました。');
-    };
-
-    reader.readAsDataURL(file);
-  }
-});
-
 // エラーハンドリング
 window.addEventListener('error', function (e) {
   console.error('エラーが発生しました:', e.error);
@@ -1231,7 +1231,15 @@ function initializeSettingsPage() {
   const iconPreview = document.getElementById('iconPreview');
   const saveBtn = document.getElementById('saveBtn');
   const resetBtn = document.getElementById('resetBtn');
+  const selectIconBtn = document.getElementById('selectIconBtn');
   const imageInfo = document.getElementById('imageInfo');
+
+  if (selectIconBtn && !selectIconBtn.hasAttribute('data-initialized')) {
+    selectIconBtn.setAttribute('data-initialized', 'true');
+    selectIconBtn.addEventListener('click', function () {
+      if (iconInput) iconInput.click();
+    });
+  }
 
   // アイコン選択のイベントリスナー
   if (iconInput && !iconInput.hasAttribute('data-initialized')) {
@@ -1668,7 +1676,11 @@ async function compressImage(imageData) {
 function displayImagePreview(imageData) {
   const iconPreview = document.getElementById('iconPreview');
   if (iconPreview) {
-    iconPreview.innerHTML = `<img src="${imageData}" alt="アイコンプレビュー" style="max-width: 100%; max-height: 100%; border-radius: 50%; object-fit: cover;">`;
+    const image = document.createElement('img');
+    image.src = imageData;
+    image.alt = 'アイコンプレビュー';
+    image.className = 'icon-preview-image';
+    iconPreview.replaceChildren(image);
   }
 }
 
@@ -1907,13 +1919,16 @@ function addTestLocationData() {
   });
 }
 
-// グローバルスコープにテスト関数を公開（開発用）
-window.addTestLocationData = addTestLocationData;
+if (IS_DEVELOPMENT) {
+  // グローバルスコープにテスト関数を公開（開発用）
+  window.addTestLocationData = addTestLocationData;
+}
 
 // テストボタンのイベントリスナーを設定
 document.addEventListener('DOMContentLoaded', function () {
   const testBtn = document.getElementById('test-location-btn');
-  if (testBtn) {
+  if (testBtn && IS_DEVELOPMENT) {
+    testBtn.classList.remove('hidden');
     testBtn.addEventListener('click', function () {
       console.log('テスト位置情報追加ボタンがクリックされました');
       addTestLocationData();

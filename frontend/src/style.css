@@ -310,6 +310,65 @@ input[type="radio"] {
   margin: 0 auto;
 }
 
+.weather-gauge-panel {
+  margin-top: 16px;
+}
+
+.weather-gauge-label {
+  font-weight: bold;
+}
+
+.weather-gauge-value {
+  margin-left: 8px;
+}
+
+.center-gauge-bar {
+  position: relative;
+  width: 200px;
+  height: 20px;
+  background: #eee;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+#weather-gauge-fill {
+  position: absolute;
+  top: 0;
+  height: 20px;
+  border-radius: 0;
+}
+
+#weather-gauge-fill.right {
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+#weather-gauge-fill.left {
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+
+#weather-gauge-zero {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 20px;
+  background: #888;
+  border-radius: 0;
+}
+
+.status-reason {
+  max-width: 28rem;
+  margin: 0.5rem auto 1rem;
+  padding: 0.6rem 0.75rem;
+  color: #4b5563;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
 /* Ranking Page */
 #page-ranking ul {
   list-style: none;
@@ -319,8 +378,59 @@ input[type="radio"] {
 /* 新しいスタイルを追加 */
 #ranking-tabs {
   display: flex;
-  justify-content: space-around; /* 等間隔に配置 */
-  margin-bottom: 1rem; /* 下に余白を追加 */
+  justify-content: space-around;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+#ranking-table-container {
+  max-height: 400px;
+  position: relative;
+}
+
+#ranking-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#ranking-table th,
+#ranking-table td {
+  border-bottom: 1px solid #eee;
+  padding: 8px;
+}
+
+#ranking-table th {
+  border-bottom-color: #ccc;
+}
+
+#ranking-table td:first-child,
+#ranking-table th:first-child {
+  text-align: center;
+}
+
+#ranking-table td:last-child,
+#ranking-table th:last-child {
+  text-align: right;
+}
+
+.table-state {
+  padding: 16px;
+  text-align: center;
+}
+
+.table-state.error {
+  color: #f44336;
+}
+
+.ranking-current-user {
+  background-color: #e3f2fd;
+  font-weight: bold;
+}
+
+.ranking-note {
+  margin-top: 16px;
+  font-size: 0.9em;
+  color: #888;
 }
 
 button.ranking-tab {
@@ -455,19 +565,19 @@ footer button.active span {
 }
 
 footer button[data-page="home"].active img.icon {
-  content: url('img/home-yellow.png');
+  content: url('/img/home-yellow.png');
 }
 
 footer button[data-page="map"].active img.icon {
-  content: url('img/map-yellow.png');
+  content: url('/img/map-yellow.png');
 }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 footer button[data-page="ranking"].active img.icon {
-  content: url('img/ranking-yellow.png');
+  content: url('/img/ranking-yellow.png');
 }
 
 footer button[data-page="settings"].active img.icon {
-  content: url('img/setting-yellow.png');
+  content: url('/img/setting-yellow.png');
 }
 
 /* 背景画像のコンテナ */
@@ -502,6 +612,16 @@ footer button[data-page="settings"].active img.icon {
   width: 100%;
   border-radius: 8px;
   border: 1px solid #ddd;
+}
+
+.dev-tool-btn {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 /* PC Layout using Media Query */
@@ -568,6 +688,13 @@ footer button[data-page="settings"].active img.icon {
   border-radius: 50%;
 }
 
+.icon-preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .icon-placeholder {
   color: #888;
   font-size: 10px;
@@ -630,6 +757,10 @@ footer button[data-page="settings"].active img.icon {
   /* 最大幅を制限 */
   margin: 0 auto;
   /* 水平方向の中央揃え */
+}
+
+.reset-btn {
+  width: 140px;
 }
 
 
