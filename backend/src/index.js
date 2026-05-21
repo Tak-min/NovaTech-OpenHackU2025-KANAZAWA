@@ -246,6 +246,20 @@ const getStatusReason = (stats) => {
     return `${stats.totalRecords}件の天気ログから判定中。晴れ・くもり・雪寄りが${stats.positiveRate}%、雨・荒天寄りが${stats.negativeRate}%です`;
 };
 
+const calculateDistanceMeters = (lat1, lon1, lat2, lon2) => {
+    const toRadians = (value) => value * Math.PI / 180;
+    const earthRadiusMeters = 6371000;
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRadians(lat1)) *
+        Math.cos(toRadians(lat2)) *
+        Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return earthRadiusMeters * c;
+};
+
 if (isProduction) {
     console.log = () => { };
     console.warn = () => { };
@@ -322,10 +336,6 @@ const pool = new Pool({
 const createTables = async () => {
     const client = await pool.connect();
     try {
-        console.log('Ensuring PostGIS extension...');
-        await client.query('CREATE EXTENSION IF NOT EXISTS postgis;');
-        console.log('PostGIS extension is available.');
-
         console.log('Creating users table...');
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
@@ -384,10 +394,26 @@ const createTables = async () => {
             CREATE TABLE IF NOT EXISTS locations (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL REFERENCES users(id),
-                geom GEOMETRY(Point, 4326) NOT NULL, -- 緯度経度を保存する
+                latitude DOUBLE PRECISION,
+                longitude DOUBLE PRECISION,
                 weather VARCHAR(50),
                 recorded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
+        `);
+        await client.query('ALTER TABLE locations ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;');
+        await client.query('ALTER TABLE locations ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;');
+        await client.query(`
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'locations'
+                      AND column_name = 'geom'
+                ) THEN
+                    ALTER TABLE locations ALTER COLUMN geom DROP NOT NULL;
+                END IF;
+            END $$;
         `);
         console.log('Locations table created or already exists.');
 
@@ -528,19 +554,12 @@ app.post('/log-location', authenticateToken, async (req, res) => {
 
         // 近接駅チェックと乗り遅れカウント（クールダウン考慮）
         for (const station of STATIONS) {
-            const distanceQuery = `
-                SELECT ST_Distance(
-                  ST_MakePoint($1, $2)::geography,
-                  ST_MakePoint($3, $4)::geography
-                ) as distance;
-            `;
-            const distanceResult = await client.query(distanceQuery, [
-                normalizedLongitude,
+            const distance = calculateDistanceMeters(
                 normalizedLatitude,
-                station.longitude,
-                station.latitude
-            ]);
-            const distance = parseFloat(distanceResult.rows[0].distance);
+                normalizedLongitude,
+                station.latitude,
+                station.longitude
+            );
             if (!Number.isNaN(distance) && distance <= STATION_RADIUS_METERS) {
                 console.log(`${station.name}の半径${STATION_RADIUS_METERS}m以内にいます`);
                 const updateUserQuery = `
@@ -595,10 +614,10 @@ app.post('/log-location', authenticateToken, async (req, res) => {
 
         // 位置情報と天気を保存
         const insertLocation = `
-            INSERT INTO locations (user_id, geom, weather, recorded_at)
-            VALUES ($1, ST_SetSRID(ST_MakePoint($2, $3), 4326), $4, NOW())
+            INSERT INTO locations (user_id, latitude, longitude, weather, recorded_at)
+            VALUES ($1, $2, $3, $4, NOW())
         `;
-        await client.query(insertLocation, [userId, normalizedLongitude, normalizedLatitude, weather]);
+        await client.query(insertLocation, [userId, normalizedLatitude, normalizedLongitude, weather]);
 
         // 天気に応じたスコア変動を計算し、ユーザーの累積スコアを更新
         const scoreChange = getWeatherScore(weather);
@@ -689,12 +708,12 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
         u.score,
         u.gender,
         CASE
-          WHEN u.id = $1 THEN ST_X(l.geom)
-          ELSE ROUND(ST_X(l.geom)::numeric, $2)::double precision
+          WHEN u.id = $1 THEN l.longitude
+          ELSE ROUND(l.longitude::numeric, $2)::double precision
         END as longitude,
         CASE
-          WHEN u.id = $1 THEN ST_Y(l.geom)
-          ELSE ROUND(ST_Y(l.geom)::numeric, $2)::double precision
+          WHEN u.id = $1 THEN l.latitude
+          ELSE ROUND(l.latitude::numeric, $2)::double precision
         END as latitude,
         l.weather,
         l.recorded_at
@@ -702,6 +721,8 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
       JOIN locations l ON u.id = l.user_id
       JOIN user_settings s ON u.id = s.user_id
       WHERE s.location_enabled = true
+        AND l.latitude IS NOT NULL
+        AND l.longitude IS NOT NULL
       ORDER BY u.id, l.recorded_at DESC
     `;
 

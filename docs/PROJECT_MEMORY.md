@@ -362,3 +362,14 @@ Vite build 時に CSS の `content: url('img/...')` が解決されず runtime �
 - `backend/src/index.js` も routes/services/repositories に分割する。
 - マップマーカーのHTMLには動的 style が残っているため、可能なら CSS class と Leaflet popup sanitization を進める。
 - `alert` ベースのUXを、画面内トーストやフォーム下エラー表示に置き換える。
+
+## 2026-05-21 Render 疎通対応メモ
+
+Render 上のバックエンド公開URLがHTTP応答せず、DB外部接続もローカルからタイムアウトした。原因候補の一つとして、標準 PostgreSQL 環境で PostGIS 前提の `GEOMETRY` / `ST_*` が起動時に失敗している可能性があるため、バックエンドを PostGIS 非依存に変更した。
+
+- `locations` は `latitude DOUBLE PRECISION` / `longitude DOUBLE PRECISION` を保存する方針へ変更した。
+- 既存の `locations.geom` がある場合でも `NOT NULL` を外し、新しい insert が `geom` なしで通るようにした。
+- 駅との距離計算は SQL の `ST_Distance` ではなく、Node.js 側の Haversine 計算へ変更した。
+- `/users-locations` は `ST_X` / `ST_Y` ではなく `locations.longitude` / `locations.latitude` を返すようにした。
+
+これにより Render の通常 PostgreSQL だけでアプリが起動できる構成に寄せた。将来的に地理空間クエリを本格的に使う場合は、PostGIS 有効化をRender側で確認した上で別途マイグレーションする。
