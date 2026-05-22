@@ -42,6 +42,42 @@ function notify(message, type = 'info') {
   showToast(String(message || ''), type);
 }
 
+let loadingPopupShownAt = 0;
+let loadingPopupHideTimer = null;
+
+function showLoadingPopup(message = '読み込み中...') {
+  let popup = document.getElementById('loading-popup');
+  if (!popup) {
+    popup = document.createElement('div');
+    popup.id = 'loading-popup';
+    popup.innerHTML = '<div class="loading-popup-card"><div class="loading-spinner" aria-hidden="true"></div><p></p></div>';
+    document.body.appendChild(popup);
+  }
+
+  const messageElement = popup.querySelector('p');
+  if (messageElement) messageElement.textContent = message;
+  if (loadingPopupHideTimer) {
+    clearTimeout(loadingPopupHideTimer);
+    loadingPopupHideTimer = null;
+  }
+  loadingPopupShownAt = Date.now();
+  popup.classList.add('show');
+}
+
+function hideLoadingPopup(minVisibleMs = 650) {
+  const popup = document.getElementById('loading-popup');
+  if (!popup) return;
+  const elapsed = Date.now() - loadingPopupShownAt;
+  const remaining = Math.max(0, minVisibleMs - elapsed);
+  if (loadingPopupHideTimer) {
+    clearTimeout(loadingPopupHideTimer);
+  }
+  loadingPopupHideTimer = setTimeout(() => {
+    popup.classList.remove('show');
+    loadingPopupHideTimer = null;
+  }, remaining);
+}
+
 // 位置情報追跡用の変数
 let locationWatchId = null;
 let locationUpdateIntervalId = null; // 定期更新用のID
@@ -52,6 +88,56 @@ let selectedImageData = null;
 
 let leafletMap = null;
 let userMarkers = [];
+let currentLocationMarker = null;
+let currentMapPosition = null;
+
+const DEFAULT_MAP_CENTER = [36.2048, 138.2529];
+const DEMO_STATUSES = ['太陽神', '晴れ男', '晴れ女', '凡人', '雨男', '雨女', '嵐を呼ぶ者'];
+const DEMO_WEATHER_BY_STATUS = {
+  '太陽神': 'sunny',
+  '晴れ男': 'sunny',
+  '晴れ女': 'sunny',
+  '凡人': 'cloudy',
+  '雨男': 'rainy',
+  '雨女': 'rainy',
+  '嵐を呼ぶ者': 'stormy'
+};
+const DEMO_SCORE_BY_STATUS = {
+  '太陽神': [520, 820],
+  '晴れ男': [120, 360],
+  '晴れ女': [120, 360],
+  '凡人': [-60, 80],
+  '雨男': [-360, -120],
+  '雨女': [-360, -120],
+  '嵐を呼ぶ者': [-820, -520]
+};
+const DEMO_MAP_POINTS = [
+  ['さくら', 43.0642, 141.3469], ['陽菜', 40.8244, 140.74], ['美咲', 38.2682, 140.8694],
+  ['結衣', 37.9161, 139.0364], ['葵', 36.6513, 138.181], ['凛', 36.5613, 136.6562],
+  ['七海', 35.6812, 139.7671], ['優花', 35.4437, 139.638], ['琴音', 35.1709, 136.8815],
+  ['紗良', 34.9858, 135.7588], ['芽衣', 34.6937, 135.5023], ['莉子', 34.3853, 132.4553],
+  ['花音', 33.5904, 130.4017], ['彩乃', 32.7898, 130.7417], ['真央', 31.5966, 130.5571],
+  ['絵里', 26.2124, 127.6809], ['拓海', 43.7706, 142.365], ['悠斗', 39.7036, 141.1527],
+  ['颯太', 36.3418, 140.4468], ['蓮', 35.8617, 139.6455], ['湊', 35.0116, 135.7681],
+  ['大翔', 34.6851, 135.8048], ['直樹', 34.0658, 134.5593], ['翔', 33.8392, 132.7657],
+  ['海斗', 33.2494, 130.2988], ['蒼', 32.7503, 129.8777], ['千尋', 35.0212, 135.7556],
+  ['瑞希', 36.6953, 137.2113], ['杏奈', 35.5011, 134.2351], ['遥', 35.4681, 133.0484]
+];
+const DEMO_USERS = DEMO_MAP_POINTS.map(([username, latitude, longitude], index) => {
+  const status = DEMO_STATUSES[Math.floor(Math.random() * DEMO_STATUSES.length)];
+  const [minScore, maxScore] = DEMO_SCORE_BY_STATUS[status];
+  return {
+    id: `demo-${index + 1}`,
+    username,
+    latitude,
+    longitude,
+    status,
+    weather: DEMO_WEATHER_BY_STATUS[status] || 'cloudy',
+    score: Math.round(minScore + Math.random() * (maxScore - minScore)),
+    recordedAt: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 4).toISOString(),
+    isDemo: true
+  };
+});
 
 // 称号に応じたマーカーの色を定義
 let statusColors = {
@@ -184,6 +270,9 @@ function showPage(pageId) {
     targetPage.classList.remove('hidden');
   }
 
+  const mainElement = document.querySelector('main');
+  if (mainElement) mainElement.scrollTop = 0;
+
   // ログイン・新規登録画面ではフッターを非表示
   if (pageId === 'page-login' || pageId === 'page-register') {
     footerNav.classList.add('hidden');
@@ -199,7 +288,10 @@ function showPage(pageId) {
   }
 
   // ヘッダー画像の切り替え
-  if (pageId === 'page-home') showHeaderImage('home');
+  if (pageId === 'page-home') {
+    showHeaderImage('home');
+    updateHomePageStatus();
+  }
   else if (pageId === 'page-map') {
     showHeaderImage('map');
     // マップページが表示されたら地図を初期化し、マーカー更新を開始
@@ -484,7 +576,6 @@ async function checkLoginStatus() {
         console.error('設定取得エラー:', error);
       });
 
-      updateHomePageStatus();
       document.querySelector('.nav-button[data-page="home"]').classList.add('active');
       // ホームボタンをアクティブにした後、アイコン状態を更新
       setTimeout(updateFooterIconStates, 100);
@@ -732,8 +823,6 @@ loginForm.addEventListener('submit', async (event) => {
         console.error('設定取得エラー:', error);
       });
 
-      updateHomePageStatus();
-
       // ナビボタンのアクティブ状態をリセット
       navButtons.forEach(btn => btn.classList.remove('active'));
       document.querySelector('.nav-button[data-page="home"]').classList.add('active');
@@ -765,16 +854,6 @@ navButtons.forEach(button => {
 
     // アクティブなタブのアイコンを更新
     updateFooterIconStates();
-
-    if (button.dataset.page === "home") {
-      updateHomePageStatus();
-    } else if (button.dataset.page === "map") {
-      setTimeout(initializeMap, 100);
-    } else if (button.dataset.page === "ranking") {
-      updateRankingPage();
-    } else if (button.dataset.page === "settings") {
-      console.log('設定ページが表示されました');
-    }
   });
 });
 
@@ -911,6 +990,7 @@ async function updateRankingPage(type = currentRankingType) {
 
   if (scoreHeader) scoreHeader.textContent = headerTexts[type] || '天気スコア';
   renderRankingState(tbody, 'ランキングを読み込んでいます...');
+  showLoadingPopup('ランキングを読み込んでいます...');
 
   try {
     const response = await fetch(`${API_BASE}/ranking?type=${type}&limit=50`, {
@@ -973,6 +1053,9 @@ async function updateRankingPage(type = currentRankingType) {
   } catch (error) {
     console.error('ランキング取得エラー:', error);
     renderRankingState(tbody, 'ランキングの取得に失敗しました', true);
+    notify('ランキングの取得に失敗しました', 'error');
+  } finally {
+    hideLoadingPopup();
   }
 }
 
@@ -996,6 +1079,140 @@ function renderRankingState(tbody, message, isError = false) {
 // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 // 地図関連の変数（TDZ回避のため function-scope）
 
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function setMapLocationStatus(message, type = 'info') {
+  const statusElement = document.getElementById('map-location-status');
+  if (!statusElement) return;
+  statusElement.textContent = message;
+  statusElement.dataset.state = type;
+}
+
+function getStatusTone(status) {
+  if (status === '太陽神' || status === '晴れ男' || status === '晴れ女') return 'sunny';
+  if (status === '雨男' || status === '雨女') return 'rainy';
+  if (status === '嵐を呼ぶ者') return 'stormy';
+  return 'neutral';
+}
+
+function getStatusGlyph(status) {
+  const glyphs = {
+    '太陽神': '太',
+    '晴れ男': '晴',
+    '晴れ女': '晴',
+    '凡人': '凡',
+    '雨男': '雨',
+    '雨女': '雨',
+    '嵐を呼ぶ者': '嵐'
+  };
+  return glyphs[status] || '空';
+}
+
+function createUserMarkerIcon(user) {
+  const status = user.status || 'unknown';
+  const tone = user.isCurrentUser ? 'current-user' : getStatusTone(status);
+  return L.divIcon({
+    className: 'soralog-marker-host',
+    html: `<div class="soralog-marker ${tone}" data-marker-type="user" title="${escapeHtml(user.username)}" aria-label="${escapeHtml(user.username)}"><span>${escapeHtml(getStatusGlyph(status))}</span></div>`,
+    iconSize: [38, 46],
+    iconAnchor: [19, 42],
+    popupAnchor: [0, -38]
+  });
+}
+
+function createCurrentLocationIcon() {
+  return L.divIcon({
+    className: 'soralog-marker-host',
+    html: '<div class="soralog-marker my-location" data-marker-type="current-location" title="現在地" aria-label="現在地"><span>私</span></div>',
+    iconSize: [42, 50],
+    iconAnchor: [21, 46],
+    popupAnchor: [0, -40]
+  });
+}
+
+function upsertCurrentLocationMarker({ centerMap = false } = {}) {
+  if (!leafletMap || !currentMapPosition) return;
+
+  const latLng = [currentMapPosition.latitude, currentMapPosition.longitude];
+  if (currentLocationMarker) {
+    currentLocationMarker.setLatLng(latLng);
+  } else {
+    currentLocationMarker = L.marker(latLng, { icon: createCurrentLocationIcon(), zIndexOffset: 1000 })
+      .addTo(leafletMap)
+      .bindPopup('<b>現在地</b><br>地図の中心に使っています。設定をONにしたときだけ天気ログとして送信します。');
+  }
+
+  if (centerMap) {
+    leafletMap.setView(latLng, Math.max(leafletMap.getZoom(), 12));
+  }
+}
+
+async function requestCurrentLocationForMap({ centerMap = false, silent = false } = {}) {
+  if (!navigator.geolocation) {
+    setMapLocationStatus('このブラウザは位置情報に対応していません。日本全体を表示しています。', 'warning');
+    return null;
+  }
+
+  if (!silent) {
+    setMapLocationStatus('現在地を確認しています...');
+  }
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        currentMapPosition = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        };
+        setMapLocationStatus(`現在地を表示しています（精度 約${Math.round(position.coords.accuracy || 0)}m）`, 'success');
+        upsertCurrentLocationMarker({ centerMap });
+        resolve(currentMapPosition);
+      },
+      (error) => {
+        const fallbackMessage = error.code === error.PERMISSION_DENIED
+          ? '位置情報が許可されていないため、日本各地のサンプル表示から始めます。'
+          : '現在地を取得できなかったため、日本各地のサンプル表示から始めます。';
+        setMapLocationStatus(fallbackMessage, 'warning');
+        resolve(null);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60 * 1000
+      }
+    );
+  });
+}
+
+function createUserPopup(user) {
+  const status = user.status || 'unknown';
+  const score = Number(user.score || 0);
+  const recordedAt = user.recordedAt ? new Date(user.recordedAt).toLocaleString() : '表示用データ';
+  const demoLabel = user.isDemo ? '<br><small>表示用サンプル</small>' : '';
+  return `<b>${escapeHtml(user.username)}</b>${demoLabel}<br>称号: ${escapeHtml(status)}<br>スコア: ${escapeHtml(score)}<br>天気: ${escapeHtml(user.weather || 'unknown')}<br>記録日時: ${escapeHtml(recordedAt)}`;
+}
+
+function getMapUsers(apiUsers = []) {
+  const normalizedApiUsers = apiUsers
+    .filter(user => Number.isFinite(Number(user.latitude)) && Number.isFinite(Number(user.longitude)))
+    .map(user => ({
+      ...user,
+      latitude: Number(user.latitude),
+      longitude: Number(user.longitude),
+      isDemo: false
+    }));
+
+  return [...normalizedApiUsers, ...DEMO_USERS];
+}
 
 // ユーザーの位置情報を取得してマーカーを表示
 async function loadUserMarkers() {
@@ -1021,12 +1238,6 @@ async function loadUserMarkers() {
     const data = await response.json();
     console.log('取得したユーザー位置情報:', data);
 
-    // 期待するデータ形状の確認
-    if (!data || !Array.isArray(data.users)) {
-      console.warn('Unexpected response shape for /users-locations. Expected { users: [...] } but got:', data);
-      return;
-    }
-
     // 既存のマーカーをクリア（マップ未初期化時はスキップ）
     if (!Array.isArray(userMarkers)) {
       userMarkers = [];
@@ -1038,56 +1249,37 @@ async function loadUserMarkers() {
     }
     userMarkers = [];
 
+    const mapUsers = getMapUsers(data && Array.isArray(data.users) ? data.users : []);
+
     // 各ユーザーのマーカーを追加
-    data.users.forEach(user => {
+    mapUsers.forEach(user => {
       if (!leafletMap) {
         return; // マップ未初期化ならスキップ
       }
 
-      // 称号に基づいて画像を決定
-      const status = user.status || 'unknown';
-      const imageUrl = statusImages[status] || statusImages['unknown'];
-
-      // 現在のユーザーかどうかで境界線の有無を決定
-      const borderStyle = user.isCurrentUser ? 'border: 2px solid #696969ff;' : 'border: none;';
-
-      // カスタムマーカーアイコンを作成（画像ベース）
-      const customIcon = L.divIcon({
-        html: `
-          <div class="user-marker" style="
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-          ">
-            <img src="${imageUrl}" alt="${status}" style="
-              width: 30px;
-              height: 30px;
-              border-radius: 50%;
-              ${borderStyle}
-              box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-              object-fit: cover;
-            " onerror="this.style.display='none'; this.parentNode.innerHTML='${statusEmojis[status] || statusEmojis['unknown']}'; this.parentNode.style.backgroundColor='${statusColors[status] || statusColors['unknown']}'; this.parentNode.style.borderRadius='50%'; this.parentNode.style.fontSize='16px';">
-          </div>
-        `,
-        className: '', // Leafletのデフォルトクラスを無効化
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
-      });
-
-      const marker = L.marker([user.latitude, user.longitude], { icon: customIcon })
+      const marker = L.marker([user.latitude, user.longitude], { icon: createUserMarkerIcon(user) })
         .addTo(leafletMap)
-        .bindPopup(`<b>${user.username}</b><br>称号: ${status}<br>スコア: ${user.score || 0}<br>天気: ${user.weather}<br>記録日時: ${new Date(user.recordedAt).toLocaleString()}`);
+        .bindPopup(createUserPopup(user));
 
       userMarkers.push(marker);
     });
 
+    upsertCurrentLocationMarker();
     console.log(`${userMarkers.length}個のユーザーマーカーをマップに追加しました`);
 
   } catch (error) {
     console.error('ユーザーマーカーの読み込みに失敗しました:', error);
+    if (leafletMap) {
+      userMarkers.forEach(marker => leafletMap.removeLayer(marker));
+      userMarkers = [];
+      getMapUsers([]).forEach(user => {
+        const marker = L.marker([user.latitude, user.longitude], { icon: createUserMarkerIcon(user) })
+          .addTo(leafletMap)
+          .bindPopup(createUserPopup(user));
+        userMarkers.push(marker);
+      });
+      upsertCurrentLocationMarker();
+    }
   }
 }
 
@@ -1106,21 +1298,24 @@ function initializeMap() {
     console.log('Map already initialized. Invalidating size.');
     if (leafletMap) {
       leafletMap.invalidateSize(); // 表示を更新
+      if (currentMapPosition) {
+        upsertCurrentLocationMarker({ centerMap: true });
+      } else {
+        requestCurrentLocationForMap({ centerMap: true, silent: true });
+      }
     }
     loadUserMarkers(); // マーカーを再読み込み
     return;
   }
 
-  //latitude: 36.57806, longitude: 136.64789
   console.log('Initializing map for the first time.');
-  // 初回のみマップを初期化
-  leafletMap = L.map(container).setView([36.57806, 136.64789], 13); // 初期中心を金沢に設定
+  leafletMap = L.map(container).setView(DEFAULT_MAP_CENTER, 5);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(leafletMap);
 
-  // ユーザーのマーカーを読み込む
+  requestCurrentLocationForMap({ centerMap: true, silent: true });
   loadUserMarkers();
 
   // マップマーカーの定期更新を開始
@@ -1179,6 +1374,7 @@ if (!imageDimensions) console.warn('imageDimensions element not found');
 // ページ読み込み時に保存されたアイコンを復元
 window.addEventListener('DOMContentLoaded', () => {
   loadSavedIcon();
+  requestCurrentLocationForMap({ centerMap: false, silent: true });
 
   // フッターアイコンのエラーハンドリングを設定
   setupFooterIconErrorHandling();
