@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hare/Ame App</title>
+  <title>SoraLog</title>
   <link rel="stylesheet" href="/src/style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
@@ -20,7 +20,7 @@
 
 <body>
 
-  <div id="app">
+  <div id="app" class="app-shell">
     <header id="header">
       <h1 id="header-title">ログイン</h1>
       <div id="header-img-container" class="header-home-img">
@@ -29,47 +29,69 @@
     </header>
 
     <main>
-      <section id="page-login">
+      <section id="page-login" class="auth-page">
+        <div class="auth-card">
+          <div class="auth-brand">
+            <p class="eyebrow">Weather diary</p>
+            <h2>SoraLog</h2>
+            <p>今日の空とあなたのジンクスを、かわいく記録します。</p>
+          </div>
         <form id="login-form">
           <label for="login-email">メールアドレス</label>
-          <input id="login-email" type="email" placeholder="メールアドレス" required>
+          <input id="login-email" type="email" placeholder="sora@example.com" autocomplete="email" required>
           <label for="login-password">パスワード</label>
-          <input id="login-password" type="password" placeholder="パスワード" required>
+          <input id="login-password" type="password" placeholder="パスワード" autocomplete="current-password" required>
           <button type="submit" class="main-btn">ログイン</button>
           <button id="show-register-button" type="button" class="link-btn">新規登録はこちら</button>
         </form>
+        </div>
       </section>
 
-      <section id="page-register" class="hidden">
+      <section id="page-register" class="auth-page hidden">
+        <div class="auth-card">
+          <div class="auth-brand">
+            <p class="eyebrow">First sky log</p>
+            <h2>はじめまして</h2>
+            <p>あなたの天気ログから、少しずつ称号が育ちます。</p>
+          </div>
         <form id="register-form">
           <label for="register-username">ユーザー名</label>
-          <input id="register-username" type="text" placeholder="ユーザー名" required>
+          <input id="register-username" type="text" placeholder="そらこ" autocomplete="username" required>
           <label for="register-email">メールアドレス</label>
-          <input id="register-email" type="email" placeholder="メールアドレス" required>
+          <input id="register-email" type="email" placeholder="sora@example.com" autocomplete="email" required>
           <label for="register-password">パスワード</label>
-          <input id="register-password" type="password" placeholder="パスワード" required>
+          <input id="register-password" type="password" placeholder="6文字以上" autocomplete="new-password" required>
           <label for="register-gender">性別</label>
           <div class="gender-group">
             <label class="gender-option">
-              <span class="gender-text">男性</span><input type="radio" name="gender" value="male" required>
+              <input type="radio" name="gender" value="male" required>
+              <span class="gender-text">男性</span>
             </label>
             <label class="gender-option">
-              <span class="gender-text">女性</span><input type="radio" name="gender" value="female" required>
+              <input type="radio" name="gender" value="female" required>
+              <span class="gender-text">女性</span>
             </label>
           </div>
 
           <button type="submit" class="main-btn">新規登録</button>
           <button id="show-login-button" type="button" class="link-btn">ログインはこちら</button>
         </form>
+        </div>
       </section>
 
       <section id="page-home" class="hidden">
-        <p>あなたは今・・・</p>
-        <div><span id="status-text">判定中...</span>です</div>
-        <p id="status-reason" class="status-reason">天気ログを集計中...</p>
-        <img id="status-image" src="https://placehold.jp/150x150.png?text=..." alt="判定イラスト">
-        <p id="missed-train-counter" class="jinx-counter">電車に乗り遅れた回数 : ...回</p>
-        <div class="weather-gauge-panel">
+        <div class="status-hero soft-card">
+          <p class="eyebrow">あなたは今...</p>
+          <div class="status-title"><span id="status-text">判定中...</span><span>です</span></div>
+          <p id="status-reason" class="status-reason">天気ログを集計中...</p>
+        </div>
+        <div class="status-visual">
+          <img id="status-image" src="https://placehold.jp/150x150.png?text=..." alt="判定イラスト">
+        </div>
+        <div class="metric-row">
+          <p id="missed-train-counter" class="jinx-counter">電車に乗り遅れた回数 : ...回</p>
+        </div>
+        <div class="weather-gauge-panel soft-card">
           <div>
             <label for="weather-gauge-bar" class="weather-gauge-label">天気スコア </label>
             <div id="weather-gauge-bar" class="center-gauge-bar">
@@ -82,12 +104,23 @@
       </section>
 
       <section id="page-map" class="hidden">
-        <h3>地図表示</h3>
-        <div id="map"></div>
+        <div class="section-heading">
+          <p class="eyebrow">Sora map</p>
+          <h2>地図表示</h2>
+          <p>位置情報の公開を許可しているユーザーだけが、地図にふんわり表示されます。</p>
+        </div>
+        <div class="map-card soft-card">
+          <div id="map" aria-label="ユーザー位置を表示する地図"></div>
+        </div>
+        <p class="privacy-note">設定で「位置情報許可」をONにした場合のみ、天気ログ用の位置情報を送信します。他のユーザーには丸められた位置が表示されます。</p>
         <button id="test-location-btn" class="dev-tool-btn hidden">テスト位置情報を追加</button>
       </section>
 
       <section id="page-ranking" class="hidden">
+        <div class="section-heading">
+          <p class="eyebrow">Ranking</p>
+          <h2>みんなの空ジンクス</h2>
+        </div>
         <div id="ranking-tabs">
           <button class="ranking-tab active" data-mode="weather">天気スコア</button>
           <button class="ranking-tab" data-mode="missed">電車乗り遅れ回数</button>
@@ -114,52 +147,73 @@
       </section>
 
       <section id="page-settings" class="hidden">
-        <div class="settings-layout">
-
-          <!-- 左側：アイコン設定 -->
-          <div class="icon-container">
-            <div class="icon-preview" id="iconPreview">
-              <span class="icon-placeholder">アイコンを選択してください</span>
-            </div>
-
-
-            <div class="file-input-container">
-              <input type="file" id="iconInput" accept="image/*">
-              <button id="selectIconBtn" class="select-btn" type="button">
-                📷 アイコン
-              </button>
-              <button id="resetBtn" class="reset-btn">アイコンをリセット</button>
-              <button id="saveBtn" class="save-btn">自己紹介を保存</button>
-            </div>
-          </div>
-
-          <div class="introduce-container">
-            <span class="introduce-number">ID：読み込み中...</span>
-            <span class="introduce-name">ユーザ名：読み込み中...</span>
-            <textarea id="message" name="message" placeholder="自己紹介"></textarea>
-          </div>
+        <div class="section-heading">
+          <p class="eyebrow">My page</p>
+          <h2>プロフィール設定</h2>
         </div>
+        <div class="settings-stack">
+          <section class="settings-panel soft-card">
+            <h3>プロフィール</h3>
+            <div class="settings-layout">
+              <div class="icon-container">
+                <div class="icon-preview" id="iconPreview">
+                  <span class="icon-placeholder">アイコンを選択</span>
+                </div>
+                <div class="file-input-container">
+                  <input type="file" id="iconInput" accept="image/*">
+                  <button id="selectIconBtn" class="select-btn" type="button">アイコンを選ぶ</button>
+                  <button id="saveBtn" class="save-btn" type="button">アイコンを保存</button>
+                  <button id="resetBtn" class="reset-btn" type="button">リセット</button>
+                </div>
+                <div id="imageInfo" class="image-info">
+                  <p id="fileName"></p>
+                  <p id="fileSize"></p>
+                  <p id="imageDimensions"></p>
+                </div>
+              </div>
 
-        <div class="settings-container">
-          <div class="settings-item">
-            <span>通知設定</span>
-            <label class="switch">
-              <input type="checkbox" id="notification-switch" checked>
-              <span class="slider round"></span>
-            </label>
-          </div>
-          <div class="settings-item">
-            <span>位置情報許可</span>
-            <label class="switch">
-              <input type="checkbox" id="location-switch">
-              <span class="slider round"></span>
-            </label>
-          </div>
-        </div>
+              <div class="introduce-container">
+                <span class="introduce-number">ID：読み込み中...</span>
+                <span class="introduce-name">ユーザ名：読み込み中...</span>
+                <label for="message">自己紹介</label>
+                <textarea id="message" name="message" placeholder="今日の空みたいな気分を書いてみる"></textarea>
+              </div>
+            </div>
+          </section>
 
-        <div class="email-password-settings">
-          <span>メールアドレス・パスワードの設定</span>
-          <button class="change-button">変更</button>
+          <section class="settings-panel soft-card">
+            <h3>通知と位置情報</h3>
+            <div class="settings-container">
+              <div class="settings-item">
+                <div>
+                  <span>通知設定</span>
+                  <p>天気ログのきっかけを受け取ります。</p>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="notification-switch" checked>
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <div class="settings-item">
+                <div>
+                  <span>位置情報許可</span>
+                  <p>ONのときだけ現在地と天気を記録し、地図公開の対象になります。</p>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="location-switch">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+            </div>
+            <p class="privacy-note">位置情報は天気ログと地図表示のために使います。公開設定をOFFにすると、他のユーザーの地図には表示されません。</p>
+          </section>
+
+          <section class="settings-panel soft-card">
+            <div class="email-password-settings">
+              <span>メールアドレス・パスワードの設定</span>
+              <button class="change-button" type="button">変更</button>
+            </div>
+          </section>
         </div>
       </section>
     </main>
@@ -186,6 +240,7 @@
       </div>
     </footer>
   </div>
+  <div id="toast-root" aria-live="polite" aria-atomic="true"></div>
 
   <script type="module" src="/src/main.js?v=1.1"></script>
 </body>

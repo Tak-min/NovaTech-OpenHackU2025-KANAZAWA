@@ -1,39 +1,46 @@
 import "./style.css";
 
+if (import.meta.env && import.meta.env.PROD) {
+  console.log = () => { };
+}
+
 // ================== API ベースURL設定 start ==================
 const DEFAULT_PROD_API = 'https://soralog-backend.onrender.com';
 const LOCAL_API = 'http://localhost:3000';
-let API_BASE = (typeof window !== 'undefined' && window.__API_BASE__) || DEFAULT_PROD_API;
-
-console.log('[API] Initial window.location:', typeof window !== 'undefined' ? window.location : 'no window');
-console.log('[API] Initial window.location.host:', typeof window !== 'undefined' ? window.location.host : 'no window');
-
 const isLocalHost = typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.host);
 const IS_DEVELOPMENT = Boolean(import.meta.env && import.meta.env.DEV);
 const LOCATION_UPDATE_INTERVAL_MS = IS_DEVELOPMENT ? 10 * 1000 : 5 * 60 * 1000;
-console.log('[API] isLocalHost:', isLocalHost);
-
-if (isLocalHost) {
-  API_BASE = LOCAL_API;
-  console.log('[API] Set to LOCAL_API because isLocalHost is true');
-} else {
-  console.log('[API] Keep DEFAULT_PROD_API because isLocalHost is false');
-}
-
-try {
-  if (import.meta && import.meta.env && import.meta.env.VITE_API_BASE) {
-    API_BASE = import.meta.env.VITE_API_BASE;
-    console.log('[API] Override with VITE_API_BASE:', API_BASE);
-  }
-} catch (_) { /* no-op */ }
+const runtimeApiBase = typeof window !== 'undefined' ? window.__API_BASE__ : '';
+const envApiBase = import.meta.env && import.meta.env.VITE_API_BASE;
+const API_BASE = runtimeApiBase || (isLocalHost ? LOCAL_API : envApiBase || DEFAULT_PROD_API);
 
 console.log('[API] Final Base URL =', API_BASE);
 // ================== API ベースURL設定 end ==================
 
-const pages = document.querySelectorAll('main section');
+const pages = document.querySelectorAll('main > section');
 const navButtons = document.querySelectorAll('.nav-button');
 const headerTitle = document.getElementById('header-title');
 const footerNav = document.getElementById('footer-nav');
+const toastRoot = document.getElementById('toast-root');
+
+function showToast(message, type = 'info') {
+  if (!toastRoot || !message) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  toastRoot.appendChild(toast);
+
+  requestAnimationFrame(() => toast.classList.add('show'));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 220);
+  }, 3600);
+}
+
+function notify(message, type = 'info') {
+  showToast(String(message || ''), type);
+}
 
 // 位置情報追跡用の変数
 let locationWatchId = null;
@@ -372,27 +379,27 @@ registerForm.addEventListener('submit', async (event) => {
   // クライアントサイドのバリデーション
   if (username.length < 3 || username.length > 50) {
     console.log('Frontend validation failed: Invalid username length');
-    alert('ユーザー名は3文字以上50文字以下で入力してください');
+    notify('ユーザー名は3文字以上50文字以下で入力してください', 'warning');
     return;
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     console.log('Frontend validation failed: Invalid email format');
-    alert('有効なメールアドレスを入力してください');
+    notify('有効なメールアドレスを入力してください', 'warning');
     return;
   }
 
   if (password.length < 6) {
     console.log('Frontend validation failed: Password too short');
-    alert('パスワードは6文字以上で入力してください');
+    notify('パスワードは6文字以上で入力してください', 'warning');
     return;
   }
 
   // 性別が選択されているかチェック
   if (!genderElement) {
     console.log('Frontend validation failed: Gender not selected');
-    alert('性別を選択してください');
+    notify('性別を選択してください', 'warning');
     return;
   }
   const gender = genderElement.value;
@@ -414,11 +421,11 @@ registerForm.addEventListener('submit', async (event) => {
 
     if (response.ok) {
       console.log('Registration successful');
-      alert(data.message);
+      notify(data.message || '登録しました。ログインしてください。', 'success');
       showPage('page-login');
     } else {
       console.log('Registration failed with status:', response.status);
-      alert(`エラー: ${data.message}`);
+      notify(data.message || '登録に失敗しました', 'error');
     }
   } catch (error) {
     console.error('=== FRONTEND REGISTER ERROR ===');
@@ -428,7 +435,7 @@ registerForm.addEventListener('submit', async (event) => {
       stack: error.stack,
       name: error.name
     });
-    alert('サーバーとの通信に失敗しました。ネットワーク接続を確認してください。');
+    notify('サーバーとの通信に失敗しました。ネットワーク接続を確認してください。', 'error');
   }
 });
 
@@ -617,7 +624,7 @@ function updateWeatherGaugeFromScore(totalScore) {
   weatherGaugeValue.textContent = Math.round(totalScore);
 
   const maxAbs = 1000; // 見た目上の最大スコア
-  const barWidth = 200; // CSSで指定している幅に合わせる
+  const barWidth = weatherGaugeBar.clientWidth || 200;
 
   // 値を -maxAbs .. +maxAbs の範囲にクランプ
   const clamped = Math.max(-maxAbs, Math.min(maxAbs, totalScore));
@@ -670,14 +677,14 @@ loginForm.addEventListener('submit', async (event) => {
   // クライアントサイドのバリデーション
   if (!email || !password) {
     console.log('Frontend validation failed: Missing email or password');
-    alert('メールアドレスとパスワードを入力してください');
+    notify('メールアドレスとパスワードを入力してください', 'warning');
     return;
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     console.log('Frontend validation failed: Invalid email format');
-    alert('有効なメールアドレスを入力してください');
+    notify('有効なメールアドレスを入力してください', 'warning');
     return;
   }
 
@@ -700,7 +707,7 @@ loginForm.addEventListener('submit', async (event) => {
 
     if (response.ok) {
       console.log('Login successful, storing token');
-      alert(data.message);
+      notify(data.message || 'ログインしました', 'success');
       localStorage.setItem('token', data.token);
       startPeriodicLocationUpdate(); // 定期更新を開始
 
@@ -735,7 +742,7 @@ loginForm.addEventListener('submit', async (event) => {
       console.log('loginForm: ログイン成功処理完了');
     } else {
       console.log('Login failed with status:', response.status);
-      alert(`エラー: ${data.message}`);
+      notify(data.message || 'ログインに失敗しました', 'error');
     }
   } catch (error) {
     console.error('=== FRONTEND LOGIN ERROR ===');
@@ -745,7 +752,7 @@ loginForm.addEventListener('submit', async (event) => {
       stack: error.stack,
       name: error.name
     });
-    alert('サーバーとの通信に失敗しました。ネットワーク接続を確認してください。');
+    notify('サーバーとの通信に失敗しました。ネットワーク接続を確認してください。', 'error');
   }
 });
 
@@ -784,7 +791,7 @@ if (logoutBtn) {
     stopLocationTracking(); // 位置情報追跡を停止
     stopMapMarkersUpdate(); // マップマーカー更新を停止
     showPage('page-login');
-    alert('ログアウトしました');
+    notify('ログアウトしました', 'success');
   });
 } else {
   console.warn('logout-button not found in DOM');
@@ -1179,25 +1186,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // ランキングタブの切り替え機能を初期化
   initializeRankingTabs();
 
-  // ページ読み込み時にログイン状態を確認し、位置情報追跡を開始
-  const token = localStorage.getItem('token');
-  if (token) {
-    loadUserSettings().then(settings => {
-      if (settings && settings.location_enabled) {
-        checkLocationPermission().then(permissionState => {
-          if (permissionState === 'granted') {
-            startLocationTracking();
-          } else {
-            console.log('位置情報パーミッションが許可されていないため、追跡を開始できません');
-          }
-        });
-      } else {
-        console.log('位置情報許可設定がOFFのため、追跡を開始しません');
-      }
-    }).catch(error => {
-      console.error('設定取得エラー:', error);
-    });
-  }
+  checkLoginStatus();
 });
 
 // エラーハンドリング
@@ -1249,12 +1238,12 @@ function initializeSettingsPage() {
       if (file) {
         // ファイルタイプのチェック
         if (!file.type.startsWith('image/')) {
-          alert('画像ファイルを選択してください。');
+          notify('画像ファイルを選択してください。', 'warning');
           return;
         }
         // ファイルサイズのチェック（5MB以下）
         if (file.size > 5 * 1024 * 1024) {
-          alert('ファイルサイズは5MB以下にしてください。');
+          notify('ファイルサイズは5MB以下にしてください。', 'warning');
           return;
         }
         // ファイル読み込み処理
@@ -1323,11 +1312,11 @@ function initializeSettingsPage() {
       if (files.length > 0) {
         const file = files[0];
         if (!file.type.startsWith('image/')) {
-          alert('画像ファイルをドロップしてください。');
+          notify('画像ファイルをドロップしてください。', 'warning');
           return;
         }
         if (file.size > 5 * 1024 * 1024) {
-          alert('ファイルサイズは5MB以下にしてください。');
+          notify('ファイルサイズは5MB以下にしてください。', 'warning');
           return;
         }
         const reader = new FileReader();
@@ -1369,7 +1358,7 @@ async function loadUserInfo() {
   const token = localStorage.getItem('token');
   if (!token) {
     // トークンがない場合はログインページにリダイレクト
-    showPage('login');
+    showPage('page-login');
     return;
   }
 
@@ -1404,7 +1393,7 @@ async function loadUserInfo() {
       // 認証エラーの場合はログアウト
       console.error('認証エラー: トークンが無効です');
       localStorage.removeItem('token');
-      showPage('login');
+      showPage('page-login');
     } else {
       console.error('ユーザー情報の取得に失敗しました:', response.status);
       if (userIdElement) userIdElement.textContent = 'ID：取得失敗';
@@ -1463,8 +1452,7 @@ function initializeSettingsSwitches() {
         const permissionState = await checkLocationPermission();
         console.log('位置情報パーミッション状態:', permissionState);
         if (permissionState === 'denied') {
-          alert('位置情報のパーミッションがブロックされています。\n' +
-            'ブラウザの設定から位置情報のパーミッションを許可してください。');
+          notify('ブラウザ設定で位置情報の許可をONにしてください。', 'warning');
           this.checked = false;
           console.log('位置情報許可設定をOFFに戻しました');
           return;
@@ -1584,7 +1572,7 @@ function initializeIntroduction() {
 async function saveIconToServer(imageData) {
   const token = localStorage.getItem('token');
   if (!token) {
-    alert('ログインが必要です');
+    notify('ログインが必要です', 'warning');
     return;
   }
 
@@ -1618,18 +1606,19 @@ async function saveIconToServer(imageData) {
         saveBtn.textContent = '保存完了！';
         saveBtn.style.background = '#28a745';
         setTimeout(() => {
-          saveBtn.textContent = '保存';
+          saveBtn.textContent = 'アイコンを保存';
           saveBtn.style.background = '';
         }, 2000);
       }
+      notify('アイコンを保存しました', 'success');
       console.log('アイコンが保存されました');
     } else {
       const errorData = await response.json();
-      alert(`保存に失敗しました: ${errorData.message || '不明なエラー'}`);
+      notify(`保存に失敗しました: ${errorData.message || '不明なエラー'}`, 'error');
     }
   } catch (error) {
     console.error('アイコン保存エラー:', error);
-    alert('保存に失敗しました。ネットワークエラーが発生しました。');
+    notify('保存に失敗しました。ネットワークエラーが発生しました。', 'error');
   }
 }
 
@@ -1789,7 +1778,7 @@ function startLocationTracking() {
     console.log('startLocationTracking: Watch ID割り当て', locationWatchId);
   } else {
     console.error('startLocationTracking: Geolocation API非対応');
-    alert('このブラウザは位置情報に対応していません。');
+    notify('このブラウザは位置情報に対応していません。', 'warning');
   }
 }
 
@@ -1844,7 +1833,7 @@ function handleLocationError(error) {
     }, 3000);
   } else {
     console.log('handleLocationError: アラート表示');
-    alert(message);
+    notify(message, 'error');
   }
 }
 
