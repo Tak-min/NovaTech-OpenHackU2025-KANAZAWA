@@ -1,18 +1,8 @@
 import "./style.css";
 
-if (import.meta.env && import.meta.env.PROD) {
-  console.log = () => { };
-}
-
 // ================== API ベースURL設定 start ==================
-const DEFAULT_PROD_API = 'https://soralog-backend.onrender.com';
-const LOCAL_API = 'http://localhost:3000';
-const isLocalHost = typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.host);
-const IS_DEVELOPMENT = Boolean(import.meta.env && import.meta.env.DEV);
-const LOCATION_UPDATE_INTERVAL_MS = 10 * 1000
-const runtimeApiBase = typeof window !== 'undefined' ? window.__API_BASE__ : '';
-const envApiBase = import.meta.env && import.meta.env.VITE_API_BASE;
-const API_BASE = runtimeApiBase || (isLocalHost ? LOCAL_API : envApiBase || DEFAULT_PROD_API);
+const API_BASE = 'https://soralog-backend.onrender.com';
+const LOCATION_UPDATE_INTERVAL_MS = 5 * 60 * 1000;
 
 console.log('[API] Final Base URL =', API_BASE);
 // ================== API ベースURL設定 end ==================
@@ -28,6 +18,8 @@ let homeStatusRequestId = 0;
 let rankingRequestId = 0;
 let isLocationLoggingEnabled = false;
 let lastUserSettings = null;
+let lastLocationPostAt = 0;
+let isLocationPostInFlight = false;
 
 function showToast(message, type = 'info') {
   if (!toastRoot || !message) return;
@@ -591,6 +583,7 @@ async function checkLoginStatus() {
     console.log('No token found in localStorage. Redirecting to login page.');
     footerNav.classList.add('hidden');
     isLocationLoggingEnabled = false;
+    lastLocationPostAt = 0;
     stopPeriodicLocationUpdate();
     stopLocationTracking();
     goToPage('page-login');
@@ -620,6 +613,7 @@ async function checkLoginStatus() {
       localStorage.removeItem('token');
       footerNav.classList.add('hidden');
       isLocationLoggingEnabled = false;
+      lastLocationPostAt = 0;
       stopPeriodicLocationUpdate();
       stopLocationTracking();
       goToPage('page-login');
@@ -629,6 +623,7 @@ async function checkLoginStatus() {
     console.error('Failed to verify token. Error:', error); // 修正
     footerNav.classList.add('hidden');
     isLocationLoggingEnabled = false;
+    lastLocationPostAt = 0;
     stopPeriodicLocationUpdate();
     stopLocationTracking();
     goToPage('page-login');
@@ -942,6 +937,7 @@ if (logoutBtn) {
     console.log('Logout button clicked');
     localStorage.removeItem('token');
     isLocationLoggingEnabled = false;
+    lastLocationPostAt = 0;
     stopPeriodicLocationUpdate(); // 定期更新を停止
     stopLocationTracking(); // 位置情報追跡を停止
     stopMapMarkersUpdate(); // マップマーカー更新を停止
@@ -952,12 +948,105 @@ if (logoutBtn) {
   console.warn('logout-button not found in DOM');
 }
 
+async function postLocationToServer(latitude, longitude, { source = '位置情報送信', notifyErrors = false } = {}) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.log(`${source}スキップ: トークンがありません`);
+    stopPeriodicLocationUpdate();
+    stopLocationTracking();
+    return { ok: false, skipped: true, reason: 'missing_token' };
+  }
+
+  if (!isLocationLoggingEnabled) {
+    console.log(`${source}スキップ: アプリ内の位置情報許可がOFFです`);
+    return { ok: false, skipped: true, reason: 'disabled' };
+  }
+
+  const normalizedLatitude = Number(latitude);
+  const normalizedLongitude = Number(longitude);
+  if (
+    !Number.isFinite(normalizedLatitude) ||
+    !Number.isFinite(normalizedLongitude) ||
+    normalizedLatitude < -90 ||
+    normalizedLatitude > 90 ||
+    normalizedLongitude < -180 ||
+    normalizedLongitude > 180
+  ) {
+    console.error(`${source}スキップ: 緯度経度が不正です`, { latitude, longitude });
+    if (notifyErrors) notify('取得した位置情報の値が不正です', 'error');
+    return { ok: false, skipped: true, reason: 'invalid_coordinates' };
+  }
+
+  const now = Date.now();
+  if (isLocationPostInFlight) {
+    console.log(`${source}スキップ: 位置情報送信中です`);
+    return { ok: false, skipped: true, reason: 'in_flight' };
+  }
+
+  if (lastLocationPostAt && now - lastLocationPostAt < LOCATION_UPDATE_INTERVAL_MS) {
+    console.log(`${source}スキップ: 位置情報送信間隔内です`);
+    return { ok: false, skipped: true, reason: 'client_interval' };
+  }
+
+  isLocationPostInFlight = true;
+  console.log(`${source}: 送信開始`, {
+    latitude: normalizedLatitude,
+    longitude: normalizedLongitude,
+    endpoint: `${API_BASE}/log-location`
+  });
+
+  try {
+    const response = await fetch(`${API_BASE}/log-location`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        latitude: normalizedLatitude,
+        longitude: normalizedLongitude
+      })
+    });
+    const data = await readJsonSafe(response);
+
+    if (response.ok) {
+      lastLocationPostAt = Date.now();
+      console.log(`${source}: 送信成功`, data);
+
+      if (!data.skipped && document.getElementById('page-home')?.classList.contains('hidden') === false) {
+        updateHomePageStatus();
+      }
+
+      return { ok: true, data };
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem('token');
+      isLocationLoggingEnabled = false;
+      lastLocationPostAt = 0;
+      stopPeriodicLocationUpdate();
+      stopLocationTracking();
+      goToPage('page-login', { force: true });
+      notify('ログイン期限が切れました。もう一度ログインしてください。', 'warning');
+    }
+
+    throw new Error(data.message || '位置情報送信に失敗しました');
+  } catch (error) {
+    console.error(`${source}: 送信エラー`, error);
+    if (notifyErrors) notify('位置情報ログの送信に失敗しました', 'error');
+    return { ok: false, error };
+  } finally {
+    isLocationPostInFlight = false;
+  }
+}
+
 // 定期的に位置情報を送信する関数
 function sendLocation() {
   const token = localStorage.getItem('token');
   if (!token) {
     console.log('定期更新スキップ: トークンがありません');
     stopPeriodicLocationUpdate(); // トークンがなければ停止
+    stopLocationTracking();
     return;
   }
 
@@ -977,34 +1066,13 @@ function sendLocation() {
   console.log('定期更新: 位置情報を取得・送信します');
   navigator.geolocation.getCurrentPosition(async (position) => {
     const { latitude, longitude } = position.coords;
-    try {
-      const response = await fetch(`${API_BASE}/log-location`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ latitude, longitude })
-      });
-      const data = await response.json();
-      if (response.ok) {
-        console.log('定期更新成功:', data);
-        // ホーム画面にいる場合、ステータスを更新
-        if (document.getElementById('page-home').classList.contains('hidden') === false) {
-          updateHomePageStatus();
-        }
-      } else {
-        console.error('定期更新エラー:', data.message);
-      }
-    } catch (error) {
-      console.error('定期更新中に通信エラー:', error);
-      notify('位置情報ログの送信に失敗しました', 'error');
-    }
+    await postLocationToServer(latitude, longitude, { source: '定期更新', notifyErrors: true });
   }, (error) => {
     console.error('定期更新中の位置情報取得エラー:', error.message);
     if (error.code === error.PERMISSION_DENIED) {
       notify('ブラウザ側で位置情報が拒否されました。設定画面で状態を確認してください。', 'warning');
       isLocationLoggingEnabled = false;
+      lastLocationPostAt = 0;
       stopPeriodicLocationUpdate();
       stopLocationTracking();
       const locationSwitch = document.getElementById('location-switch');
@@ -1047,6 +1115,7 @@ async function refreshLocationLoggingFromSettings({ settings = null, notifyError
 
   if (!loadedSettings) {
     isLocationLoggingEnabled = false;
+    lastLocationPostAt = 0;
     stopPeriodicLocationUpdate();
     stopLocationTracking();
     if (notifyErrors) notify('位置情報設定を確認できませんでした', 'error');
@@ -1058,6 +1127,7 @@ async function refreshLocationLoggingFromSettings({ settings = null, notifyError
 
   if (!isLocationLoggingEnabled) {
     console.log('位置情報許可設定がOFFのため、追跡を停止します');
+    lastLocationPostAt = 0;
     stopPeriodicLocationUpdate();
     stopLocationTracking();
     return loadedSettings;
@@ -1743,6 +1813,7 @@ async function loadUserInfo() {
   if (!token) {
     // トークンがない場合はログインページにリダイレクト
     isLocationLoggingEnabled = false;
+    lastLocationPostAt = 0;
     stopPeriodicLocationUpdate();
     stopLocationTracking();
     goToPage('page-login');
@@ -1781,6 +1852,7 @@ async function loadUserInfo() {
       console.error('認証エラー: トークンが無効です');
       localStorage.removeItem('token');
       isLocationLoggingEnabled = false;
+      lastLocationPostAt = 0;
       stopPeriodicLocationUpdate();
       stopLocationTracking();
       goToPage('page-login');
@@ -2206,6 +2278,7 @@ function handleLocationError(error) {
     case error.PERMISSION_DENIED:
       message = 'ブラウザ側で位置情報が拒否されました。設定画面で状態を確認してください。';
       isLocationLoggingEnabled = false;
+      lastLocationPostAt = 0;
       stopPeriodicLocationUpdate();
       stopLocationTracking();
       {
@@ -2266,88 +2339,9 @@ function stopLocationTracking() {
 
 // 位置情報をサーバーに送信する関数
 function sendLocationToServer(latitude, longitude) {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    console.log('sendLocationToServer: トークンなし');
-    return;
-  }
-
-  if (!isLocationLoggingEnabled) {
-    console.log('sendLocationToServer: 位置情報許可がOFFのため送信しません');
-    return;
-  }
-
-  console.log('sendLocationToServer: 送信開始', { latitude, longitude, endpoint: `${API_BASE}/log-location` });
-
-  fetch(`${API_BASE}/log-location`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      latitude: latitude,
-      longitude: longitude
-    })
-  })
-    .then(response => {
-      console.log('sendLocationToServer: レスポンス受信', response.status);
-      if (!response.ok) {
-        throw new Error('位置情報送信に失敗しました');
-      }
-      return response.json();
-    })
-    .then(data => {
-      console.log('sendLocationToServer: 送信成功', data);
-    })
-    .catch(error => {
-      console.error('sendLocationToServer: 送信エラー', error);
-    });
+  postLocationToServer(latitude, longitude, { source: '位置情報追跡', notifyErrors: false });
 }
 
-// テスト用の位置情報を追加する関数（開発用）
-function addTestLocationData() {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    console.log('テストデータ追加スキップ: 認証トークンなし');
-    return;
-  }
-  if (!isLocationLoggingEnabled) {
-    notify('位置情報許可をONにするとテスト送信できます', 'warning');
-    return;
-  }
-
-  // 金沢周辺のテスト位置情報
-  const testLocations = [
-    { latitude: 36.5777, longitude: 136.6483 }, // 金沢駅周辺
-    { latitude: 36.5947, longitude: 136.6256 }, // 金沢21世紀美術館周辺
-    { latitude: 36.5611, longitude: 136.6567 }  // 兼六園周辺
-  ];
-
-  testLocations.forEach((location, index) => {
-    setTimeout(() => {
-      console.log(`テスト位置情報送信 ${index + 1}:`, location);
-      sendLocationToServer(location.latitude, location.longitude);
-    }, index * 1000); // 1秒ごとに送信
-  });
-}
-
-if (IS_DEVELOPMENT) {
-  // グローバルスコープにテスト関数を公開（開発用）
-  window.addTestLocationData = addTestLocationData;
-}
-
-// テストボタンのイベントリスナーを設定
-document.addEventListener('DOMContentLoaded', function () {
-  const testBtn = document.getElementById('test-location-btn');
-  if (testBtn && IS_DEVELOPMENT) {
-    testBtn.classList.remove('hidden');
-    testBtn.addEventListener('click', function () {
-      console.log('テスト位置情報追加ボタンがクリックされました');
-      addTestLocationData();
-    });
-  }
-});
 async function checkLocationPermission() {
   if (!navigator.permissions) {
     return 'unknown';

@@ -338,8 +338,7 @@ textarea#message::placeholder {
 
 .link-btn,
 .reset-btn,
-.change-button,
-.dev-tool-btn {
+.change-button {
   border: 1px solid var(--color-line);
   border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.78);
@@ -690,11 +689,6 @@ textarea#message::placeholder {
   color: var(--color-muted);
   font-size: 0.82rem;
   line-height: 1.7;
-}
-
-.dev-tool-btn {
-  min-height: 44px;
-  padding: 0 16px;
 }
 
 /* Ranking */

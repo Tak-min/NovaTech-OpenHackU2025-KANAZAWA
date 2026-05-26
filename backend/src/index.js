@@ -197,7 +197,6 @@ const rawLocationPublicPrecisionDecimals = Number.parseInt(
 const LOCATION_PUBLIC_PRECISION_DECIMALS = Number.isFinite(rawLocationPublicPrecisionDecimals)
     ? Math.max(0, Math.min(5, rawLocationPublicPrecisionDecimals))
     : 3;
-const isProduction = process.env.NODE_ENV === 'production';
 
 const WEATHER_SCORE_MAP = {
     sunny: 1,
@@ -260,12 +259,6 @@ const calculateDistanceMeters = (lat1, lon1, lat2, lon2) => {
     return earthRadiusMeters * c;
 };
 
-if (isProduction) {
-    console.log = () => { };
-    console.warn = () => { };
-}
-
-
 // Expressアプリの初期化
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -291,11 +284,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // ===== CORS 設定 (複数オリジン + 環境変数対応) =====
 // 環境変数 FRONTEND_ORIGINS でカンマ区切り指定可能 例: https://example.com,https://foo.app
 const defaultOrigins = [
-    'https://soralog-qnka.onrender.com',
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:5174'
+    'https://soralog-qnka.onrender.com'
 ];
 const extraOrigins = (process.env.FRONTEND_ORIGINS || '')
     .split(',')
@@ -324,8 +313,7 @@ app.use(cors({
 // データベース接続プールの設定
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    // ===== 以下のssl設定を追加 =====
-    ssl: isProduction ? { rejectUnauthorized: false } : false,
+    ssl: { rejectUnauthorized: false },
     // 接続タイムアウト設定
     connectionTimeoutMillis: 10000, // 10秒
     query_timeout: 10000, // 10秒
@@ -489,10 +477,6 @@ app.get('/', (req, res) => {
         map: ['GET /users-locations']
     };
 
-    if (!isProduction) {
-        endpoints.debug = ['GET /debug/users'];
-    }
-
     res.json({
         message: 'SoraLog API Server is running',
         version: '1.0.0',
@@ -526,6 +510,9 @@ app.post('/log-location', authenticateToken, async (req, res) => {
 
     const client = await pool.connect();
     try {
+        await client.query('BEGIN');
+        await client.query('SELECT pg_advisory_xact_lock($1::bigint)', [userId]);
+
         if (Number.isFinite(LOG_LOCATION_MIN_INTERVAL_SECONDS) && LOG_LOCATION_MIN_INTERVAL_SECONDS > 0) {
             const latestLocation = await client.query(`
                 SELECT
@@ -540,6 +527,7 @@ app.post('/log-location', authenticateToken, async (req, res) => {
             if (latestLocation.rows.length > 0) {
                 const nextAllowedAt = latestLocation.rows[0].next_allowed_at;
                 if (nextAllowedAt && new Date(nextAllowedAt) > new Date()) {
+                    await client.query('COMMIT');
                     return res.status(200).json({
                         message: '位置情報の記録間隔内のためスキップしました',
                         skipped: true,
@@ -549,8 +537,6 @@ app.post('/log-location', authenticateToken, async (req, res) => {
                 }
             }
         }
-
-        await client.query('BEGIN');
 
         // 近接駅チェックと乗り遅れカウント（クールダウン考慮）
         for (const station of STATIONS) {
@@ -581,35 +567,40 @@ app.post('/log-location', authenticateToken, async (req, res) => {
         }
 
         // 天気情報を取得
-        const apiKey = process.env.WEATHER_API_KEY;
-        const apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${normalizedLatitude}&lon=${normalizedLongitude}&appid=${apiKey}`;
-        console.log('天気APIリクエスト開始:', { latitude: normalizedLatitude, longitude: normalizedLongitude, apiUrl: apiUrl.replace(apiKey, '***') });
-        const weatherResponse = await axios.get(apiUrl);
-        const weatherData = weatherResponse.data;
-        console.log('天気APIレスポンス受信:', {
-            city: weatherData.name,
-            weatherCode: weatherData.weather[0].id,
-            description: weatherData.weather[0].description,
-            temperature: weatherData.main.temp
-        });
+        let weather = 'unknown';
+        let city = null;
 
-        // OpenWeatherMapの天候コードから、アプリ内のカテゴリに変換
-        const weatherCode = weatherData.weather[0].id;
-        let weather;
-        if (weatherCode >= 200 && weatherCode < 300) {
-            weather = 'thunderstorm';
-        } else if (weatherCode >= 300 && weatherCode < 600) {
-            weather = 'rainy';
-        } else if (weatherCode >= 600 && weatherCode < 700) {
-            weather = 'snowy';
-        } else if (weatherCode >= 700 && weatherCode < 800) {
-            weather = 'stormy';
-        } else if (weatherCode === 800) {
-            weather = 'sunny';
-        } else if (weatherCode > 800) {
-            weather = 'cloudy';
-        } else {
-            weather = 'unknown';
+        try {
+            const apiKey = process.env.WEATHER_API_KEY;
+            const apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${normalizedLatitude}&lon=${normalizedLongitude}&appid=${apiKey}`;
+            console.log('天気APIリクエスト開始:', { latitude: normalizedLatitude, longitude: normalizedLongitude, apiUrl: apiUrl.replace(apiKey, '***') });
+            const weatherResponse = await axios.get(apiUrl, { timeout: 8000 });
+            const weatherData = weatherResponse.data;
+            const weatherCode = Number(weatherData.weather?.[0]?.id);
+            city = weatherData.name || null;
+            console.log('天気APIレスポンス受信:', {
+                city,
+                weatherCode,
+                description: weatherData.weather?.[0]?.description,
+                temperature: weatherData.main?.temp
+            });
+
+            // OpenWeatherMapの天候コードから、アプリ内のカテゴリに変換
+            if (weatherCode >= 200 && weatherCode < 300) {
+                weather = 'thunderstorm';
+            } else if (weatherCode >= 300 && weatherCode < 600) {
+                weather = 'rainy';
+            } else if (weatherCode >= 600 && weatherCode < 700) {
+                weather = 'snowy';
+            } else if (weatherCode >= 700 && weatherCode < 800) {
+                weather = 'stormy';
+            } else if (weatherCode === 800) {
+                weather = 'sunny';
+            } else if (weatherCode > 800) {
+                weather = 'cloudy';
+            }
+        } catch (weatherError) {
+            console.error('Weather API error. Save location with unknown weather:', weatherError.response?.data || weatherError.message);
         }
 
         // 位置情報と天気を保存
@@ -627,15 +618,11 @@ app.post('/log-location', authenticateToken, async (req, res) => {
         return res.status(201).json({
             message: '位置情報を記録しました',
             weather,
-            city: weatherData.name,
+            city,
             scoreChange
         });
     } catch (error) {
         try { await client.query('ROLLBACK'); } catch (_) { }
-        if (axios.isAxiosError(error)) {
-            console.error('Weather API error:', error.response?.data || error.message);
-            return res.status(502).json({ message: '天気情報の取得に失敗しました' });
-        }
         console.error('Error in /log-location:', error);
         return res.status(500).json({ message: 'サーバーエラーが発生しました' });
     } finally {
@@ -861,10 +848,7 @@ app.get('/ranking', authenticateToken, async (req, res) => {
 
     } catch (error) {
         console.error('Error in /ranking endpoint:', error);
-        res.status(500).json({
-            message: 'ランキングの取得中にエラーが発生しました',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        res.status(500).json({ message: 'ランキングの取得中にエラーが発生しました' });
     }
 });
 
@@ -939,10 +923,7 @@ app.post('/register', async (req, res) => {
             console.log('Database connection refused');
             return res.status(503).json({ message: 'データベース接続エラー' });
         }
-        res.status(500).json({
-            message: 'サーバーエラーが発生しました',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        res.status(500).json({ message: 'サーバーエラーが発生しました' });
     }
 });
 
@@ -1015,10 +996,7 @@ app.post('/login', async (req, res) => {
         if (error.code === 'ECONNREFUSED') {
             return res.status(503).json({ message: 'データベース接続エラー' });
         }
-        res.status(500).json({
-            message: 'サーバーエラーが発生しました',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        res.status(500).json({ message: 'サーバーエラーが発生しました' });
     }
 });
 
@@ -1181,19 +1159,3 @@ app.listen(PORT, async () => {
         process.exit(1); // データベース接続に失敗したらサーバーを停止
     }
 });
-
-if (!isProduction) {
-    app.get('/debug/users', async (req, res) => {
-        try {
-            const users = await pool.query('SELECT id, username, email, gender, created_at FROM users ORDER BY created_at DESC LIMIT 10');
-            res.json({
-                success: true,
-                users: users.rows,
-                count: users.rows.length
-            });
-        } catch (error) {
-            console.error('Error fetching users:', error);
-            res.status(500).json({ error: 'Failed to fetch users', details: error.message });
-        }
-    });
-}
