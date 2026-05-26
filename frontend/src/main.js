@@ -9,7 +9,7 @@ const DEFAULT_PROD_API = 'https://soralog-backend.onrender.com';
 const LOCAL_API = 'http://localhost:3000';
 const isLocalHost = typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.host);
 const IS_DEVELOPMENT = Boolean(import.meta.env && import.meta.env.DEV);
-const LOCATION_UPDATE_INTERVAL_MS = IS_DEVELOPMENT ? 10 * 1000 : 5 * 60 * 1000;
+const LOCATION_UPDATE_INTERVAL_MS = 10 * 1000
 const runtimeApiBase = typeof window !== 'undefined' ? window.__API_BASE__ : '';
 const envApiBase = import.meta.env && import.meta.env.VITE_API_BASE;
 const API_BASE = runtimeApiBase || (isLocalHost ? LOCAL_API : envApiBase || DEFAULT_PROD_API);
