@@ -109,7 +109,7 @@ header {
 #header-title {
   margin: 0;
   font-family: var(--font-ui);
-  font-size: clamp(1.6rem, 9vw, 2.4rem);
+  font-size: 2rem;
   font-weight: 800;
   color: var(--color-text);
 }
@@ -198,6 +198,41 @@ section {
   color: var(--color-muted);
   font-size: 0.86rem;
   line-height: 1.7;
+}
+
+.screen-state {
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--color-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.screen-state.compact {
+  min-height: 0;
+  padding-block: 9px;
+}
+
+.screen-state[data-state="success"] {
+  border-color: rgba(66, 184, 131, 0.28);
+  background: rgba(245, 255, 251, 0.88);
+  color: #338866;
+}
+
+.screen-state[data-state="warning"] {
+  border-color: rgba(246, 183, 60, 0.34);
+  background: rgba(255, 250, 235, 0.9);
+  color: #8a640f;
+}
+
+.screen-state[data-state="error"] {
+  border-color: rgba(239, 111, 123, 0.3);
+  background: rgba(255, 244, 247, 0.92);
+  color: var(--color-error);
 }
 
 /* Auth */
@@ -380,7 +415,7 @@ textarea#message::placeholder {
 
 #status-text {
   color: var(--color-text);
-  font-size: clamp(2.35rem, 13vw, 3.25rem);
+  font-size: 2.85rem;
   font-weight: 900;
 }
 
@@ -421,6 +456,37 @@ textarea#message::placeholder {
   color: var(--color-text);
   font-size: 0.98rem;
   font-weight: 800;
+}
+
+.weather-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px;
+  border-radius: 22px;
+}
+
+.weather-stats-grid div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 8px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(245, 251, 255, 0.9), rgba(255, 244, 247, 0.68));
+}
+
+.weather-stats-grid span {
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.weather-stats-grid strong {
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 1.02rem;
+  font-weight: 900;
 }
 
 .weather-gauge-panel {
@@ -482,6 +548,15 @@ textarea#message::placeholder {
   color: var(--color-text);
   font-family: var(--font-ui);
   font-weight: 900;
+}
+
+.home-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.home-actions .main-btn {
+  margin-top: 0;
 }
 
 /* Map */
@@ -645,7 +720,7 @@ textarea#message::placeholder {
   background: transparent;
   color: var(--color-muted);
   cursor: pointer;
-  font-size: clamp(0.76rem, 3.5vw, 0.92rem);
+  font-size: 0.86rem;
   font-weight: 900;
   white-space: normal;
 }
@@ -907,6 +982,33 @@ textarea#message {
   line-height: 1.6;
 }
 
+.settings-explainer {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.settings-explainer div {
+  padding: 12px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.settings-explainer span {
+  display: block;
+  color: var(--color-text);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.settings-explainer p {
+  margin: 5px 0 0;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
 .switch {
   position: relative;
   display: inline-block;
@@ -956,20 +1058,56 @@ textarea#message {
 
 .email-password-settings {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
 }
 
 .email-password-settings span {
+  display: block;
   line-height: 1.6;
   font-weight: 900;
 }
 
+.email-password-settings p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.account-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .change-button {
-  min-width: 76px;
+  width: 100%;
   padding: 0 16px;
   color: var(--color-muted);
+}
+
+.reset-btn.danger {
+  color: var(--color-error);
+  background: rgba(255, 244, 247, 0.88);
+}
+
+.settings-save-status {
+  min-height: 1.4em;
+  margin: 12px 0 0;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.settings-save-status[data-state="success"],
+.privacy-note[data-state="success"] {
+  color: #338866;
+}
+
+.settings-save-status[data-state="error"],
+.privacy-note[data-state="error"] {
+  color: var(--color-error);
 }
 
 /* Footer */
@@ -1005,7 +1143,7 @@ footer button span {
   max-width: 100%;
   overflow: hidden;
   color: currentColor;
-  font-size: clamp(0.68rem, 3.2vw, 0.78rem);
+  font-size: 0.72rem;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1024,22 +1162,6 @@ footer button.active {
 
 footer button.active img.icon {
   opacity: 1;
-}
-
-footer button[data-page="home"].active img.icon {
-  content: url('/img/home-yellow.png');
-}
-
-footer button[data-page="map"].active img.icon {
-  content: url('/img/map-yellow.png');
-}
-
-footer button[data-page="ranking"].active img.icon {
-  content: url('/img/ranking-yellow.png');
-}
-
-footer button[data-page="settings"].active img.icon {
-  content: url('/img/setting-yellow.png');
 }
 
 .footer-home-img {

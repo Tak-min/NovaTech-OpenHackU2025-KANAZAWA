@@ -36,14 +36,14 @@
             <h2>SoraLog</h2>
             <p>今日の空とあなたのジンクスを、かわいく記録します。</p>
           </div>
-        <form id="login-form">
-          <label for="login-email">メールアドレス</label>
-          <input id="login-email" type="email" placeholder="sora@example.com" autocomplete="email" required>
-          <label for="login-password">パスワード</label>
-          <input id="login-password" type="password" placeholder="パスワード" autocomplete="current-password" required>
-          <button type="submit" class="main-btn">ログイン</button>
-          <button id="show-register-button" type="button" class="link-btn">新規登録はこちら</button>
-        </form>
+          <form id="login-form">
+            <label for="login-email">メールアドレス</label>
+            <input id="login-email" type="email" placeholder="sora@example.com" autocomplete="email" required>
+            <label for="login-password">パスワード</label>
+            <input id="login-password" type="password" placeholder="パスワード" autocomplete="current-password" required>
+            <button type="submit" class="main-btn">ログイン</button>
+            <button id="show-register-button" type="button" class="link-btn">新規登録はこちら</button>
+          </form>
         </div>
       </section>
 
@@ -54,32 +54,33 @@
             <h2>はじめまして</h2>
             <p>あなたの天気ログから、少しずつ称号が育ちます。</p>
           </div>
-        <form id="register-form">
-          <label for="register-username">ユーザー名</label>
-          <input id="register-username" type="text" placeholder="そらこ" autocomplete="username" required>
-          <label for="register-email">メールアドレス</label>
-          <input id="register-email" type="email" placeholder="sora@example.com" autocomplete="email" required>
-          <label for="register-password">パスワード</label>
-          <input id="register-password" type="password" placeholder="6文字以上" autocomplete="new-password" required>
-          <label for="register-gender">性別</label>
-          <div class="gender-group">
-            <label class="gender-option">
-              <input type="radio" name="gender" value="male" required>
-              <span class="gender-text">男性</span>
-            </label>
-            <label class="gender-option">
-              <input type="radio" name="gender" value="female" required>
-              <span class="gender-text">女性</span>
-            </label>
-          </div>
+          <form id="register-form">
+            <label for="register-username">ユーザー名</label>
+            <input id="register-username" type="text" placeholder="そらこ" autocomplete="username" required>
+            <label for="register-email">メールアドレス</label>
+            <input id="register-email" type="email" placeholder="sora@example.com" autocomplete="email" required>
+            <label for="register-password">パスワード</label>
+            <input id="register-password" type="password" placeholder="6文字以上" autocomplete="new-password" required>
+            <label for="register-gender">性別</label>
+            <div class="gender-group">
+              <label class="gender-option">
+                <input type="radio" name="gender" value="male" required>
+                <span class="gender-text">男性</span>
+              </label>
+              <label class="gender-option">
+                <input type="radio" name="gender" value="female" required>
+                <span class="gender-text">女性</span>
+              </label>
+            </div>
 
-          <button type="submit" class="main-btn">新規登録</button>
-          <button id="show-login-button" type="button" class="link-btn">ログインはこちら</button>
-        </form>
+            <button type="submit" class="main-btn">新規登録</button>
+            <button id="show-login-button" type="button" class="link-btn">ログインはこちら</button>
+          </form>
         </div>
       </section>
 
       <section id="page-home" class="hidden">
+        <div id="home-state-message" class="screen-state hidden" role="status"></div>
         <div class="status-hero soft-card">
           <p class="eyebrow">あなたは今...</p>
           <div class="status-title"><span id="status-text">判定中...</span><span>です</span></div>
@@ -91,6 +92,20 @@
         <div class="metric-row">
           <p id="missed-train-counter" class="jinx-counter">電車に乗り遅れた回数 : ...回</p>
         </div>
+        <div class="weather-stats-grid soft-card">
+          <div>
+            <span>ログ数</span>
+            <strong id="weather-total-records">--</strong>
+          </div>
+          <div>
+            <span>晴れ寄り</span>
+            <strong id="weather-positive-rate">--</strong>
+          </div>
+          <div>
+            <span>雨寄り</span>
+            <strong id="weather-negative-rate">--</strong>
+          </div>
+        </div>
         <div class="weather-gauge-panel soft-card">
           <div>
             <label for="weather-gauge-bar" class="weather-gauge-label">天気スコア </label>
@@ -101,6 +116,10 @@
             <span id="weather-gauge-value" class="weather-gauge-value">--</span>
           </div>
         </div>
+        <div class="home-actions">
+          <button id="home-map-button" type="button" class="main-btn">地図で空模様を見る</button>
+          <button id="home-ranking-button" type="button" class="link-btn">ランキングを見る</button>
+        </div>
       </section>
 
       <section id="page-map" class="hidden">
@@ -110,6 +129,7 @@
           <p>位置情報の公開を許可しているユーザーだけが、地図にふんわり表示されます。</p>
         </div>
         <div id="map-location-status" class="map-location-status">現在地を確認しています...</div>
+        <div id="map-data-status" class="screen-state compact" role="status">公開ユーザーを読み込んでいます...</div>
         <div class="map-card soft-card">
           <div id="map" aria-label="ユーザー位置を表示する地図"></div>
         </div>
@@ -123,9 +143,10 @@
           <h2>みんなの空ジンクス</h2>
         </div>
         <div id="ranking-tabs">
-          <button class="ranking-tab active" data-mode="weather">天気スコア</button>
-          <button class="ranking-tab" data-mode="missed">電車乗り遅れ回数</button>
+          <button class="ranking-tab active" data-mode="weather" aria-pressed="true">天気スコア</button>
+          <button class="ranking-tab" data-mode="missed" aria-pressed="false">電車乗り遅れ回数</button>
         </div>
+        <div id="ranking-summary" class="screen-state compact" role="status">ランキングを読み込んでいます...</div>
         <div id="ranking-table-container">
           <table id="ranking-table">
             <thead>
@@ -163,7 +184,7 @@
                 <div class="file-input-container">
                   <input type="file" id="iconInput" accept="image/*">
                   <button id="selectIconBtn" class="select-btn" type="button">アイコンを選ぶ</button>
-                  <button id="saveBtn" class="save-btn" type="button">アイコンを保存</button>
+                  <button id="saveBtn" class="save-btn" type="button" disabled>アイコンを保存</button>
                   <button id="resetBtn" class="reset-btn" type="button">リセット</button>
                 </div>
                 <div id="imageInfo" class="image-info">
@@ -206,13 +227,30 @@
                 </label>
               </div>
             </div>
-            <p class="privacy-note">位置情報は天気ログと地図表示のために使います。公開設定をOFFにすると、他のユーザーの地図には表示されません。</p>
+            <div class="settings-explainer">
+              <div>
+                <span>地図の現在地</span>
+                <p>マップを開いたときの表示位置にだけ使います。</p>
+              </div>
+              <div>
+                <span>位置情報ログ</span>
+                <p>この設定がONのときだけサーバーへ送信します。</p>
+              </div>
+            </div>
+            <p id="location-permission-state" class="privacy-note">ブラウザの位置情報許可を確認中です。</p>
+            <p id="settings-save-status" class="settings-save-status" role="status"></p>
           </section>
 
           <section class="settings-panel soft-card">
             <div class="email-password-settings">
-              <span>メールアドレス・パスワードの設定</span>
-              <button class="change-button" type="button">変更</button>
+              <div>
+                <span>アカウント</span>
+                <p>展示や共有端末で使い終わったらログアウトできます。</p>
+              </div>
+              <div class="account-actions">
+                <button id="account-change-button" class="change-button" type="button">変更</button>
+                <button id="logout-button" class="reset-btn danger" type="button">ログアウト</button>
+              </div>
             </div>
           </section>
         </div>
