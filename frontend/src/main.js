@@ -2,7 +2,7 @@ import "./style.css";
 
 // ================== API ベースURL設定 start ==================
 const API_BASE = 'https://soralog-backend.onrender.com';
-const LOCATION_UPDATE_INTERVAL_MS = 5 * 60 * 1000;
+const LOCATION_UPDATE_INTERVAL_MS  = 1 * 1000;
 
 console.log('[API] Final Base URL =', API_BASE);
 // ================== API ベースURL設定 end ==================
