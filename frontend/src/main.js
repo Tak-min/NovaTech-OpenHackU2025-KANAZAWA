@@ -200,6 +200,7 @@ function hideLoadingPopup(minVisibleMs = 650) {
 let locationWatchId = null;
 let locationUpdateIntervalId = null; // 定期更新用のID
 let mapMarkersUpdateIntervalId = null; // マップマーカー定期更新用のID
+let mapLocationWatchId = null;
 
 // 選択された画像データを保存する変数（TDZ回避のため var）
 let selectedImageData = null;
@@ -432,6 +433,10 @@ function showPage(pageId, { force = false } = {}) {
   }
   else showHeaderImage(null);
 
+  if (pageId !== 'page-map') {
+    stopMapLocationTracking();
+  }
+
   // ヘッダータイトルの更新
   const titles = {
     'page-login': 'ログイン',
@@ -624,6 +629,7 @@ function rememberPosition(position) {
     timestamp: position.timestamp || Date.now()
   };
   lastKnownPositionAt = Date.now();
+  syncCurrentMapPositionFromKnown();
   return lastKnownPosition;
 }
 
@@ -1605,6 +1611,24 @@ function upsertCurrentLocationMarker({ centerMap = false } = {}) {
   }
 }
 
+function syncCurrentMapPositionFromKnown({ centerMap = false } = {}) {
+  if (!lastKnownPosition) return null;
+
+  currentMapPosition = {
+    latitude: lastKnownPosition.latitude,
+    longitude: lastKnownPosition.longitude,
+    accuracy: lastKnownPosition.accuracy
+  };
+
+  if (leafletMap) {
+    const accuracy = Math.round(currentMapPosition.accuracy || 0);
+    setMapLocationStatus(`現在地を表示しています（精度 約${accuracy}m）`, 'success');
+    upsertCurrentLocationMarker({ centerMap });
+  }
+
+  return currentMapPosition;
+}
+
 async function requestCurrentLocationForMap({ centerMap = false, silent = false } = {}) {
   if (!navigator.geolocation) {
     setMapLocationStatus('このブラウザは位置情報に対応していません。日本全体を表示しています。', 'warning');
@@ -1618,13 +1642,8 @@ async function requestCurrentLocationForMap({ centerMap = false, silent = false 
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        currentMapPosition = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy
-        };
-        setMapLocationStatus(`現在地を表示しています（精度 約${Math.round(position.coords.accuracy || 0)}m）`, 'success');
-        upsertCurrentLocationMarker({ centerMap });
+        rememberPosition(position);
+        syncCurrentMapPositionFromKnown({ centerMap });
         resolve(currentMapPosition);
       },
       (error) => {
@@ -1641,6 +1660,44 @@ async function requestCurrentLocationForMap({ centerMap = false, silent = false 
       }
     );
   });
+}
+
+function startMapLocationTracking({ centerOnFirstUpdate = false } = {}) {
+  if (!navigator.geolocation) {
+    setMapLocationStatus('このブラウザは位置情報に対応していません。日本全体を表示しています。', 'warning');
+    return;
+  }
+
+  if (mapLocationWatchId !== null) {
+    if (centerOnFirstUpdate) syncCurrentMapPositionFromKnown({ centerMap: true });
+    return;
+  }
+
+  let shouldCenter = centerOnFirstUpdate;
+  mapLocationWatchId = navigator.geolocation.watchPosition(
+    (position) => {
+      rememberPosition(position);
+      syncCurrentMapPositionFromKnown({ centerMap: shouldCenter });
+      shouldCenter = false;
+    },
+    (error) => {
+      handleGeolocationFailure(error, { notifyErrors: false });
+      if (!hasRecentKnownPosition()) {
+        const fallbackMessage = error.code === error.PERMISSION_DENIED
+          ? '位置情報が許可されていないため、日本各地のサンプル表示から始めます。'
+          : '現在地を取得できなかったため、日本各地のサンプル表示から始めます。';
+        setMapLocationStatus(fallbackMessage, 'warning');
+      }
+    },
+    WATCH_POSITION_OPTIONS
+  );
+}
+
+function stopMapLocationTracking() {
+  if (mapLocationWatchId !== null) {
+    navigator.geolocation.clearWatch(mapLocationWatchId);
+    mapLocationWatchId = null;
+  }
 }
 
 function createUserPopup(user) {
@@ -1749,13 +1806,16 @@ function initializeMap() {
   if (container._leaflet_id || (leafletMap && leafletMap.remove)) {
     if (leafletMap) {
       leafletMap.invalidateSize(); // 表示を更新
-      if (currentMapPosition) {
+      if (lastKnownPosition) {
+        syncCurrentMapPositionFromKnown({ centerMap: true });
+      } else if (currentMapPosition) {
         upsertCurrentLocationMarker({ centerMap: true });
       } else {
         requestCurrentLocationForMap({ centerMap: true, silent: true });
       }
     }
     loadUserMarkers(); // マーカーを再読み込み
+    startMapLocationTracking({ centerOnFirstUpdate: !lastKnownPosition && !currentMapPosition });
     startMapMarkersUpdate();
     return;
   }
@@ -1766,8 +1826,13 @@ function initializeMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(leafletMap);
 
-  requestCurrentLocationForMap({ centerMap: true, silent: true });
+  if (lastKnownPosition) {
+    syncCurrentMapPositionFromKnown({ centerMap: true });
+  } else {
+    requestCurrentLocationForMap({ centerMap: true, silent: true });
+  }
   loadUserMarkers();
+  startMapLocationTracking({ centerOnFirstUpdate: !lastKnownPosition && !currentMapPosition });
 
   // マップマーカーの定期更新を開始
   startMapMarkersUpdate();
@@ -1801,12 +1866,7 @@ function stopMapMarkersUpdate() {
 
 const iconInput = document.getElementById('iconInput');
 const iconPreview = document.getElementById('iconPreview');
-const saveBtn = document.getElementById('saveBtn');
 const resetBtn = document.getElementById('resetBtn');
-const imageInfo = document.getElementById('imageInfo');
-const fileName = document.getElementById('fileName');
-const fileSize = document.getElementById('fileSize');
-const imageDimensions = document.getElementById('imageDimensions');
 
 // ページ読み込み時に保存されたアイコンを復元
 window.addEventListener('DOMContentLoaded', () => {
@@ -1848,10 +1908,8 @@ function initializeSettingsPage() {
   // アイコン機能の要素を取得
   const iconInput = document.getElementById('iconInput');
   const iconPreview = document.getElementById('iconPreview');
-  const saveBtn = document.getElementById('saveBtn');
   const resetBtn = document.getElementById('resetBtn');
   const selectIconBtn = document.getElementById('selectIconBtn');
-  const imageInfo = document.getElementById('imageInfo');
 
   if (selectIconBtn && !selectIconBtn.hasAttribute('data-initialized')) {
     selectIconBtn.setAttribute('data-initialized', 'true');
@@ -1881,20 +1939,9 @@ function initializeSettingsPage() {
         reader.onload = function (e) {
           selectedImageData = e.target.result;
           displayImagePreview(selectedImageData);
-          displayImageInfo(file);
-          if (saveBtn) saveBtn.disabled = false;
+          saveIconToServer(selectedImageData);
         };
         reader.readAsDataURL(file);
-      }
-    });
-  }
-
-  // 保存ボタンのイベントリスナー
-  if (saveBtn && !saveBtn.hasAttribute('data-initialized')) {
-    saveBtn.setAttribute('data-initialized', 'true');
-    saveBtn.addEventListener('click', async function () {
-      if (selectedImageData) {
-        await saveIconToServer(selectedImageData);
       }
     });
   }
@@ -1907,8 +1954,6 @@ function initializeSettingsPage() {
         iconPreview.innerHTML = '<span class="icon-placeholder">アイコンを選択してください</span>';
       }
       if (iconInput) iconInput.value = '';
-      if (imageInfo) imageInfo.classList.remove('show');
-      if (saveBtn) saveBtn.disabled = true;
       selectedImageData = null;
       notify('アイコン選択をリセットしました', 'success');
     });
@@ -1952,7 +1997,7 @@ function initializeSettingsPage() {
           // 正しくは FileReader の onload イベント(event)から result を取得する
           selectedImageData = event.target.result;
           displayImagePreview(selectedImageData);
-          if (saveBtn) saveBtn.disabled = false;
+          saveIconToServer(selectedImageData);
         };
         reader.readAsDataURL(file);
       }
@@ -2244,15 +2289,6 @@ async function saveIconToServer(imageData) {
     });
 
     if (response.ok) {
-      const saveBtn = document.getElementById('saveBtn');
-      if (saveBtn) {
-        saveBtn.textContent = '保存完了！';
-        saveBtn.style.background = '#28a745';
-        setTimeout(() => {
-          saveBtn.textContent = 'アイコンを保存';
-          saveBtn.style.background = '';
-        }, 2000);
-      }
       notify('アイコンを保存しました', 'success');
     } else {
       const errorData = await response.json();
@@ -2315,28 +2351,6 @@ function displayImagePreview(imageData) {
   }
 }
 
-// 画像情報を表示する関数
-function displayImageInfo(file) {
-  const imageInfo = document.getElementById('imageInfo');
-  const fileName = document.getElementById('fileName');
-  const fileSize = document.getElementById('fileSize');
-  const imageDimensions = document.getElementById('imageDimensions');
-
-  if (fileName) fileName.textContent = `ファイル名: ${file.name}`;
-  if (fileSize) fileSize.textContent = `サイズ: ${(file.size / 1024).toFixed(1)} KB`;
-
-  // 画像の寸法を取得
-  const img = new Image();
-  img.onload = function () {
-    if (imageDimensions) {
-      imageDimensions.textContent = `寸法: ${img.width} x ${img.height}`;
-    }
-  };
-  img.src = URL.createObjectURL(file);
-
-  if (imageInfo) imageInfo.classList.add('show');
-}
-
 // 保存されたアイコンをAPIから読み込む関数
 async function loadSavedIcon() {
   const token = localStorage.getItem('token');
@@ -2361,8 +2375,6 @@ async function loadSavedIcon() {
         // これにより「保存」ボタンが反応しないケースを回避
         selectedImageData = imageData;
         displayImagePreview(imageData);
-        const saveBtn = document.getElementById('saveBtn');
-        if (saveBtn) saveBtn.disabled = false;
       };
 
       reader.readAsDataURL(blob);

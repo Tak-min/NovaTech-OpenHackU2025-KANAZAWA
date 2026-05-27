@@ -903,25 +903,6 @@ textarea#message::placeholder {
   color: var(--color-muted);
 }
 
-.image-info {
-  display: none;
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: var(--color-sky-50);
-  color: var(--color-muted);
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
-
-.image-info.show {
-  display: block;
-}
-
-.image-info p {
-  margin: 2px 0;
-}
-
 .introduce-container {
   display: grid;
   gap: 8px;
