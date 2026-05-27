@@ -258,62 +258,27 @@ const DEMO_USERS = DEMO_MAP_POINTS.map(([username, latitude, longitude], index) 
   };
 });
 
-// 称号に応じたマーカーの色を定義
-let statusColors = {
-  '太陽神': '#FFD700',        // 金色
-  '晴れ男': '#FFA500',        // オレンジ
-  '晴れ女': '#FF69B4',        // ホットピンク
-  '凡人': '#87CEEB',          // スカイブルー
-  '雨男': '#4169E1',          // ロイヤルブルー
-  '雨女': '#9370DB',          // ミディアムパープル
-  '嵐を呼ぶ者': '#8B0000',    // ダークレッド
-  'unknown': '#808080'        // グレー（フォールバック）
+// 画像名の天気表現に合わせてマーカー画像を対応付ける。
+// yellow/sunny=晴れ、rainy=雨、snow=雪、kaze=荒天、nomal=通常/不明。
+const MARKER_IMAGE_BY_WEATHER = {
+  sunny: './img/map-very-yellow.png',
+  cloudy: './img/pin-nomal.PNG',
+  rainy: './img/pin-rainy.PNG',
+  snowy: './img/map-snow.png',
+  thunderstorm: './img/map-kaze.png',
+  stormy: './img/map-kaze.png',
+  unknown: './img/pin-nomal.PNG'
 };
 
-// 称号に応じた絵文字を定義（後方互換のため残す）
-let statusEmojis = {
-  '太陽神': '🌟',
-  '晴れ男': '☀️',
-  '晴れ女': '🌞',
-  '凡人': '😐',
-  '雨男': '🌧️',
-  '雨女': '💜',
-  '嵐を呼ぶ者': '⚡',
-  'unknown': '❓'
-};
-
-// 称号に応じた画像を定義
-let statusImages = {
+const MARKER_IMAGE_BY_STATUS = {
   '太陽神': './img/map-very-yellow.png',
-  '晴れ男': './img/map-yellow.png',
-  '晴れ女': './img/map-yellow.png',
-  '凡人': './img/map.png',
-  '雨男': './img/map-snow.png',
-  '雨女': './img/map-snow.png',
+  '晴れ男': './img/pin-sunny.PNG',
+  '晴れ女': './img/pin-sunny.PNG',
+  '凡人': './img/pin-nomal.PNG',
+  '雨男': './img/pin-rainy.PNG',
+  '雨女': './img/pin-rainy.PNG',
   '嵐を呼ぶ者': './img/map-kaze.png',
-  'unknown': './img/pin-nomal.PNG'
-};
-
-// 天気に応じたマーカーの色を定義（後方互換のため残す）
-let weatherColors = {
-  'sunny': '#FFD700',      // 金色
-  'cloudy': '#87CEEB',     // スカイブルー
-  'rainy': '#4169E1',      // ロイヤルブルー
-  'snowy': '#FFFFFF',      // 白
-  'thunderstorm': '#8A2BE2', // ブルーバイオレット
-  'stormy': '#2F4F4F',     // ダークスレートグレー
-  'unknown': '#808080'     // グレー
-};
-
-// 天気に応じた絵文字を定義（後方互換のため残す）
-let weatherEmojis = {
-  'sunny': '☀️',
-  'cloudy': '☁️',
-  'rainy': '🌧️',
-  'snowy': '❄️',
-  'thunderstorm': '⚡',
-  'stormy': '🌪️',
-  'unknown': '❓'
+  unknown: './img/pin-nomal.PNG'
 };
 
 // フッターのアイコンsrcを期待どおりに補正する（存在しない場合はスキップ）
@@ -1552,35 +1517,25 @@ function setMapDataStatus(message, type = 'info') {
   statusElement.dataset.state = type;
 }
 
-function getStatusTone(status) {
-  if (status === '太陽神' || status === '晴れ男' || status === '晴れ女') return 'sunny';
-  if (status === '雨男' || status === '雨女') return 'rainy';
-  if (status === '嵐を呼ぶ者') return 'stormy';
-  return 'neutral';
+function normalizeWeatherKey(weather) {
+  return String(weather || 'unknown').trim().toLowerCase() || 'unknown';
 }
 
-function getStatusGlyph(status) {
-  const glyphs = {
-    '太陽神': '太',
-    '晴れ男': '晴',
-    '晴れ女': '晴',
-    '凡人': '凡',
-    '雨男': '雨',
-    '雨女': '雨',
-    '嵐を呼ぶ者': '嵐'
-  };
-  return glyphs[status] || '空';
+function getUserMarkerImagePath(user) {
+  const weather = normalizeWeatherKey(user.weather);
+  return MARKER_IMAGE_BY_WEATHER[weather]
+    || MARKER_IMAGE_BY_STATUS[user.status || 'unknown']
+    || MARKER_IMAGE_BY_WEATHER.unknown;
 }
 
 function createUserMarkerIcon(user) {
-  const status = user.status || 'unknown';
-  const tone = user.isCurrentUser ? 'current-user' : getStatusTone(status);
-  return L.divIcon({
-    className: 'soralog-marker-host',
-    html: `<div class="soralog-marker ${tone}" data-marker-type="user" title="${escapeHtml(user.username)}" aria-label="${escapeHtml(user.username)}"><span>${escapeHtml(getStatusGlyph(status))}</span></div>`,
-    iconSize: [38, 46],
-    iconAnchor: [19, 42],
-    popupAnchor: [0, -38]
+  const iconSize = user.isCurrentUser ? [52, 52] : [46, 46];
+  return L.icon({
+    iconUrl: getUserMarkerImagePath(user),
+    className: user.isCurrentUser ? 'soralog-weather-marker current-user' : 'soralog-weather-marker',
+    iconSize,
+    iconAnchor: [iconSize[0] / 2, iconSize[1] - 3],
+    popupAnchor: [0, -iconSize[1] + 6]
   });
 }
 
@@ -1648,8 +1603,8 @@ async function requestCurrentLocationForMap({ centerMap = false, silent = false 
       },
       (error) => {
         const fallbackMessage = error.code === error.PERMISSION_DENIED
-          ? '位置情報が許可されていないため、日本各地のサンプル表示から始めます。'
-          : '現在地を取得できなかったため、日本各地のサンプル表示から始めます。';
+          ? '位置情報が許可されていないため、日本全体を表示しています。'
+          : '現在地を取得できなかったため、日本全体を表示しています。';
         setMapLocationStatus(fallbackMessage, 'warning');
         resolve(null);
       },
@@ -1684,8 +1639,8 @@ function startMapLocationTracking({ centerOnFirstUpdate = false } = {}) {
       handleGeolocationFailure(error, { notifyErrors: false });
       if (!hasRecentKnownPosition()) {
         const fallbackMessage = error.code === error.PERMISSION_DENIED
-          ? '位置情報が許可されていないため、日本各地のサンプル表示から始めます。'
-          : '現在地を取得できなかったため、日本各地のサンプル表示から始めます。';
+          ? '位置情報が許可されていないため、日本全体を表示しています。'
+          : '現在地を取得できなかったため、日本全体を表示しています。';
         setMapLocationStatus(fallbackMessage, 'warning');
       }
     },
@@ -1700,12 +1655,21 @@ function stopMapLocationTracking() {
   }
 }
 
+function formatRecordedAt(value) {
+  if (!value) return '記録なし';
+  const recordedAt = new Date(value);
+  return Number.isNaN(recordedAt.getTime()) ? '記録なし' : recordedAt.toLocaleString();
+}
+
 function createUserPopup(user) {
   const status = user.status || 'unknown';
   const score = Number(user.score || 0);
-  const recordedAt = user.recordedAt ? new Date(user.recordedAt).toLocaleString() : '表示用データ';
-  const demoLabel = user.isDemo ? '<br><small>表示用サンプル</small>' : '';
-  return `<b>${escapeHtml(user.username)}</b>${demoLabel}<br>称号: ${escapeHtml(status)}<br>スコア: ${escapeHtml(score)}<br>天気: ${escapeHtml(user.weather || 'unknown')}<br>記録日時: ${escapeHtml(recordedAt)}`;
+  const recordedAt = formatRecordedAt(user.recordedAt);
+  const introductionText = String(user.introductionText || '').trim();
+  const introduction = !user.isDemo && introductionText
+    ? `<br>ひとこと: ${escapeHtml(introductionText)}`
+    : '';
+  return `<b>${escapeHtml(user.username)}</b><br>称号: ${escapeHtml(status)}<br>スコア: ${escapeHtml(score)}<br>天気: ${escapeHtml(user.weather || 'unknown')}${introduction}<br>記録日時: ${escapeHtml(recordedAt)}`;
 }
 
 function getMapUsers(apiUsers = []) {
@@ -1718,7 +1682,7 @@ function getMapUsers(apiUsers = []) {
       isDemo: false
     }));
 
-  return [...normalizedApiUsers, ...DEMO_USERS];
+  return normalizedApiUsers.length > 0 ? normalizedApiUsers : DEMO_USERS;
 }
 
 // ユーザーの位置情報を取得してマーカーを表示
@@ -1755,9 +1719,9 @@ async function loadUserMarkers() {
     const apiUsers = data && Array.isArray(data.users) ? data.users : [];
     const mapUsers = getMapUsers(apiUsers);
     if (apiUsers.length > 0) {
-      setMapDataStatus(`公開ユーザー${apiUsers.length}件と展示用サンプルを表示しています。`, 'success');
+      setMapDataStatus(`ユーザー${apiUsers.length}件を表示しています。`, 'success');
     } else {
-      setMapDataStatus('公開ユーザーはまだいないため、展示用サンプルを表示しています。', 'warning');
+      setMapDataStatus('地図データを表示しています。', 'warning');
     }
 
     // 各ユーザーのマーカーを追加
@@ -1777,7 +1741,7 @@ async function loadUserMarkers() {
 
   } catch (error) {
     console.error('ユーザーマーカーの読み込みに失敗しました:', error);
-    setMapDataStatus('公開ユーザーを取得できなかったため、展示用サンプルを表示しています。', 'warning');
+    setMapDataStatus('ユーザー情報を取得できなかったため、地図データを表示しています。', 'warning');
     if (leafletMap) {
       userMarkers.forEach(marker => leafletMap.removeLayer(marker));
       userMarkers = [];
@@ -2129,16 +2093,33 @@ function initializeSettingsSwitches() {
       await updateLocationSwitch();
     });
   }
+
+  const locationPublicSwitch = document.getElementById('location-public-switch');
+  if (locationPublicSwitch && !locationPublicSwitch.hasAttribute('data-initialized')) {
+    locationPublicSwitch.setAttribute('data-initialized', 'true');
+    locationPublicSwitch.addEventListener('change', async function () {
+      const previousValue = !this.checked;
+      this.disabled = true;
+      const saved = await saveUserSettings({
+        notifyOnSuccess: true,
+        successMessage: this.checked ? '位置情報の地図公開をONにしました' : '位置情報の地図公開をOFFにしました'
+      });
+      if (!saved) this.checked = previousValue;
+      this.disabled = false;
+    });
+  }
 }
 
 function getSettingsFromControls() {
   const notificationSwitch = document.getElementById('notification-switch');
   const locationSwitch = document.getElementById('location-switch');
+  const locationPublicSwitch = document.getElementById('location-public-switch');
   const messageTextarea = document.getElementById('message');
 
   return {
     notification_enabled: notificationSwitch ? notificationSwitch.checked : true,
     location_enabled: locationSwitch ? locationSwitch.checked : false,
+    location_public_enabled: locationPublicSwitch ? locationPublicSwitch.checked : true,
     introduction_text: messageTextarea ? messageTextarea.value : ''
   };
 }
@@ -2147,10 +2128,12 @@ function applySettingsToControls(settings) {
   if (!settings) return;
   const notificationSwitch = document.getElementById('notification-switch');
   const locationSwitch = document.getElementById('location-switch');
+  const locationPublicSwitch = document.getElementById('location-public-switch');
   const messageTextarea = document.getElementById('message');
 
   if (notificationSwitch) notificationSwitch.checked = Boolean(settings.notification_enabled);
   if (locationSwitch) locationSwitch.checked = Boolean(settings.location_enabled);
+  if (locationPublicSwitch) locationPublicSwitch.checked = settings.location_public_enabled !== false;
   if (messageTextarea && document.activeElement !== messageTextarea) {
     messageTextarea.value = settings.introduction_text || '';
   }

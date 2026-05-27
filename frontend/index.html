@@ -126,14 +126,12 @@
         <div class="section-heading">
           <p class="eyebrow">Sora map</p>
           <h2>地図表示</h2>
-          <p>位置情報の公開を許可しているユーザーだけが、地図にふんわり表示されます。</p>
         </div>
         <div id="map-location-status" class="map-location-status">現在地を確認しています...</div>
         <div id="map-data-status" class="screen-state compact" role="status">公開ユーザーを読み込んでいます...</div>
         <div class="map-card soft-card">
           <div id="map" aria-label="ユーザー位置を表示する地図"></div>
         </div>
-        <p class="privacy-note">設定で「位置情報許可」をONにした場合のみ、天気ログ用の位置情報を送信します。他のユーザーには丸められた位置が表示されます。</p>
       </section>
 
       <section id="page-ranking" class="hidden">
@@ -212,10 +210,20 @@
               <div class="settings-item">
                 <div>
                   <span>位置情報許可</span>
-                  <p>ONのときだけ現在地と天気を記録し、地図公開の対象になります。</p>
+                  <p>ONのときだけ現在地と天気を記録します。</p>
                 </div>
                 <label class="switch">
                   <input type="checkbox" id="location-switch">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <div class="settings-item">
+                <div>
+                  <span>他ユーザーへの位置公開</span>
+                  <p>ONのとき、最新の天気ログの位置を他のユーザーの地図に表示します。</p>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="location-public-switch" checked>
                   <span class="slider round"></span>
                 </label>
               </div>

@@ -431,12 +431,15 @@ const createTables = async () => {
                 user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 notification_enabled BOOLEAN DEFAULT true,
                 location_enabled BOOLEAN DEFAULT false,
+                location_public_enabled BOOLEAN DEFAULT true,
                 introduction_text TEXT,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(user_id)
             );
         `);
+        await client.query('ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS location_public_enabled BOOLEAN DEFAULT true;');
+        await client.query('UPDATE user_settings SET location_public_enabled = true WHERE location_public_enabled IS NULL;');
 
         await client.query(`
             CREATE TABLE IF NOT EXISTS user_icons (
@@ -680,18 +683,20 @@ app.get('/status', authenticateToken, async (req, res) => {
     }
 });
 
-// [GET] /users-locations - 全ユーザーの最新位置情報を取得（位置情報許可設定を考慮）
+// [GET] /users-locations - 全ユーザーの最新位置情報を取得（他ユーザーへの公開設定を考慮）
 app.get('/users-locations', authenticateToken, async (req, res) => {
     try {
         const currentUserId = req.user.id;
 
-        // 各ユーザーの最新の位置情報と称号計算に必要な情報を取得（位置情報許可が有効なユーザーのみ）
+        // 各ユーザーの最新の位置情報と称号計算に必要な情報を取得
+        // 自分は常に取得し、他ユーザーは公開設定がONの位置だけ返す。
         const locationsQuery = `
       SELECT DISTINCT ON (u.id)
         u.id,
         u.username,
         u.score,
         u.gender,
+        s.introduction_text,
         CASE
           WHEN u.id = $1 THEN l.longitude
           ELSE ROUND(l.longitude::numeric, $2)::double precision
@@ -704,8 +709,8 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
         l.recorded_at
       FROM users u
       JOIN locations l ON u.id = l.user_id
-      JOIN user_settings s ON u.id = s.user_id
-      WHERE s.location_enabled = true
+      LEFT JOIN user_settings s ON u.id = s.user_id
+      WHERE (u.id = $1 OR COALESCE(s.location_public_enabled, true) = true)
         AND l.latitude IS NOT NULL
         AND l.longitude IS NOT NULL
       ORDER BY u.id, l.recorded_at DESC
@@ -724,6 +729,7 @@ app.get('/users-locations', authenticateToken, async (req, res) => {
                 longitude: parseFloat(row.longitude),
                 weather: row.weather,
                 recordedAt: row.recorded_at,
+                introductionText: row.introduction_text || '',
                 status: status,  // 称号を追加
                 score: totalScore,  // スコアも追加（デバッグ用）
                 isCurrentUser: row.id === currentUserId  // 現在のユーザーかどうかのフラグを追加
@@ -1006,7 +1012,7 @@ app.get('/user/settings', authenticateToken, async (req, res) => {
     try {
         const client = await pool.connect();
         const result = await client.query(`
-            SELECT notification_enabled, location_enabled, introduction_text
+            SELECT notification_enabled, location_enabled, location_public_enabled, introduction_text
             FROM user_settings
             WHERE user_id = $1
         `, [req.user.id]);
@@ -1018,6 +1024,7 @@ app.get('/user/settings', authenticateToken, async (req, res) => {
             return res.json({
                 notification_enabled: true,
                 location_enabled: false,
+                location_public_enabled: true,
                 introduction_text: ''
             });
         }
@@ -1032,21 +1039,32 @@ app.get('/user/settings', authenticateToken, async (req, res) => {
 // PUT /user/settings - ユーザー設定を保存
 app.put('/user/settings', authenticateToken, async (req, res) => {
     try {
-        const { notification_enabled, location_enabled, introduction_text } = req.body;
+        const { notification_enabled, location_enabled, location_public_enabled, introduction_text } = req.body;
+        const normalizedNotificationEnabled = notification_enabled !== false;
+        const normalizedLocationEnabled = Boolean(location_enabled);
+        const normalizedLocationPublicEnabled = location_public_enabled !== false;
+        const normalizedIntroductionText = typeof introduction_text === 'string' ? introduction_text : '';
 
         const client = await pool.connect();
 
         // UPSERT操作（存在しない場合はINSERT、存在する場合はUPDATE）
         await client.query(`
-            INSERT INTO user_settings (user_id, notification_enabled, location_enabled, introduction_text, updated_at)
-            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            INSERT INTO user_settings (user_id, notification_enabled, location_enabled, location_public_enabled, introduction_text, updated_at)
+            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
             ON CONFLICT (user_id)
             DO UPDATE SET
                 notification_enabled = EXCLUDED.notification_enabled,
                 location_enabled = EXCLUDED.location_enabled,
+                location_public_enabled = EXCLUDED.location_public_enabled,
                 introduction_text = EXCLUDED.introduction_text,
                 updated_at = CURRENT_TIMESTAMP
-        `, [req.user.id, notification_enabled, location_enabled, introduction_text]);
+        `, [
+            req.user.id,
+            normalizedNotificationEnabled,
+            normalizedLocationEnabled,
+            normalizedLocationPublicEnabled,
+            normalizedIntroductionText
+        ]);
 
         client.release();
 

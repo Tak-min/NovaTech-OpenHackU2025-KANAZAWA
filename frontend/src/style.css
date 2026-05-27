@@ -617,6 +617,17 @@ textarea#message::placeholder {
   border: 0;
 }
 
+.soralog-weather-marker {
+  object-fit: contain;
+  filter: drop-shadow(0 9px 14px rgba(54, 65, 83, 0.24));
+}
+
+.soralog-weather-marker.current-user {
+  filter:
+    drop-shadow(0 0 5px rgba(78, 183, 240, 0.55))
+    drop-shadow(0 10px 18px rgba(54, 65, 83, 0.28));
+}
+
 .soralog-marker {
   position: relative;
   display: grid;
