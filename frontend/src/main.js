@@ -1,8 +1,17 @@
 import "./style.css";
 
 // ================== API ベースURL設定 start ==================
-const API_BASE = 'https://soralog-backend.onrender.com';
+const API_BASE = window.__API_BASE__
+  || import.meta.env.VITE_API_BASE
+  || (['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ? 'http://localhost:3000'
+    : 'https://soralog-backend.onrender.com');
 const LOCATION_UPDATE_INTERVAL_MS  = 1 * 1000;
+const GEOLOCATION_OPTIONS = {
+  enableHighAccuracy: true,
+  timeout: 10000,
+  maximumAge: 0
+};
 
 // ================== API ベースURL設定 end ==================
 
@@ -37,6 +46,53 @@ function showToast(message, type = 'info') {
 
 function notify(message, type = 'info') {
   showToast(String(message || ''), type);
+}
+
+function getCurrentPositionOnce(options = GEOLOCATION_OPTIONS) {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported'));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
+}
+
+function showLocationPermissionPrompt() {
+  return new Promise((resolve) => {
+    document.getElementById('location-permission-prompt')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'location-permission-prompt';
+    overlay.className = 'location-permission-prompt';
+    overlay.innerHTML = `
+      <div class="location-permission-card" role="dialog" aria-modal="true" aria-labelledby="location-permission-title">
+        <p class="eyebrow">First log</p>
+        <h2 id="location-permission-title">位置情報を使って天気ログを始めますか？</h2>
+        <p>許可すると現在地の天気を記録し、称号とランキングにすぐ反映できます。</p>
+        <div class="location-permission-actions">
+          <button type="button" class="main-btn" data-action="allow">位置情報を許可する</button>
+          <button type="button" class="link-btn" data-action="later">あとで設定する</button>
+        </div>
+      </div>
+    `;
+
+    const close = (allowed) => {
+      overlay.classList.remove('show');
+      setTimeout(() => overlay.remove(), 180);
+      resolve(allowed);
+    };
+
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) close(false);
+    });
+    overlay.querySelector('[data-action="allow"]')?.addEventListener('click', () => close(true));
+    overlay.querySelector('[data-action="later"]')?.addEventListener('click', () => close(false));
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('show'));
+  });
 }
 
 async function readJsonSafe(response) {
@@ -479,13 +535,98 @@ function setupFooterIconErrorHandling() {
 
 // (startLocationTracking, stopLocationTracking, registerForm logic... is unchanged)
 
+async function requestLoginToken(email, password) {
+  const response = await fetch(`${API_BASE}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+    credentials: 'include',
+  });
+  const data = await readJsonSafe(response);
+  return response.ok ? data.token : null;
+}
+
+async function completeLogin(token) {
+  if (!token) return false;
+
+  localStorage.setItem('token', token);
+  footerNav.classList.remove('hidden');
+  goToPage('page-home', { force: true });
+  updateHomePageStatus();
+  return true;
+}
+
+function handleRegisterConflict(data, email) {
+  if (data.field === 'email') {
+    notify(data.message || 'このメールアドレスは登録済みです。ログインしてください', 'warning');
+    const loginEmailInput = document.getElementById('login-email');
+    if (loginEmailInput) loginEmailInput.value = email;
+    goToPage('page-login');
+    return;
+  }
+
+  notify(data.message || '登録内容が既に使われています。別の内容で試してください', 'warning');
+}
+
+function describeLocationError(error) {
+  if (error?.code === error.PERMISSION_DENIED) {
+    return 'ブラウザ側で位置情報が拒否されました。アドレスバーの設定から許可してください。';
+  }
+  if (error?.code === error.POSITION_UNAVAILABLE) {
+    return '位置情報を取得できませんでした。GPSやネットワーク設定を確認してください。';
+  }
+  if (error?.code === error.TIMEOUT) {
+    return '位置情報の取得がタイムアウトしました。もう一度お試しください。';
+  }
+  return '位置情報を取得できませんでした。あとから設定でONにできます。';
+}
+
+async function promptAndEnableLocationLogging() {
+  const shouldEnable = await showLocationPermissionPrompt();
+  if (!shouldEnable) {
+    notify('位置情報ログはあとから設定でONにできます', 'info');
+    return;
+  }
+
+  try {
+    const position = await getCurrentPositionOnce();
+    const locationSwitch = document.getElementById('location-switch');
+    if (locationSwitch) locationSwitch.checked = true;
+
+    const saved = await saveUserSettings({
+      notifyOnSuccess: false,
+      successMessage: '位置情報ログをONにしました'
+    });
+
+    if (!saved) {
+      if (locationSwitch) locationSwitch.checked = false;
+      notify('位置情報設定の保存に失敗しました', 'error');
+      return;
+    }
+
+    isLocationLoggingEnabled = true;
+    lastLocationPostAt = 0;
+    await postLocationToServer(position.coords.latitude, position.coords.longitude, {
+      source: '登録直後の位置情報',
+      notifyErrors: true
+    });
+    startLocationTracking();
+    startPeriodicLocationUpdate({ runImmediately: false });
+    updateLocationSwitch();
+    updateHomePageStatus();
+    notify('位置情報ログを開始しました', 'success');
+  } catch (error) {
+    notify(describeLocationError(error), 'warning');
+  }
+}
+
 const registerForm = document.getElementById('register-form');
 registerForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (registerForm.dataset.submitting === 'true') return;
 
-  const username = document.getElementById('register-username').value;
-  const email = document.getElementById('register-email').value;
+  const username = document.getElementById('register-username').value.trim();
+  const email = document.getElementById('register-email').value.trim().toLowerCase();
   const password = document.getElementById('register-password').value;
   const genderElement = document.querySelector('input[name="gender"]:checked');
 
@@ -526,10 +667,22 @@ registerForm.addEventListener('submit', async (event) => {
 
     const data = await readJsonSafe(response);
 
-    if (response.ok) {
-      notify(data.message || '登録しました。ログインしてください。', 'success');
+    if (data.registered === false || data.code === 'EMAIL_ALREADY_EXISTS' || data.code === 'USERNAME_UNAVAILABLE') {
+      handleRegisterConflict(data, email);
+    } else if (response.ok) {
+      const token = data.token || await requestLoginToken(email, password);
+      const loggedIn = await completeLogin(token);
+      notify(data.user?.username && data.user.username !== username
+        ? `登録しました。表示名は ${data.user.username} です。`
+        : data.message || '登録しました。', 'success');
       registerForm.reset();
-      goToPage('page-login');
+      if (loggedIn) {
+        promptAndEnableLocationLogging();
+      } else {
+        goToPage('page-login');
+      }
+    } else if (response.status === 409) {
+      handleRegisterConflict(data, email);
     } else {
       notify(data.message || '登録に失敗しました', 'error');
     }
@@ -809,7 +962,7 @@ const loginForm = document.getElementById('login-form');
 loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (loginForm.dataset.submitting === 'true') return;
-  const email = document.getElementById('login-email').value;
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
   const password = document.getElementById('login-password').value;
 
   // クライアントサイドのバリデーション
@@ -999,7 +1152,6 @@ function sendLocation() {
     const { latitude, longitude } = position.coords;
     await postLocationToServer(latitude, longitude, { source: '定期更新', notifyErrors: true });
   }, (error) => {
-    console.error('定期更新中の位置情報取得エラー:', error.message);
     if (error.code === error.PERMISSION_DENIED) {
       notify('ブラウザ側で位置情報が拒否されました。設定画面で状態を確認してください。', 'warning');
       isLocationLoggingEnabled = false;
@@ -1012,8 +1164,10 @@ function sendLocation() {
         saveUserSettings();
       }
       updateLocationSwitch();
+    } else {
+      notify(describeLocationError(error), 'warning');
     }
-  });
+  }, GEOLOCATION_OPTIONS);
 }
 
 // 定期的な位置情報更新を開始する関数
@@ -1363,7 +1517,7 @@ async function requestCurrentLocationForMap({ centerMap = false, silent = false 
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 60 * 1000
+        maximumAge: 1000
       }
     );
   });
@@ -2118,37 +2272,27 @@ function startLocationTracking() {
       function (position) {
         const latitude = position.coords.latitude;
         const longitude = position.coords.longitude;
-        const accuracy = position.coords.accuracy;
-
 
         // 位置情報をサーバーに送信
         sendLocationToServer(latitude, longitude);
       },
       function (error) {
-        console.error('位置情報取得エラー:', error);
         handleLocationError(error);
       },
       {
         enableHighAccuracy: true,
         timeout: 15000, // 15秒のタイムアウト
-        maximumAge: 5000 // 5秒間隔で位置情報を更新（歩行時の動きが分かる頻度）
+        maximumAge: 1000
       }
     );
 
   } else {
-    console.error('startLocationTracking: Geolocation API非対応');
     notify('このブラウザは位置情報に対応していません。', 'warning');
   }
 }
 
 // 位置情報エラーを処理する関数
 function handleLocationError(error) {
-  console.error('handleLocationError: 位置情報エラー発生', {
-    code: error.code,
-    message: error.message,
-    timestamp: new Date().toISOString()
-  });
-
   let message = '';
   let shouldRetry = false;
 
@@ -2216,8 +2360,7 @@ async function checkLocationPermission() {
   try {
     const result = await navigator.permissions.query({ name: 'geolocation' });
     return result.state; // 'granted', 'denied', 'prompt'
-  } catch (error) {
-    console.error('パーミッション確認エラー:', error);
+  } catch (_) {
     return 'unknown';
   }
 }

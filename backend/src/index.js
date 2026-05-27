@@ -186,10 +186,13 @@ const STATIONS = [
 ];
 const STATION_RADIUS_METERS = 70;
 const MISS_COOLDOWN_MINUTES = 30;
-const LOG_LOCATION_MIN_INTERVAL_SECONDS = Number.parseInt(
-    process.env.LOG_LOCATION_MIN_INTERVAL_SECONDS || '300',
+const rawLogLocationMinIntervalSeconds = Number.parseInt(
+    process.env.LOG_LOCATION_MIN_INTERVAL_SECONDS || '1',
     10
 );
+const LOG_LOCATION_MIN_INTERVAL_SECONDS = Number.isFinite(rawLogLocationMinIntervalSeconds)
+    ? Math.max(0, Math.min(rawLogLocationMinIntervalSeconds, 1))
+    : 1;
 const rawLocationPublicPrecisionDecimals = Number.parseInt(
     process.env.LOCATION_PUBLIC_PRECISION_DECIMALS || '3',
     10
@@ -257,6 +260,37 @@ const calculateDistanceMeters = (lat1, lon1, lat2, lon2) => {
         Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return earthRadiusMeters * c;
+};
+
+const createAuthToken = (user) => {
+    return jwt.sign(
+        {
+            id: user.id,
+            username: user.username
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+    );
+};
+
+const buildUsernameCandidate = (baseUsername, suffixNumber) => {
+    if (suffixNumber === 1) return baseUsername;
+    const suffix = `-${suffixNumber}`;
+    return `${baseUsername.slice(0, 50 - suffix.length)}${suffix}`;
+};
+
+const findAvailableUsername = async (baseUsername) => {
+    for (let suffixNumber = 1; suffixNumber <= 50; suffixNumber += 1) {
+        const candidate = buildUsernameCandidate(baseUsername, suffixNumber);
+        const existing = await pool.query(
+            'SELECT 1 FROM users WHERE username = $1 LIMIT 1',
+            [candidate]
+        );
+        if (existing.rows.length === 0) {
+            return candidate;
+        }
+    }
+    return null;
 };
 
 // Expressアプリの初期化
@@ -821,20 +855,22 @@ app.get('/ranking', authenticateToken, async (req, res) => {
 app.post('/register', async (req, res) => {
     try {
         const { username, email, password, gender } = req.body;
+        const normalizedUsername = String(username || '').trim();
+        const normalizedEmail = String(email || '').trim().toLowerCase();
 
         // 入力バリデーション
-        if (!username || !email || !password) {
+        if (!normalizedUsername || !normalizedEmail || !password) {
             return res.status(400).json({ message: '必須項目を入力してください' });
         }
 
         // ユーザー名の長さチェック
-        if (username.length < 3 || username.length > 50) {
+        if (normalizedUsername.length < 3 || normalizedUsername.length > 50) {
             return res.status(400).json({ message: 'ユーザー名は3文字以上50文字以下で入力してください' });
         }
 
         // メールアドレスの形式チェック
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        if (!emailRegex.test(normalizedEmail)) {
             return res.status(400).json({ message: '有効なメールアドレスを入力してください' });
         }
 
@@ -849,31 +885,64 @@ app.post('/register', async (req, res) => {
             return res.status(400).json({ message: '性別はmale、femaleのいずれかを選択してください' });
         }
 
+        const existingEmail = await pool.query(
+            'SELECT id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+            [normalizedEmail]
+        );
+        if (existingEmail.rows.length > 0) {
+            return res.status(200).json({
+                registered: false,
+                code: 'EMAIL_ALREADY_EXISTS',
+                field: 'email',
+                message: 'このメールアドレスは登録済みです。ログインしてください'
+            });
+        }
+
+        const availableUsername = await findAvailableUsername(normalizedUsername);
+        if (!availableUsername) {
+            return res.status(200).json({
+                registered: false,
+                code: 'USERNAME_UNAVAILABLE',
+                field: 'username',
+                message: 'このユーザー名は混み合っています。別のユーザー名を入力してください'
+            });
+        }
+
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
         const newUser = await pool.query(
             'INSERT INTO users (username, email, password_hash, gender) VALUES ($1, $2, $3, $4) RETURNING id, username',
-            [username, email, passwordHash, gender]
+            [availableUsername, normalizedEmail, passwordHash, gender]
         );
+        const token = createAuthToken(newUser.rows[0]);
 
         res.status(201).json({
+            registered: true,
             message: 'ユーザー登録が成功しました',
-            user: newUser.rows[0]
+            user: newUser.rows[0],
+            token
         });
 
     } catch (error) {
-        console.error('=== REGISTER ERROR ===');
-        console.error('Error in /register endpoint:', error);
-        console.error('Error code:', error.code);
-        console.error('Error stack:', error.stack);
-
         if (error.code === '23505') {
-            return res.status(409).json({ message: 'このメールアドレスまたはユーザー名は既に使用されています' });
+            const isEmailConflict = error.constraint === 'users_email_key';
+            return res.status(200).json({
+                registered: false,
+                code: isEmailConflict ? 'EMAIL_ALREADY_EXISTS' : 'USERNAME_UNAVAILABLE',
+                field: isEmailConflict ? 'email' : 'username',
+                message: isEmailConflict
+                    ? 'このメールアドレスは登録済みです。ログインしてください'
+                    : 'このユーザー名は混み合っています。別のユーザー名を入力してください'
+            });
         }
         if (error.code === 'ECONNREFUSED') {
             return res.status(503).json({ message: 'データベース接続エラー' });
         }
+        console.error('=== REGISTER ERROR ===');
+        console.error('Error in /register endpoint:', error);
+        console.error('Error code:', error.code);
+        console.error('Error stack:', error.stack);
         res.status(500).json({ message: 'サーバーエラーが発生しました' });
     }
 });
@@ -882,20 +951,21 @@ app.post('/register', async (req, res) => {
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        const normalizedEmail = String(email || '').trim().toLowerCase();
 
         // 入力バリデーション
-        if (!email || !password) {
+        if (!normalizedEmail || !password) {
             return res.status(400).json({ message: 'メールアドレスとパスワードを入力してください' });
         }
 
         // メールアドレスの形式チェック
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        if (!emailRegex.test(normalizedEmail)) {
             return res.status(400).json({ message: '有効なメールアドレスを入力してください' });
         }
 
         // 1. メールアドレスでユーザーを検索
-        const userResult = await pool.query('SELECT id, username, password_hash FROM users WHERE email = $1', [email]);
+        const userResult = await pool.query('SELECT id, username, password_hash FROM users WHERE LOWER(email) = LOWER($1)', [normalizedEmail]);
 
         if (userResult.rows.length === 0) {
             return res.status(401).json({ message: 'メールアドレスまたはパスワードが正しくありません' });
@@ -910,15 +980,7 @@ app.post('/login', async (req, res) => {
         }
 
         // 3. 認証トークン(JWT)を生成
-        const payload = {
-            id: user.id,
-            username: user.username
-        };
-        const token = jwt.sign(
-            payload,
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' } // トークンの有効期限 (例: 1時間)
-        );
+        const token = createAuthToken(user);
 
         res.json({
             message: 'ログインに成功しました',

@@ -54,7 +54,7 @@ JWT_SECRET=this_is_a_super_secret_key
 WEATHER_API_KEY=your_openweathermap_api_key
 
 # 位置情報ログの最小記録間隔（秒）
-LOG_LOCATION_MIN_INTERVAL_SECONDS=300
+LOG_LOCATION_MIN_INTERVAL_SECONDS=1
 
 # 他ユーザーの地図表示座標を丸める桁数（3で約100m単位）
 LOCATION_PUBLIC_PRECISION_DECIMALS=3
