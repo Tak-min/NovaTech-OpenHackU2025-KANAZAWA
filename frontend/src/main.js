@@ -4,7 +4,6 @@ import "./style.css";
 const API_BASE = 'https://soralog-backend.onrender.com';
 const LOCATION_UPDATE_INTERVAL_MS  = 1 * 1000;
 
-console.log('[API] Final Base URL =', API_BASE);
 // ================== API ベースURL設定 end ==================
 
 const pages = document.querySelectorAll('main > section');
@@ -248,7 +247,6 @@ function ensureFooterIconPaths() {
     if (!should) return;
     const current = img.getAttribute('src');
     if (current !== should) {
-      console.log(`フッターアイコンパスを修正: ${page} ${current} → ${should}`);
       img.setAttribute('src', should);
     }
   });
@@ -284,7 +282,6 @@ function updateFooterIconStates() {
     const newSrc = isActive ? iconPaths[page].active : iconPaths[page].normal;
 
     if (img.getAttribute('src') !== newSrc) {
-      console.log(`フッターアイコン状態更新: ${page} ${isActive ? 'active' : 'normal'} → ${newSrc}`);
       img.setAttribute('src', newSrc);
     }
   });
@@ -392,17 +389,12 @@ function showHeaderImage(type) {
       headerTitle.style.display = 'block';
       headerTitle.textContent = getPageTitle(type);
     };
-    headerImg.onload = function () {
-      console.log(`ヘッダー画像を正常に読み込みました: ${images[type]}`);
-    };
     headerImg.src = images[type];
     headerImgContainer.style.display = 'block';
     headerTitle.style.display = 'none';
-    console.log(`ヘッダー画像を${type}に変更しました:`, images[type]);
   } else {
     headerImgContainer.style.display = 'none';
     headerTitle.style.display = 'block';
-    console.log('ヘッダー画像を非表示にして、タイトルを表示しました');
   }
 }
 
@@ -452,7 +444,6 @@ function setupFooterIconErrorHandling() {
     };
 
     icon.onload = function () {
-      console.log(`フッターアイコンを正常に読み込みました: ${this.src}`);
       // 正常に読み込まれた場合は表示を確実に有効化
       this.style.display = 'block';
       const button = this.parentElement;
@@ -475,11 +466,9 @@ function setupFooterIconErrorHandling() {
     if (icon.complete) {
       if (icon.naturalHeight === 0) {
         // 画像が壊れている場合
-        console.warn(`フッターアイコンが壊れています: ${icon.src}`);
         icon.onerror();
       } else {
         // 正常に読み込まれている場合
-        console.log(`フッターアイコンは既に読み込まれています: ${icon.src}`);
       }
     }
 
@@ -494,50 +483,37 @@ const registerForm = document.getElementById('register-form');
 registerForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (registerForm.dataset.submitting === 'true') return;
-  console.log('=== FRONTEND REGISTER ATTEMPT ===');
-  console.log('Register form submitted at:', new Date().toISOString());
 
   const username = document.getElementById('register-username').value;
   const email = document.getElementById('register-email').value;
   const password = document.getElementById('register-password').value;
   const genderElement = document.querySelector('input[name="gender"]:checked');
 
-  console.log('Form data:', {
-    username,
-    email,
-    passwordLength: password.length,
-    gender: genderElement ? genderElement.value : 'not selected'
-  });
 
   // クライアントサイドのバリデーション
   if (username.length < 3 || username.length > 50) {
-    console.log('Frontend validation failed: Invalid username length');
     notify('ユーザー名は3文字以上50文字以下で入力してください', 'warning');
     return;
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    console.log('Frontend validation failed: Invalid email format');
     notify('有効なメールアドレスを入力してください', 'warning');
     return;
   }
 
   if (password.length < 6) {
-    console.log('Frontend validation failed: Password too short');
     notify('パスワードは6文字以上で入力してください', 'warning');
     return;
   }
 
   // 性別が選択されているかチェック
   if (!genderElement) {
-    console.log('Frontend validation failed: Gender not selected');
     notify('性別を選択してください', 'warning');
     return;
   }
   const gender = genderElement.value;
 
-  console.log('Sending register request to:', `${API_BASE}/register`);
 
   setFormSubmitting(registerForm, true, '登録中...');
   try {
@@ -547,19 +523,14 @@ registerForm.addEventListener('submit', async (event) => {
       body: JSON.stringify({ username, email, password, gender }),
     });
 
-    console.log('Register response received - Status:', response.status);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
     const data = await readJsonSafe(response);
-    console.log('Register response data:', data);
 
     if (response.ok) {
-      console.log('Registration successful');
       notify(data.message || '登録しました。ログインしてください。', 'success');
       registerForm.reset();
       goToPage('page-login');
     } else {
-      console.log('Registration failed with status:', response.status);
       notify(data.message || '登録に失敗しました', 'error');
     }
   } catch (error) {
@@ -580,7 +551,6 @@ async function checkLoginStatus() {
   const token = localStorage.getItem('token');
 
   if (!token) {
-    console.log('No token found in localStorage. Redirecting to login page.');
     footerNav.classList.add('hidden');
     isLocationLoggingEnabled = false;
     lastLocationPostAt = 0;
@@ -590,7 +560,6 @@ async function checkLoginStatus() {
     return;
   }
 
-  console.log('Token found in localStorage:', token);
 
   try {
     const response = await fetch(`${API_BASE}/status`, {
@@ -600,16 +569,13 @@ async function checkLoginStatus() {
       }
     });
 
-    console.log('Response from /status endpoint:', response);
 
     if (response.ok) {
-      console.log('Session restored successfully.');
       pendingHomeStatusData = await readJsonSafe(response);
       footerNav.classList.remove('hidden');
       goToPage('page-home');
       refreshLocationLoggingFromSettings({ notifyErrors: false });
     } else {
-      console.log('Invalid session token. Response status:', response.status);
       localStorage.removeItem('token');
       footerNav.classList.add('hidden');
       isLocationLoggingEnabled = false;
@@ -746,11 +712,9 @@ async function renderHomeStatus(data) {
 async function updateHomePageStatus() {
   const token = localStorage.getItem('token');
   if (!token) {
-    console.log('updateHomePageStatus: トークンなし');
     return;
   }
 
-  console.log('updateHomePageStatus: ステータス取得開始');
   const requestId = ++homeStatusRequestId;
   renderHomeLoading();
 
@@ -764,7 +728,6 @@ async function updateHomePageStatus() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      console.log('updateHomePageStatus: レスポンス受信', response.status);
 
       if (!response.ok) {
         const errorData = await readJsonSafe(response);
@@ -775,9 +738,7 @@ async function updateHomePageStatus() {
     }
 
     if (requestId !== homeStatusRequestId) return;
-    console.log('updateHomePageStatus: 取得したデータ', data);
     await renderHomeStatus(data);
-    console.log('updateHomePageStatus: ステータス更新完了');
   } catch (error) {
     console.error('updateHomePageStatus: エラー発生', error);
     if (requestId === homeStatusRequestId) {
@@ -795,7 +756,6 @@ function updateWeatherGaugeFromScore(totalScore) {
   const weatherGaugeZero = document.getElementById('weather-gauge-zero');
 
   if (!weatherGaugeValue || !weatherGaugeBar || !weatherGaugeFill || !weatherGaugeZero) {
-    console.warn('updateWeatherGaugeFromScore: ゲージ要素が見つかりません');
     return;
   }
 
@@ -849,27 +809,21 @@ const loginForm = document.getElementById('login-form');
 loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (loginForm.dataset.submitting === 'true') return;
-  console.log('=== FRONTEND LOGIN ATTEMPT ===');
-  console.log('Login form submitted at:', new Date().toISOString());
   const email = document.getElementById('login-email').value;
   const password = document.getElementById('login-password').value;
 
   // クライアントサイドのバリデーション
   if (!email || !password) {
-    console.log('Frontend validation failed: Missing email or password');
     notify('メールアドレスとパスワードを入力してください', 'warning');
     return;
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    console.log('Frontend validation failed: Invalid email format');
     notify('有効なメールアドレスを入力してください', 'warning');
     return;
   }
 
-  console.log('Email:', email, 'Password length:', password.length);
-  console.log('Sending request to:', `${API_BASE}/login`);
 
   setFormSubmitting(loginForm, true, 'ログイン中...');
   try {
@@ -880,14 +834,10 @@ loginForm.addEventListener('submit', async (event) => {
       credentials: 'include', // 認証情報を含める
     });
 
-    console.log('Response received - Status:', response.status);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
     const data = await readJsonSafe(response);
-    console.log('Response data:', data);
 
     if (response.ok) {
-      console.log('Login successful, storing token');
       notify(data.message || 'ログインしました', 'success');
       localStorage.setItem('token', data.token);
 
@@ -895,9 +845,7 @@ loginForm.addEventListener('submit', async (event) => {
       footerNav.classList.remove('hidden');
       goToPage('page-home', { force: true });
       refreshLocationLoggingFromSettings({ notifyErrors: true });
-      console.log('loginForm: ログイン成功処理完了');
     } else {
-      console.log('Login failed with status:', response.status);
       notify(data.message || 'ログインに失敗しました', 'error');
     }
   } catch (error) {
@@ -934,7 +882,6 @@ document.getElementById('account-change-button')?.addEventListener('click', () =
 const logoutBtn = document.getElementById('logout-button');
 if (logoutBtn) {
   logoutBtn.addEventListener('click', () => {
-    console.log('Logout button clicked');
     localStorage.removeItem('token');
     isLocationLoggingEnabled = false;
     lastLocationPostAt = 0;
@@ -944,21 +891,17 @@ if (logoutBtn) {
     goToPage('page-login', { force: true });
     notify('ログアウトしました', 'success');
   });
-} else {
-  console.warn('logout-button not found in DOM');
 }
 
 async function postLocationToServer(latitude, longitude, { source = '位置情報送信', notifyErrors = false } = {}) {
   const token = localStorage.getItem('token');
   if (!token) {
-    console.log(`${source}スキップ: トークンがありません`);
     stopPeriodicLocationUpdate();
     stopLocationTracking();
     return { ok: false, skipped: true, reason: 'missing_token' };
   }
 
   if (!isLocationLoggingEnabled) {
-    console.log(`${source}スキップ: アプリ内の位置情報許可がOFFです`);
     return { ok: false, skipped: true, reason: 'disabled' };
   }
 
@@ -979,21 +922,14 @@ async function postLocationToServer(latitude, longitude, { source = '位置情�
 
   const now = Date.now();
   if (isLocationPostInFlight) {
-    console.log(`${source}スキップ: 位置情報送信中です`);
     return { ok: false, skipped: true, reason: 'in_flight' };
   }
 
   if (lastLocationPostAt && now - lastLocationPostAt < LOCATION_UPDATE_INTERVAL_MS) {
-    console.log(`${source}スキップ: 位置情報送信間隔内です`);
     return { ok: false, skipped: true, reason: 'client_interval' };
   }
 
   isLocationPostInFlight = true;
-  console.log(`${source}: 送信開始`, {
-    latitude: normalizedLatitude,
-    longitude: normalizedLongitude,
-    endpoint: `${API_BASE}/log-location`
-  });
 
   try {
     const response = await fetch(`${API_BASE}/log-location`, {
@@ -1011,7 +947,6 @@ async function postLocationToServer(latitude, longitude, { source = '位置情�
 
     if (response.ok) {
       lastLocationPostAt = Date.now();
-      console.log(`${source}: 送信成功`, data);
 
       if (!data.skipped && document.getElementById('page-home')?.classList.contains('hidden') === false) {
         updateHomePageStatus();
@@ -1044,26 +979,22 @@ async function postLocationToServer(latitude, longitude, { source = '位置情�
 function sendLocation() {
   const token = localStorage.getItem('token');
   if (!token) {
-    console.log('定期更新スキップ: トークンがありません');
     stopPeriodicLocationUpdate(); // トークンがなければ停止
     stopLocationTracking();
     return;
   }
 
   if (!isLocationLoggingEnabled) {
-    console.log('定期更新スキップ: アプリ内の位置情報許可がOFFです');
     stopPeriodicLocationUpdate();
     return;
   }
 
   if (!navigator.geolocation) {
-    console.log('定期更新スキップ: Geolocation API非対応');
     notify('このブラウザは位置情報に対応していません。', 'warning');
     stopPeriodicLocationUpdate();
     return;
   }
 
-  console.log('定期更新: 位置情報を取得・送信します');
   navigator.geolocation.getCurrentPosition(async (position) => {
     const { latitude, longitude } = position.coords;
     await postLocationToServer(latitude, longitude, { source: '定期更新', notifyErrors: true });
@@ -1088,15 +1019,12 @@ function sendLocation() {
 // 定期的な位置情報更新を開始する関数
 function startPeriodicLocationUpdate({ runImmediately = true } = {}) {
   if (!isLocationLoggingEnabled) {
-    console.log('定期更新は開始しません: アプリ内の位置情報許可がOFFです');
     return;
   }
   // 既に実行中の場合は何もしない
   if (locationUpdateIntervalId) {
-    console.log('定期更新は既に開始されています');
     return;
   }
-  console.log(`${Math.round(LOCATION_UPDATE_INTERVAL_MS / 1000)}秒ごとの定期更新を開始します`);
   if (runImmediately) sendLocation();
   locationUpdateIntervalId = setInterval(sendLocation, LOCATION_UPDATE_INTERVAL_MS);
 }
@@ -1104,7 +1032,6 @@ function startPeriodicLocationUpdate({ runImmediately = true } = {}) {
 // 定期的な位置情報更新を停止する関数
 function stopPeriodicLocationUpdate() {
   if (locationUpdateIntervalId) {
-    console.log('定期更新を停止します');
     clearInterval(locationUpdateIntervalId);
     locationUpdateIntervalId = null;
   }
@@ -1126,7 +1053,6 @@ async function refreshLocationLoggingFromSettings({ settings = null, notifyError
   isLocationLoggingEnabled = Boolean(loadedSettings.location_enabled);
 
   if (!isLocationLoggingEnabled) {
-    console.log('位置情報許可設定がOFFのため、追跡を停止します');
     lastLocationPostAt = 0;
     stopPeriodicLocationUpdate();
     stopLocationTracking();
@@ -1134,7 +1060,6 @@ async function refreshLocationLoggingFromSettings({ settings = null, notifyError
   }
 
   const permissionState = await checkLocationPermission();
-  console.log('位置情報ログ更新: ブラウザ権限', permissionState);
 
   if (permissionState === 'denied') {
     stopPeriodicLocationUpdate();
@@ -1185,7 +1110,6 @@ function initializeRankingTabs() {
       this.classList.add('active');
       this.setAttribute('aria-pressed', 'true');
 
-      console.log(`ランキングタブ切り替え: ${rankingType}`);
 
       // ランキングデータを更新
       updateRankingPage(rankingType);
@@ -1197,7 +1121,6 @@ async function updateRankingPage(type = currentRankingType) {
   const token = localStorage.getItem('token');
   const summaryElement = document.getElementById('ranking-summary');
   if (!token) {
-    console.log('ランキング更新スキップ: 認証トークンなし');
     renderRankingState(document.getElementById('ranking-table-body'), 'ログインするとランキングを確認できます');
     if (summaryElement) summaryElement.textContent = 'ログインが必要です';
     return;
@@ -1471,12 +1394,10 @@ function getMapUsers(apiUsers = []) {
 async function loadUserMarkers() {
   const token = localStorage.getItem('token');
   if (!token) {
-    console.log('ユーザーマーカー読み込みスキップ: 認証トークンなし');
     return;
   }
 
   try {
-    console.log('ユーザー位置情報を取得中...');
     setMapDataStatus('公開ユーザーを読み込んでいます...', 'info');
     const response = await fetch(`${API_BASE}/users-locations`, {
       method: 'GET',
@@ -1490,15 +1411,12 @@ async function loadUserMarkers() {
     }
 
     const data = await readJsonSafe(response);
-    console.log('取得したユーザー位置情報:', data);
 
     // 既存のマーカーをクリア（マップ未初期化時はスキップ）
     if (!Array.isArray(userMarkers)) {
       userMarkers = [];
     }
-    if (!leafletMap) {
-      console.warn('Leaflet map is not initialized yet. Skip clearing markers.');
-    } else {
+    if (leafletMap) {
       userMarkers.forEach(marker => leafletMap.removeLayer(marker));
     }
     userMarkers = [];
@@ -1525,7 +1443,6 @@ async function loadUserMarkers() {
     });
 
     upsertCurrentLocationMarker();
-    console.log(`${userMarkers.length}個のユーザーマーカーをマップに追加しました`);
 
   } catch (error) {
     console.error('ユーザーマーカーの読み込みに失敗しました:', error);
@@ -1556,7 +1473,6 @@ function initializeMap() {
 
   // コンテナ自体が初期化済みか、またはmapインスタンスが存在するかチェック
   if (container._leaflet_id || (leafletMap && leafletMap.remove)) {
-    console.log('Map already initialized. Invalidating size.');
     if (leafletMap) {
       leafletMap.invalidateSize(); // 表示を更新
       if (currentMapPosition) {
@@ -1570,7 +1486,6 @@ function initializeMap() {
     return;
   }
 
-  console.log('Initializing map for the first time.');
   leafletMap = L.map(container).setView(DEFAULT_MAP_CENTER, 5);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1590,7 +1505,6 @@ function startMapMarkersUpdate() {
   if (mapMarkersUpdateIntervalId) {
     return;
   }
-  console.log('マップマーカーの30秒ごとの定期更新を開始します');
   // 30秒ごとにマーカーを更新
   mapMarkersUpdateIntervalId = setInterval(() => {
     // マップページが表示されている場合のみ更新
@@ -1604,7 +1518,6 @@ function startMapMarkersUpdate() {
 // マップマーカーの定期更新を停止する関数
 function stopMapMarkersUpdate() {
   if (mapMarkersUpdateIntervalId) {
-    console.log('マップマーカーの定期更新を停止します');
     clearInterval(mapMarkersUpdateIntervalId);
     mapMarkersUpdateIntervalId = null;
   }
@@ -1620,18 +1533,6 @@ const imageInfo = document.getElementById('imageInfo');
 const fileName = document.getElementById('fileName');
 const fileSize = document.getElementById('fileSize');
 const imageDimensions = document.getElementById('imageDimensions');
-
-// 要素存在チェック
-if (!iconInput) console.warn('iconInput element not found');
-if (!iconPreview) console.warn('iconPreview element not found');
-if (!saveBtn) console.warn('saveBtn element not found');
-if (!resetBtn) console.warn('resetBtn element not found');
-if (!imageInfo) console.warn('imageInfo element not found');
-if (!fileName) console.warn('fileName element not found');
-if (!fileSize) console.warn('fileSize element not found');
-if (!imageDimensions) console.warn('imageDimensions element not found');
-
-
 
 // ページ読み込み時に保存されたアイコンを復元
 window.addEventListener('DOMContentLoaded', () => {
@@ -1659,8 +1560,7 @@ function checkLocalStorageSpace() {
     localStorage.setItem(testKey, testValue);
     localStorage.removeItem(testKey);
     return true;
-  } catch (e) {
-    console.warn('localStorageの容量が不足している可能性があります');
+  } catch (_) {
     return false;
   }
 }
@@ -1670,7 +1570,6 @@ checkLocalStorageSpace();
 
 // 設定ページの初期化関数
 function initializeSettingsPage() {
-  console.log('設定ページを初期化します');
 
   // アイコン機能の要素を取得
   const iconInput = document.getElementById('iconInput');
@@ -1738,7 +1637,6 @@ function initializeSettingsPage() {
       if (saveBtn) saveBtn.disabled = true;
       selectedImageData = null;
       notify('アイコン選択をリセットしました', 'success');
-      console.log('アイコンがリセットされました');
     });
   }
 
@@ -1846,7 +1744,6 @@ async function loadUserInfo() {
         userNameElement.textContent = `ユーザ名：${userData.username}`;
       }
 
-      console.log('ユーザー情報を取得しました:', userData);
     } else if (response.status === 401) {
       // 認証エラーの場合はログアウト
       console.error('認証エラー: トークンが無効です');
@@ -1886,7 +1783,6 @@ function initializeSettingsSwitches() {
   if (locationSwitch && !locationSwitch.hasAttribute('data-initialized')) {
     locationSwitch.setAttribute('data-initialized', 'true');
     locationSwitch.addEventListener('change', async function () {
-      console.log('=== 位置情報許可設定変更イベント開始 ===');
       const previousValue = !this.checked;
 
       if (this.checked) {
@@ -1912,7 +1808,6 @@ function initializeSettingsSwitches() {
       }
       this.disabled = false;
       await updateLocationSwitch();
-      console.log('=== 位置情報許可設定変更イベント終了 ===');
     });
   }
 }
@@ -2007,7 +1902,6 @@ async function saveUserSettings({ notifyOnSuccess = false, successMessage = '設
     });
 
     if (response.ok) {
-      console.log('設定が保存されました');
       lastUserSettings = settings;
       setSettingsSaveStatus(successMessage, 'success');
       if (notifyOnSuccess) notify(successMessage, 'success');
@@ -2061,8 +1955,6 @@ async function saveIconToServer(imageData) {
     const base64Data = compressedImageData.split(',')[1];
     const fileSize = Math.round((base64Data.length * 3) / 4);
 
-    console.log(`元のサイズ: ${Math.round((imageData.length * 3) / 4)} bytes`);
-    console.log(`圧縮後のサイズ: ${fileSize} bytes`);
 
     const response = await fetch(`${API_BASE}/user/icon`, {
       method: 'POST',
@@ -2088,7 +1980,6 @@ async function saveIconToServer(imageData) {
         }, 2000);
       }
       notify('アイコンを保存しました', 'success');
-      console.log('アイコンが保存されました');
     } else {
       const errorData = await response.json();
       notify(`保存に失敗しました: ${errorData.message || '不明なエラー'}`, 'error');
@@ -2201,10 +2092,8 @@ async function loadSavedIcon() {
       };
 
       reader.readAsDataURL(blob);
-      console.log('保存されたアイコンを読み込みました');
     } else if (response.status === 204 || response.status === 404) {
       // アイコンが存在しない場合（204 No Content / 404 Not Found）は静かに無視
-      console.log('アイコンが未設定（No Content / Not Found）');
     } else {
       console.error('アイコンの取得に失敗しました');
     }
@@ -2215,9 +2104,7 @@ async function loadSavedIcon() {
 
 // 位置情報追跡を開始する関数
 function startLocationTracking() {
-  console.log('startLocationTracking: 位置情報追跡開始');
   if (!isLocationLoggingEnabled) {
-    console.log('startLocationTracking: 位置情報許可がOFFのため開始しません');
     return;
   }
   if (navigator.geolocation) {
@@ -2225,22 +2112,14 @@ function startLocationTracking() {
     if (locationWatchId !== null) {
       navigator.geolocation.clearWatch(locationWatchId);
       locationWatchId = null;
-      console.log('startLocationTracking: 既存の追跡を停止');
     }
 
-    console.log('startLocationTracking: watchPositionリクエスト送信');
     locationWatchId = navigator.geolocation.watchPosition(
       function (position) {
         const latitude = position.coords.latitude;
         const longitude = position.coords.longitude;
         const accuracy = position.coords.accuracy;
 
-        console.log('位置情報更新:', {
-          latitude: latitude.toFixed(6),
-          longitude: longitude.toFixed(6),
-          accuracy: accuracy.toFixed(1) + 'm',
-          timestamp: new Date(position.timestamp).toLocaleTimeString()
-        });
 
         // 位置情報をサーバーに送信
         sendLocationToServer(latitude, longitude);
@@ -2256,7 +2135,6 @@ function startLocationTracking() {
       }
     );
 
-    console.log('startLocationTracking: Watch ID割り当て', locationWatchId);
   } else {
     console.error('startLocationTracking: Geolocation API非対応');
     notify('このブラウザは位置情報に対応していません。', 'warning');
@@ -2289,51 +2167,39 @@ function handleLocationError(error) {
         }
       }
       updateLocationSwitch();
-      console.log('handleLocationError: パーミッション拒否');
       break;
     case error.POSITION_UNAVAILABLE:
       message = '位置情報を取得できませんでした。\nGPSが有効になっているか確認してください。';
       shouldRetry = true;
-      console.log('handleLocationError: 位置情報利用不可');
       break;
     case error.TIMEOUT:
       message = '位置情報の取得がタイムアウトしました。\nネットワーク接続やGPS信号を確認してください。\n\n再度試行します...';
       shouldRetry = true;
-      console.log('handleLocationError: タイムアウト');
       break;
     default:
       message = '位置情報の取得中に不明なエラーが発生しました。';
       shouldRetry = true;
-      console.log('handleLocationError: 不明なエラー');
       break;
   }
 
-  console.log('handleLocationError: エラー処理決定', { shouldRetry, message: message.substring(0, 50) + '...' });
 
   // タイムアウトや不明なエラーの場合は自動リトライ
   if (shouldRetry && locationWatchId !== null) {
-    console.log('handleLocationError: 3秒後にリトライ開始');
     setTimeout(() => {
-      console.log('handleLocationError: リトライ実行');
       // 現在の追跡を停止してから再開
       stopLocationTracking();
       setTimeout(() => startLocationTracking(), 1000);
     }, 3000);
   } else {
-    console.log('handleLocationError: アラート表示');
     notify(message, 'error');
   }
 }
 
 // 位置情報追跡を停止する関数
 function stopLocationTracking() {
-  console.log('stopLocationTracking: 位置情報追跡停止開始', { currentWatchId: locationWatchId });
   if (locationWatchId !== null) {
     navigator.geolocation.clearWatch(locationWatchId);
     locationWatchId = null;
-    console.log('stopLocationTracking: 位置情報追跡停止完了');
-  } else {
-    console.log('stopLocationTracking: 既に停止済み');
   }
 }
 
@@ -2385,7 +2251,6 @@ async function updateLocationSwitch() {
         locationSwitch.title = '';
       }
     })
-    .catch((err) => {
-      console.warn('位置情報パーミッション状態の取得に失敗:', err);
+    .catch(() => {
     });
 }

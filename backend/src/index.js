@@ -292,7 +292,6 @@ const extraOrigins = (process.env.FRONTEND_ORIGINS || '')
     .filter(Boolean);
 const allowedOrigins = Array.from(new Set([...defaultOrigins, ...extraOrigins]));
 
-console.log('CORS allowed origins:', allowedOrigins);
 
 app.use(cors({
     origin: (origin, callback) => {
@@ -301,7 +300,6 @@ app.use(cors({
         if (allowedOrigins.includes(origin)) {
             return callback(null, true);
         }
-        console.warn('Blocked by CORS:', origin);
         return callback(new Error('Not allowed by CORS'));
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -324,7 +322,6 @@ const pool = new Pool({
 const createTables = async () => {
     const client = await pool.connect();
     try {
-        console.log('Creating users table...');
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -335,16 +332,13 @@ const createTables = async () => {
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log('Users table created or already exists.');
 
         // 既存テーブルにgenderカラムが存在しない場合、追加
         try {
             await client.query(`
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(10);
             `);
-            console.log('Gender column added or already exists.');
-        } catch (alterError) {
-            console.log('Gender column alter attempted:', alterError.message);
+        } catch (_) {
         }
 
         // 既存テーブルにmissed_train_countカラムが存在しない場合、追加
@@ -352,9 +346,7 @@ const createTables = async () => {
             await client.query(`
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS missed_train_count INTEGER DEFAULT 0;
             `);
-            console.log('missed_train_count column added or already exists.');
-        } catch (alterError) {
-            console.log('missed_train_count column alter attempted:', alterError.message);
+        } catch (_) {
         }
 
         // 既存テーブルにlast_missed_train_atカラムが存在しない場合、追加
@@ -362,9 +354,7 @@ const createTables = async () => {
             await client.query(`
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_missed_train_at TIMESTAMP WITH TIME ZONE;
             `);
-            console.log('last_missed_train_at column added or already exists.');
-        } catch (alterError) {
-            console.log('last_missed_train_at column alter attempted:', alterError.message);
+        } catch (_) {
         }
 
         // 既存テーブルにscoreカラムが存在しない場合、追加（累積スコア保存用）
@@ -372,12 +362,9 @@ const createTables = async () => {
             await client.query(`
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS score NUMERIC(10,2) DEFAULT 0;
             `);
-            console.log('score column added or already exists.');
-        } catch (alterError) {
-            console.log('score column alter attempted:', alterError.message);
+        } catch (_) {
         }
 
-        console.log('Creating locations table...');
         await client.query(`
             CREATE TABLE IF NOT EXISTS locations (
                 id SERIAL PRIMARY KEY,
@@ -403,9 +390,7 @@ const createTables = async () => {
                 END IF;
             END $$;
         `);
-        console.log('Locations table created or already exists.');
 
-        console.log('Creating user_settings table...');
         await client.query(`
             CREATE TABLE IF NOT EXISTS user_settings (
                 id SERIAL PRIMARY KEY,
@@ -418,9 +403,7 @@ const createTables = async () => {
                 UNIQUE(user_id)
             );
         `);
-        console.log('User settings table created or already exists.');
 
-        console.log('Creating user_icons table...');
         await client.query(`
             CREATE TABLE IF NOT EXISTS user_icons (
                 id SERIAL PRIMARY KEY,
@@ -432,9 +415,7 @@ const createTables = async () => {
                 UNIQUE(user_id)
             );
         `);
-        console.log('User icons table created or already exists.');
 
-        console.log('All tables created successfully.');
     } catch (err) {
         console.error("Error creating tables:", err.stack);
         throw err; // エラーを投げてサーバー起動を停止
@@ -448,20 +429,14 @@ const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN" の形式
 
-    console.log('Auth header:', authHeader); // デバッグログ
-    console.log('Extracted token:', token ? '***' : null); // トークンを隠してログ出力
-
     if (token == null) {
-        console.log('No token provided'); // デバッグログ
         return res.sendStatus(401); // Unauthorized
     }
 
     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
         if (err) {
-            console.log('Token verification failed:', err.message); // デバッグログ
             return res.sendStatus(403); // Forbidden
         }
-        console.log('Token verified for user:', user.username); // デバッグログ
         req.user = user; // リクエストオブジェクトにユーザー情報を付与
         next(); // 次の処理へ
     });
@@ -547,7 +522,6 @@ app.post('/log-location', authenticateToken, async (req, res) => {
                 station.longitude
             );
             if (!Number.isNaN(distance) && distance <= STATION_RADIUS_METERS) {
-                console.log(`${station.name}の半径${STATION_RADIUS_METERS}m以内にいます`);
                 const updateUserQuery = `
                     UPDATE users
                     SET 
@@ -558,10 +532,7 @@ app.post('/log-location', authenticateToken, async (req, res) => {
                         (last_missed_train_at IS NULL OR last_missed_train_at < NOW() - INTERVAL '${MISS_COOLDOWN_MINUTES} minutes')
                     RETURNING *;
                 `;
-                const updateUser = await client.query(updateUserQuery, [userId]);
-                if (updateUser.rowCount > 0) {
-                    console.log(`ユーザーID${userId}の乗り遅れ回数をインクリメント`);
-                }
+                await client.query(updateUserQuery, [userId]);
                 break; // 最初にヒットした駅で打ち切り
             }
         }
@@ -573,17 +544,10 @@ app.post('/log-location', authenticateToken, async (req, res) => {
         try {
             const apiKey = process.env.WEATHER_API_KEY;
             const apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${normalizedLatitude}&lon=${normalizedLongitude}&appid=${apiKey}`;
-            console.log('天気APIリクエスト開始:', { latitude: normalizedLatitude, longitude: normalizedLongitude, apiUrl: apiUrl.replace(apiKey, '***') });
             const weatherResponse = await axios.get(apiUrl, { timeout: 8000 });
             const weatherData = weatherResponse.data;
             const weatherCode = Number(weatherData.weather?.[0]?.id);
             city = weatherData.name || null;
-            console.log('天気APIレスポンス受信:', {
-                city,
-                weatherCode,
-                description: weatherData.weather?.[0]?.description,
-                temperature: weatherData.main?.temp
-            });
 
             // OpenWeatherMapの天候コードから、アプリ内のカテゴリに変換
             if (weatherCode >= 200 && weatherCode < 300) {
@@ -856,54 +820,43 @@ app.get('/ranking', authenticateToken, async (req, res) => {
 // [POST] /register - 新規ユーザー登録
 app.post('/register', async (req, res) => {
     try {
-        console.log('=== REGISTER ATTEMPT ===');
-        console.log('Register endpoint hit at:', new Date().toISOString());
         const { username, email, password, gender } = req.body;
-        console.log('Request body:', { username, email, passwordLength: password ? password.length : 0, gender });
 
         // 入力バリデーション
         if (!username || !email || !password) {
-            console.log('Validation failed: Missing required fields');
             return res.status(400).json({ message: '必須項目を入力してください' });
         }
 
         // ユーザー名の長さチェック
         if (username.length < 3 || username.length > 50) {
-            console.log('Validation failed: Invalid username length');
             return res.status(400).json({ message: 'ユーザー名は3文字以上50文字以下で入力してください' });
         }
 
         // メールアドレスの形式チェック
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            console.log('Validation failed: Invalid email format');
             return res.status(400).json({ message: '有効なメールアドレスを入力してください' });
         }
 
         // パスワードの長さチェック
         if (password.length < 6) {
-            console.log('Validation failed: Password too short');
             return res.status(400).json({ message: 'パスワードは6文字以上で入力してください' });
         }
 
         // 性別のバリデーション
         const validGenders = ['male', 'female', 'other'];
         if (gender && !validGenders.includes(gender)) {
-            console.log('Validation failed: Invalid gender');
             return res.status(400).json({ message: '性別はmale、femaleのいずれかを選択してください' });
         }
 
-        console.log('Creating password hash...');
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
-        console.log('Inserting user into database...');
         const newUser = await pool.query(
             'INSERT INTO users (username, email, password_hash, gender) VALUES ($1, $2, $3, $4) RETURNING id, username',
             [username, email, passwordHash, gender]
         );
 
-        console.log('User registered successfully:', newUser.rows[0].username);
         res.status(201).json({
             message: 'ユーザー登録が成功しました',
             user: newUser.rows[0]
@@ -916,11 +869,9 @@ app.post('/register', async (req, res) => {
         console.error('Error stack:', error.stack);
 
         if (error.code === '23505') {
-            console.log('Duplicate key error - user already exists');
             return res.status(409).json({ message: 'このメールアドレスまたはユーザー名は既に使用されています' });
         }
         if (error.code === 'ECONNREFUSED') {
-            console.log('Database connection refused');
             return res.status(503).json({ message: 'データベース接続エラー' });
         }
         res.status(500).json({ message: 'サーバーエラーが発生しました' });
@@ -930,48 +881,35 @@ app.post('/register', async (req, res) => {
 // [POST] /login - ログイン
 app.post('/login', async (req, res) => {
     try {
-        console.log('=== LOGIN ATTEMPT ===');
-        console.log('Login endpoint hit at:', new Date().toISOString());
         const { email, password } = req.body;
-        console.log('Request body:', { email, password: password ? '***' : 'empty' });
 
         // 入力バリデーション
         if (!email || !password) {
-            console.log('Validation failed: Missing email or password');
             return res.status(400).json({ message: 'メールアドレスとパスワードを入力してください' });
         }
 
         // メールアドレスの形式チェック
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            console.log('Validation failed: Invalid email format');
             return res.status(400).json({ message: '有効なメールアドレスを入力してください' });
         }
 
-        console.log('Querying database for user:', email);
         // 1. メールアドレスでユーザーを検索
         const userResult = await pool.query('SELECT id, username, password_hash FROM users WHERE email = $1', [email]);
-        console.log('Database query result - rows found:', userResult.rows.length);
 
         if (userResult.rows.length === 0) {
-            console.log('User not found for email:', email);
             return res.status(401).json({ message: 'メールアドレスまたはパスワードが正しくありません' });
         }
         const user = userResult.rows[0];
-        console.log('User found:', { id: user.id, username: user.username });
 
         // 2. パスワードが正しいか照合
-        console.log('Comparing passwords...');
         const isPasswordCorrect = await bcrypt.compare(password, user.password_hash);
-        console.log('Password comparison result:', isPasswordCorrect);
 
         if (!isPasswordCorrect) {
-            console.log('Incorrect password for user:', user.username);
             return res.status(401).json({ message: 'メールアドレスまたはパスワードが正しくありません' });
         }
 
         // 3. 認証トークン(JWT)を生成
-        console.log('Generating JWT token...');
         const payload = {
             id: user.id,
             username: user.username
@@ -981,9 +919,7 @@ app.post('/login', async (req, res) => {
             process.env.JWT_SECRET,
             { expiresIn: '1h' } // トークンの有効期限 (例: 1時間)
         );
-        console.log('JWT token generated successfully');
 
-        console.log('Login successful for user:', user.username);
         res.json({
             message: 'ログインに成功しました',
             token: token
@@ -1143,16 +1079,11 @@ app.get('/user/info', authenticateToken, async (req, res) => {
 
 // サーバー起動とDB接続確認
 app.listen(PORT, async () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log(`CORS origin set to: https://soralog-qnka.onrender.com`);
 
     try {
         const client = await pool.connect();
-        console.log('Database connection successful!');
-        console.log('Database URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
         client.release();
         await createTables();
-        console.log('Server startup completed successfully');
     } catch (err) {
         console.error('Database connection error:', err.stack);
         console.error('Please check your DATABASE_URL environment variable');
