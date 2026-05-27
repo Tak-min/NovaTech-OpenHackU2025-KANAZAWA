@@ -7,11 +7,21 @@ const API_BASE = window.__API_BASE__
     ? 'http://localhost:3000'
     : 'https://soralog-backend.onrender.com');
 const LOCATION_UPDATE_INTERVAL_MS  = 1 * 1000;
+const LOCATION_POST_GUARD_MS = 800;
 const GEOLOCATION_OPTIONS = {
   enableHighAccuracy: true,
   timeout: 10000,
   maximumAge: 0
 };
+const WATCH_POSITION_OPTIONS = {
+  enableHighAccuracy: true,
+  timeout: 20000,
+  maximumAge: 10000
+};
+const LOCATION_POSITION_STALE_MS = 30 * 60 * 1000;
+const LOCATION_REQUEST_RETRY_MS = 8 * 1000;
+const LOCATION_ERROR_TOAST_COOLDOWN_MS = 30 * 1000;
+const MAX_VISIBLE_TOASTS = 2;
 
 // ================== API ベースURL設定 end ==================
 
@@ -28,13 +38,31 @@ let isLocationLoggingEnabled = false;
 let lastUserSettings = null;
 let lastLocationPostAt = 0;
 let isLocationPostInFlight = false;
+let lastKnownPosition = null;
+let lastKnownPositionAt = 0;
+let isGeolocationRequestInFlight = false;
+let lastGeolocationRequestAt = 0;
+let lastLocationErrorToastAt = 0;
 
 function showToast(message, type = 'info') {
   if (!toastRoot || !message) return;
 
+  const normalizedMessage = String(message).replace(/\s+/g, ' ').trim();
+  if (!normalizedMessage) return;
+
+  const existingDuplicate = Array.from(toastRoot.children).some(
+    toast => toast.textContent === normalizedMessage
+  );
+  if (existingDuplicate) return;
+
+  const visibleToasts = Array.from(toastRoot.children);
+  while (visibleToasts.length >= MAX_VISIBLE_TOASTS) {
+    visibleToasts.shift()?.remove();
+  }
+
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.textContent = String(message).replace(/\s+/g, ' ').trim();
+  toast.textContent = normalizedMessage;
   toastRoot.appendChild(toast);
 
   requestAnimationFrame(() => toast.classList.add('show'));
@@ -581,6 +609,88 @@ function describeLocationError(error) {
   return '位置情報を取得できませんでした。あとから設定でONにできます。';
 }
 
+function rememberPosition(position) {
+  if (!position?.coords) return null;
+
+  const latitude = Number(position.coords.latitude);
+  const longitude = Number(position.coords.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  lastKnownPosition = {
+    latitude,
+    longitude,
+    accuracy: Number(position.coords.accuracy || 0),
+    timestamp: position.timestamp || Date.now()
+  };
+  lastKnownPositionAt = Date.now();
+  return lastKnownPosition;
+}
+
+function hasRecentKnownPosition() {
+  return Boolean(lastKnownPosition && Date.now() - lastKnownPositionAt <= LOCATION_POSITION_STALE_MS);
+}
+
+function notifyLocationError(message, type = 'warning') {
+  const now = Date.now();
+  if (now - lastLocationErrorToastAt < LOCATION_ERROR_TOAST_COOLDOWN_MS) return;
+  lastLocationErrorToastAt = now;
+  notify(message, type);
+}
+
+function disableLocationLoggingFromPermissionError() {
+  isLocationLoggingEnabled = false;
+  lastLocationPostAt = 0;
+  lastKnownPosition = null;
+  lastKnownPositionAt = 0;
+  stopPeriodicLocationUpdate();
+  stopLocationTracking();
+
+  const locationSwitch = document.getElementById('location-switch');
+  if (locationSwitch) {
+    locationSwitch.checked = false;
+    saveUserSettings();
+  }
+  updateLocationSwitch();
+}
+
+function handleGeolocationFailure(error, { notifyErrors = false } = {}) {
+  if (error?.code === error.PERMISSION_DENIED) {
+    disableLocationLoggingFromPermissionError();
+    notifyLocationError(describeLocationError(error), 'warning');
+    return;
+  }
+
+  if (notifyErrors && !hasRecentKnownPosition()) {
+    notifyLocationError(describeLocationError(error), 'warning');
+  }
+}
+
+async function requestPositionForLogging({ notifyErrors = false, force = false } = {}) {
+  if (!navigator.geolocation) {
+    if (notifyErrors) notifyLocationError('このブラウザは位置情報に対応していません。', 'warning');
+    return null;
+  }
+
+  const now = Date.now();
+  if (isGeolocationRequestInFlight) return null;
+  if (!force && now - lastGeolocationRequestAt < LOCATION_REQUEST_RETRY_MS) return null;
+
+  isGeolocationRequestInFlight = true;
+  lastGeolocationRequestAt = now;
+
+  try {
+    const position = await getCurrentPositionOnce(GEOLOCATION_OPTIONS);
+    return rememberPosition(position);
+  } catch (error) {
+    handleGeolocationFailure(error, { notifyErrors });
+    return null;
+  } finally {
+    isGeolocationRequestInFlight = false;
+  }
+}
+
 async function promptAndEnableLocationLogging() {
   const shouldEnable = await showLocationPermissionPrompt();
   if (!shouldEnable) {
@@ -590,6 +700,7 @@ async function promptAndEnableLocationLogging() {
 
   try {
     const position = await getCurrentPositionOnce();
+    const rememberedPosition = rememberPosition(position);
     const locationSwitch = document.getElementById('location-switch');
     if (locationSwitch) locationSwitch.checked = true;
 
@@ -606,10 +717,12 @@ async function promptAndEnableLocationLogging() {
 
     isLocationLoggingEnabled = true;
     lastLocationPostAt = 0;
-    await postLocationToServer(position.coords.latitude, position.coords.longitude, {
-      source: '登録直後の位置情報',
-      notifyErrors: true
-    });
+    if (rememberedPosition) {
+      await postLocationToServer(rememberedPosition.latitude, rememberedPosition.longitude, {
+        source: '登録直後の位置情報',
+        notifyErrors: true
+      });
+    }
     startLocationTracking();
     startPeriodicLocationUpdate({ runImmediately: false });
     updateLocationSwitch();
@@ -707,6 +820,8 @@ async function checkLoginStatus() {
     footerNav.classList.add('hidden');
     isLocationLoggingEnabled = false;
     lastLocationPostAt = 0;
+    lastKnownPosition = null;
+    lastKnownPositionAt = 0;
     stopPeriodicLocationUpdate();
     stopLocationTracking();
     goToPage('page-login');
@@ -733,6 +848,8 @@ async function checkLoginStatus() {
       footerNav.classList.add('hidden');
       isLocationLoggingEnabled = false;
       lastLocationPostAt = 0;
+      lastKnownPosition = null;
+      lastKnownPositionAt = 0;
       stopPeriodicLocationUpdate();
       stopLocationTracking();
       goToPage('page-login');
@@ -743,6 +860,8 @@ async function checkLoginStatus() {
     footerNav.classList.add('hidden');
     isLocationLoggingEnabled = false;
     lastLocationPostAt = 0;
+    lastKnownPosition = null;
+    lastKnownPositionAt = 0;
     stopPeriodicLocationUpdate();
     stopLocationTracking();
     goToPage('page-login');
@@ -1038,6 +1157,8 @@ if (logoutBtn) {
     localStorage.removeItem('token');
     isLocationLoggingEnabled = false;
     lastLocationPostAt = 0;
+    lastKnownPosition = null;
+    lastKnownPositionAt = 0;
     stopPeriodicLocationUpdate(); // 定期更新を停止
     stopLocationTracking(); // 位置情報追跡を停止
     stopMapMarkersUpdate(); // マップマーカー更新を停止
@@ -1069,7 +1190,7 @@ async function postLocationToServer(latitude, longitude, { source = '位置情�
     normalizedLongitude > 180
   ) {
     console.error(`${source}スキップ: 緯度経度が不正です`, { latitude, longitude });
-    if (notifyErrors) notify('取得した位置情報の値が不正です', 'error');
+    if (notifyErrors) notifyLocationError('取得した位置情報の値が不正です', 'error');
     return { ok: false, skipped: true, reason: 'invalid_coordinates' };
   }
 
@@ -1078,7 +1199,7 @@ async function postLocationToServer(latitude, longitude, { source = '位置情�
     return { ok: false, skipped: true, reason: 'in_flight' };
   }
 
-  if (lastLocationPostAt && now - lastLocationPostAt < LOCATION_UPDATE_INTERVAL_MS) {
+  if (lastLocationPostAt && now - lastLocationPostAt < LOCATION_POST_GUARD_MS) {
     return { ok: false, skipped: true, reason: 'client_interval' };
   }
 
@@ -1121,7 +1242,7 @@ async function postLocationToServer(latitude, longitude, { source = '位置情�
     throw new Error(data.message || '位置情報送信に失敗しました');
   } catch (error) {
     console.error(`${source}: 送信エラー`, error);
-    if (notifyErrors) notify('位置情報ログの送信に失敗しました', 'error');
+    if (notifyErrors) notifyLocationError('位置情報ログの送信に失敗しました', 'error');
     return { ok: false, error };
   } finally {
     isLocationPostInFlight = false;
@@ -1129,45 +1250,45 @@ async function postLocationToServer(latitude, longitude, { source = '位置情�
 }
 
 // 定期的に位置情報を送信する関数
-function sendLocation() {
+async function sendLocation() {
   const token = localStorage.getItem('token');
   if (!token) {
     stopPeriodicLocationUpdate(); // トークンがなければ停止
     stopLocationTracking();
+    lastKnownPosition = null;
+    lastKnownPositionAt = 0;
     return;
   }
 
   if (!isLocationLoggingEnabled) {
     stopPeriodicLocationUpdate();
+    lastKnownPosition = null;
+    lastKnownPositionAt = 0;
     return;
   }
 
   if (!navigator.geolocation) {
     notify('このブラウザは位置情報に対応していません。', 'warning');
     stopPeriodicLocationUpdate();
+    lastKnownPosition = null;
+    lastKnownPositionAt = 0;
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(async (position) => {
-    const { latitude, longitude } = position.coords;
-    await postLocationToServer(latitude, longitude, { source: '定期更新', notifyErrors: true });
-  }, (error) => {
-    if (error.code === error.PERMISSION_DENIED) {
-      notify('ブラウザ側で位置情報が拒否されました。設定画面で状態を確認してください。', 'warning');
-      isLocationLoggingEnabled = false;
-      lastLocationPostAt = 0;
-      stopPeriodicLocationUpdate();
-      stopLocationTracking();
-      const locationSwitch = document.getElementById('location-switch');
-      if (locationSwitch) {
-        locationSwitch.checked = false;
-        saveUserSettings();
-      }
-      updateLocationSwitch();
-    } else {
-      notify(describeLocationError(error), 'warning');
-    }
-  }, GEOLOCATION_OPTIONS);
+  if (!hasRecentKnownPosition()) {
+    const position = await requestPositionForLogging({ notifyErrors: true });
+    if (!position) return;
+    await postLocationToServer(position.latitude, position.longitude, {
+      source: '定期更新',
+      notifyErrors: true
+    });
+    return;
+  }
+
+  await postLocationToServer(lastKnownPosition.latitude, lastKnownPosition.longitude, {
+    source: '定期更新',
+    notifyErrors: true
+  });
 }
 
 // 定期的な位置情報更新を開始する関数
@@ -1197,6 +1318,8 @@ async function refreshLocationLoggingFromSettings({ settings = null, notifyError
   if (!loadedSettings) {
     isLocationLoggingEnabled = false;
     lastLocationPostAt = 0;
+    lastKnownPosition = null;
+    lastKnownPositionAt = 0;
     stopPeriodicLocationUpdate();
     stopLocationTracking();
     if (notifyErrors) notify('位置情報設定を確認できませんでした', 'error');
@@ -1208,6 +1331,8 @@ async function refreshLocationLoggingFromSettings({ settings = null, notifyError
 
   if (!isLocationLoggingEnabled) {
     lastLocationPostAt = 0;
+    lastKnownPosition = null;
+    lastKnownPositionAt = 0;
     stopPeriodicLocationUpdate();
     stopLocationTracking();
     return loadedSettings;
@@ -1216,6 +1341,8 @@ async function refreshLocationLoggingFromSettings({ settings = null, notifyError
   const permissionState = await checkLocationPermission();
 
   if (permissionState === 'denied') {
+    lastKnownPosition = null;
+    lastKnownPositionAt = 0;
     stopPeriodicLocationUpdate();
     stopLocationTracking();
     if (notifyErrors) {
@@ -2270,20 +2397,16 @@ function startLocationTracking() {
 
     locationWatchId = navigator.geolocation.watchPosition(
       function (position) {
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
+        const rememberedPosition = rememberPosition(position);
+        if (!rememberedPosition) return;
 
         // 位置情報をサーバーに送信
-        sendLocationToServer(latitude, longitude);
+        sendLocationToServer(rememberedPosition.latitude, rememberedPosition.longitude);
       },
       function (error) {
         handleLocationError(error);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000, // 15秒のタイムアウト
-        maximumAge: 1000
-      }
+      WATCH_POSITION_OPTIONS
     );
 
   } else {
@@ -2293,50 +2416,7 @@ function startLocationTracking() {
 
 // 位置情報エラーを処理する関数
 function handleLocationError(error) {
-  let message = '';
-  let shouldRetry = false;
-
-  switch (error.code) {
-    case error.PERMISSION_DENIED:
-      message = 'ブラウザ側で位置情報が拒否されました。設定画面で状態を確認してください。';
-      isLocationLoggingEnabled = false;
-      lastLocationPostAt = 0;
-      stopPeriodicLocationUpdate();
-      stopLocationTracking();
-      {
-        const locationSwitch = document.getElementById('location-switch');
-        if (locationSwitch) {
-          locationSwitch.checked = false;
-          saveUserSettings();
-        }
-      }
-      updateLocationSwitch();
-      break;
-    case error.POSITION_UNAVAILABLE:
-      message = '位置情報を取得できませんでした。\nGPSが有効になっているか確認してください。';
-      shouldRetry = true;
-      break;
-    case error.TIMEOUT:
-      message = '位置情報の取得がタイムアウトしました。\nネットワーク接続やGPS信号を確認してください。\n\n再度試行します...';
-      shouldRetry = true;
-      break;
-    default:
-      message = '位置情報の取得中に不明なエラーが発生しました。';
-      shouldRetry = true;
-      break;
-  }
-
-
-  // タイムアウトや不明なエラーの場合は自動リトライ
-  if (shouldRetry && locationWatchId !== null) {
-    setTimeout(() => {
-      // 現在の追跡を停止してから再開
-      stopLocationTracking();
-      setTimeout(() => startLocationTracking(), 1000);
-    }, 3000);
-  } else {
-    notify(message, 'error');
-  }
+  handleGeolocationFailure(error, { notifyErrors: !hasRecentKnownPosition() });
 }
 
 // 位置情報追跡を停止する関数
