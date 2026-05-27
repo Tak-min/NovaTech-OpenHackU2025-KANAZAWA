@@ -580,7 +580,6 @@ async function completeLogin(token) {
   localStorage.setItem('token', token);
   footerNav.classList.remove('hidden');
   goToPage('page-home', { force: true });
-  updateHomePageStatus();
   return true;
 }
 
@@ -726,7 +725,6 @@ async function promptAndEnableLocationLogging() {
     startLocationTracking();
     startPeriodicLocationUpdate({ runImmediately: false });
     updateLocationSwitch();
-    updateHomePageStatus();
     notify('位置情報ログを開始しました', 'success');
   } catch (error) {
     notify(describeLocationError(error), 'warning');
@@ -1221,11 +1219,6 @@ async function postLocationToServer(latitude, longitude, { source = '位置情�
 
     if (response.ok) {
       lastLocationPostAt = Date.now();
-
-      if (!data.skipped && document.getElementById('page-home')?.classList.contains('hidden') === false) {
-        updateHomePageStatus();
-      }
-
       return { ok: true, data };
     }
 
