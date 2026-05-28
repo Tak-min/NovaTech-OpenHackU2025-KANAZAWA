@@ -6,23 +6,20 @@ const initDb = async () => {
   try {
     await client.query('BEGIN');
 
+    // ─── テーブル作成（全カラムを1つのDDLで定義） ───
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(50) UNIQUE NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
-        gender VARCHAR(20) DEFAULT 'unspecified',
+        gender VARCHAR(20) NOT NULL DEFAULT 'unspecified',
         score NUMERIC(10,2) NOT NULL DEFAULT 0,
         created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
-    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(20) DEFAULT 'unspecified';`);
-    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS score NUMERIC(10,2) NOT NULL DEFAULT 0;`);
-    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
-    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS weather_logs (
@@ -42,8 +39,8 @@ const initDb = async () => {
       CREATE TABLE IF NOT EXISTS user_settings (
         id SERIAL PRIMARY KEY,
         user_id INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        location_logging_enabled BOOLEAN,
-        location_visibility_enabled BOOLEAN,
+        location_logging_enabled BOOLEAN NOT NULL DEFAULT true,
+        location_visibility_enabled BOOLEAN NOT NULL DEFAULT false,
         notification_enabled BOOLEAN NOT NULL DEFAULT true,
         introduction_text TEXT NOT NULL DEFAULT '',
         created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -51,31 +48,38 @@ const initDb = async () => {
       );
     `);
 
-    await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS location_enabled BOOLEAN;`);
-    await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS location_public_enabled BOOLEAN;`);
-    await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS location_logging_enabled BOOLEAN;`);
-    await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS location_visibility_enabled BOOLEAN;`);
-    await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS notification_enabled BOOLEAN NOT NULL DEFAULT true;`);
-    await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS introduction_text TEXT NOT NULL DEFAULT '';`);
-    await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
-    await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;`);
-
+    // ─── 移行: 旧カラム名からの移行（初回のみ有効） ───
+    // 旧カラム location_enabled → location_logging_enabled に統合
     await client.query(`
-      UPDATE user_settings
-      SET location_logging_enabled = COALESCE(location_logging_enabled, location_enabled, true)
-      WHERE location_logging_enabled IS NULL;
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'user_settings' AND column_name = 'location_enabled'
+        ) THEN
+          UPDATE user_settings
+          SET location_logging_enabled = COALESCE(location_logging_enabled, location_enabled, true);
+          ALTER TABLE user_settings DROP COLUMN location_enabled;
+        END IF;
+      END $$;
     `);
 
+    // 旧カラム location_public_enabled → location_visibility_enabled に統合
     await client.query(`
-      UPDATE user_settings
-      SET location_visibility_enabled = COALESCE(location_visibility_enabled, location_public_enabled, false)
-      WHERE location_visibility_enabled IS NULL;
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'user_settings' AND column_name = 'location_public_enabled'
+        ) THEN
+          UPDATE user_settings
+          SET location_visibility_enabled = COALESCE(location_visibility_enabled, location_public_enabled, false);
+          ALTER TABLE user_settings DROP COLUMN location_public_enabled;
+        END IF;
+      END $$;
     `);
 
-    await client.query(`ALTER TABLE user_settings ALTER COLUMN location_logging_enabled SET DEFAULT true;`);
-    await client.query(`ALTER TABLE user_settings ALTER COLUMN location_logging_enabled SET NOT NULL;`);
-    await client.query(`ALTER TABLE user_settings ALTER COLUMN location_visibility_enabled SET DEFAULT false;`);
-    await client.query(`ALTER TABLE user_settings ALTER COLUMN location_visibility_enabled SET NOT NULL;`);
+    // ─── インデックス作成 ───
 
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_weather_logs_user_recorded
@@ -90,6 +94,18 @@ const initDb = async () => {
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_user_settings_user
         ON user_settings (user_id);
+    `);
+
+    // 地図クエリ用の複合インデックス
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_weather_logs_user_recorded_desc
+        ON weather_logs (user_id, recorded_at DESC);
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_settings_visibility
+        ON user_settings (location_visibility_enabled, user_id)
+        WHERE location_visibility_enabled = true;
     `);
 
     await client.query('COMMIT');

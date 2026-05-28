@@ -1,6 +1,6 @@
 const { env } = require('../config/env');
 const locationRepository = require('../repositories/locationRepository');
-const { buildDiagnosis } = require('./scoreService');
+const { getDiagnosisTitle, getDiagnosisLabel } = require('./scoreService');
 
 const getUsersLocations = async (currentUserId) => {
   const rows = await locationRepository.getLatestVisibleLocations(
@@ -9,10 +9,8 @@ const getUsersLocations = async (currentUserId) => {
   );
 
   return rows.map((row) => {
-    const diagnosis = buildDiagnosis({
-      score: row.score,
-      counts: {}
-    });
+    // 実際のスコアから直接diagnosisTitle/Labelを生成（空のcountsを渡さない）
+    const score = Number(row.score || 0);
 
     return {
       id: row.id,
@@ -24,9 +22,9 @@ const getUsersLocations = async (currentUserId) => {
       city: row.city,
       recordedAt: row.recordedAt,
       introductionText: row.introductionText,
-      diagnosisTitle: diagnosis.diagnosisTitle,
-      diagnosisLabel: diagnosis.diagnosisLabel,
-      score: row.score,
+      diagnosisTitle: getDiagnosisTitle(score),
+      diagnosisLabel: getDiagnosisLabel(score),
+      score,
       isCurrentUser: row.isCurrentUser
     };
   });

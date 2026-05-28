@@ -33,8 +33,8 @@ const normalizeRegistration = ({ username, email, password, gender } = {}) => {
   if (!EMAIL_PATTERN.test(normalized.email)) {
     errors.push({ field: 'email', message: '有効なメールアドレスを入力してください' });
   }
-  if (normalized.password.length < 6) {
-    errors.push({ field: 'password', message: 'パスワードは6文字以上で入力してください' });
+  if (normalized.password.length < 6 || normalized.password.length > 128) {
+    errors.push({ field: 'password', message: 'パスワードは6文字以上128文字以下で入力してください' });
   }
   if (!VALID_GENDERS.has(normalized.gender)) {
     errors.push({ field: 'gender', message: 'ラベル設定が不正です' });
@@ -97,10 +97,11 @@ const register = async (input) => {
     await settingsRepository.ensureForUser(user.id, client);
     await client.query('COMMIT');
 
-    const publicUser = userRepository.toPublicUser(user);
+    // トークン生成には内部ユーザー情報を使用
+    const authUser = userRepository.toAuthUser(user);
     return {
-      token: createToken(publicUser),
-      user: publicUser
+      token: createToken(authUser),
+      user: userRepository.toPublicUser(user)
     };
   } catch (error) {
     await client.query('ROLLBACK');
@@ -126,10 +127,11 @@ const login = async (input) => {
     throw new AppError('メールアドレスまたはパスワードが正しくありません', 401, 'INVALID_CREDENTIALS');
   }
 
-  const publicUser = userRepository.toPublicUser(user);
+  // トークン生成には内部ユーザー情報を使用
+  const authUser = userRepository.toAuthUser(user);
   return {
-    token: createToken(publicUser),
-    user: publicUser
+    token: createToken(authUser),
+    user: userRepository.toPublicUser(user)
   };
 };
 

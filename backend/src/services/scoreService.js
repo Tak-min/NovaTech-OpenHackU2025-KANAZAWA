@@ -21,6 +21,22 @@ const SCORE_DELTAS = {
 const POSITIVE_CATEGORIES = ['sunny', 'cloudy', 'snowy'];
 const NEGATIVE_CATEGORIES = ['rainy', 'stormy', 'thunderstorm'];
 
+/**
+ * OpenWeatherMap の天気コードをカテゴリに変換。
+ *
+ * 天気コード体系:
+ *   2xx: 雷雨
+ *   3xx: 降水中（霧雨含む）
+ *   5xx: 降雨
+ *   6xx: 降雪
+ *   7xx: 大気現象（霧・もや・砂塵など）
+ *         - 771 (突風), 781 (竜巻) は例外的に stormy
+ *   800: 快晴
+ *   80x: 曇り
+ *
+ * @param {number|string} weatherCode
+ * @returns {string} カテゴリ
+ */
 const categoryFromWeatherCode = (weatherCode) => {
   const code = Number(weatherCode);
 
@@ -28,9 +44,15 @@ const categoryFromWeatherCode = (weatherCode) => {
   if (code >= 200 && code < 300) return 'thunderstorm';
   if (code >= 300 && code < 600) return 'rainy';
   if (code >= 600 && code < 700) return 'snowy';
-  if (code >= 700 && code < 800) return 'stormy';
+
+  // 700番台: 大気現象（霧・もや・砂塵など）
+  // 例外: 771=突風, 781=竜巻 → stormy
+  if (code === 771 || code === 781) return 'stormy';
+  if (code >= 700 && code < 800) return 'cloudy';
+
   if (code === 800) return 'sunny';
   if (code > 800 && code < 900) return 'cloudy';
+
   return 'unknown';
 };
 

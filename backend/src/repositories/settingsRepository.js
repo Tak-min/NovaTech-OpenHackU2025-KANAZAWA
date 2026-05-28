@@ -37,9 +37,25 @@ const ensureForUser = async (userId, db = pool) => {
   return normalizeSettings(result.rows[0]);
 };
 
+/**
+ * ユーザー設定を取得する（副作用なし）。
+ * レコードが存在しない場合は新規作成して返す。
+ */
 const getByUserId = async (userId, db = pool) => {
-  const ensured = await ensureForUser(userId, db);
-  return ensured;
+  const result = await query(
+    db,
+    `SELECT location_logging_enabled, location_visibility_enabled, notification_enabled, introduction_text
+     FROM user_settings
+     WHERE user_id = $1`,
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    // 初回はINSERTして返す
+    return ensureForUser(userId, db);
+  }
+
+  return normalizeSettings(result.rows[0]);
 };
 
 const updateForUser = async (userId, settings, db = pool) => {

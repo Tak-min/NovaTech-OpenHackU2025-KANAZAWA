@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const { env } = require('./config/env');
 const { sendSuccess } = require('./utils/apiResponse');
 const authRoutes = require('./routes/authRoutes');
@@ -12,6 +14,7 @@ const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
+app.use(morgan('combined'));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
@@ -26,6 +29,20 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Limit each IP to 20 registrations/logins per window
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMITED',
+      message: 'リクエスト数が多すぎます。しばらくしてから再試行してください。'
+    }
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 app.get('/', (req, res) => {
   sendSuccess(res, {
@@ -42,6 +59,9 @@ app.get('/', (req, res) => {
     }
   });
 });
+
+app.use('/register', authLimiter);
+app.use('/login', authLimiter);
 
 app.use(authRoutes);
 app.use(statusRoutes);

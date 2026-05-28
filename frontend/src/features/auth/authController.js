@@ -42,11 +42,12 @@ export const mountAuthPage = (root, { navigate }) => {
     event.preventDefault();
     if (!validateAuthForm(loginForm)) return;
 
+    const credentials = readForm(loginForm);
     setFormBusy(loginForm, true, 'ログイン中');
     showFormError(root, '#login-error', '');
 
     try {
-      const result = await authApi.login(readForm(loginForm));
+      const result = await authApi.login(credentials);
       setToken(result.token);
       setUser(result.user);
       showToast('ログインしました', 'success');
@@ -62,11 +63,12 @@ export const mountAuthPage = (root, { navigate }) => {
     event.preventDefault();
     if (!validateAuthForm(registerForm)) return;
 
+    const registration = readForm(registerForm);
     setFormBusy(registerForm, true, '作成中');
     showFormError(root, '#register-error', '');
 
     try {
-      const result = await authApi.register(readForm(registerForm));
+      const result = await authApi.register(registration);
       setToken(result.token);
       setUser(result.user);
       showToast('SoraLogへようこそ', 'success');

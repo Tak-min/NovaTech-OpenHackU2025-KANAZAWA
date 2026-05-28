@@ -7,9 +7,11 @@ const getRanking = async ({ userId, type = 'weather', limit = 50 }) => {
   }
 
   const requestedLimit = Math.max(1, Math.min(100, Number.parseInt(limit, 10) || 50));
-  const rows = await rankingRepository.getWeatherRankingRows();
 
-  const rankings = rows.slice(0, requestedLimit).map((row) => ({
+  // サーバーサイドでLIMITを適用
+  const rows = await rankingRepository.getWeatherRankingRows(requestedLimit);
+
+  const rankings = rows.map((row) => ({
     rank: Number(row.rank),
     id: row.id,
     username: row.username,
@@ -17,23 +19,30 @@ const getRanking = async ({ userId, type = 'weather', limit = 50 }) => {
     isCurrentUser: row.id === userId
   }));
 
-  const currentUserRow = rows.find((row) => row.id === userId);
+  const totalUsers = rows[0]?.total_users ? Number(rows[0].total_users) : rows.length;
+
+  // 自分がランキング圏外の場合、別途ユーザーのランクをピンポイントで取得
   const currentUserInTop = rankings.some((row) => row.isCurrentUser);
-  const currentUserRank = currentUserRow && !currentUserInTop
-    ? {
-        rank: Number(currentUserRow.rank),
-        id: currentUserRow.id,
-        username: currentUserRow.username,
-        score: Number(currentUserRow.score || 0),
+  let currentUserRank = null;
+
+  if (!currentUserInTop && userId) {
+    const userRow = await rankingRepository.getUserRank(userId);
+    if (userRow) {
+      currentUserRank = {
+        rank: Number(userRow.rank),
+        id: userRow.id,
+        username: userRow.username,
+        score: Number(userRow.score || 0),
         isCurrentUser: true
-      }
-    : null;
+      };
+    }
+  }
 
   return {
     type: 'weather',
     rankings,
     currentUserRank,
-    totalUsers: rows[0]?.total_users ? Number(rows[0].total_users) : rows.length
+    totalUsers
   };
 };
 

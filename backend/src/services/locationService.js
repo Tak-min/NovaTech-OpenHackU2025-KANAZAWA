@@ -53,12 +53,45 @@ const buildRateLimitPayload = (latestLog) => {
   };
 };
 
+/**
+ * 天気を取得する。失敗時はunknownとしてフォールバック。
+ * @param {object} coordinates - { latitude, longitude }
+ * @returns {Promise<{weatherCategory: string, weatherCode: number|null, city: string|null, description: string, fallback: boolean}>}
+ */
+const fetchWeatherWithFallback = async (coordinates) => {
+  try {
+    const weather = await fetchCurrentWeather(coordinates);
+    return { ...weather, fallback: false };
+  } catch (_error) {
+    // 天気API障害時: 位置情報は保存するが天気はunknownとする
+    console.warn('[locationService] 天気取得失敗、unknownで記録を続行します');
+    return {
+      weatherCategory: 'unknown',
+      weatherCode: null,
+      city: null,
+      description: '天気情報取得失敗',
+      fallback: true
+    };
+  }
+};
+
 const logCurrentLocation = async (userId, input) => {
   const coordinates = normalizeCoordinates(input);
   const settings = await settingsRepository.getByUserId(userId);
 
   if (!settings.location_logging_enabled) {
-    const weather = await fetchCurrentWeather(coordinates);
+    // 設定OFFの場合: 天気だけ確認（エラーは無視）
+    let weather;
+    try {
+      weather = await fetchCurrentWeather(coordinates);
+    } catch (_error) {
+      weather = {
+        weatherCategory: 'unknown',
+        weatherCode: null,
+        city: null,
+        description: '天気情報取得失敗'
+      };
+    }
     const status = await getStatus(userId);
     return {
       saved: false,
@@ -87,7 +120,8 @@ const logCurrentLocation = async (userId, input) => {
       };
     }
 
-    const weather = await fetchCurrentWeather(coordinates);
+    // 天気取得（失敗時はunknownフォールバック）
+    const weather = await fetchWeatherWithFallback(coordinates);
     const scoreDelta = scoreForCategory(weather.weatherCategory);
 
     const log = await locationRepository.insertLog({
@@ -106,7 +140,9 @@ const logCurrentLocation = async (userId, input) => {
     return {
       saved: true,
       skipped: false,
-      message: '現在地の天気を記録しました',
+      message: weather.fallback
+        ? '位置情報を記録しました（天気情報は取得失敗のためunknownです）'
+        : '現在地の天気を記録しました',
       weather,
       log,
       scoreDelta,

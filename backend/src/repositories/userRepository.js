@@ -2,7 +2,26 @@ const pool = require('../db/pool');
 
 const query = (db, text, params) => db.query(text, params);
 
+/**
+ * ユーザー行を公開用オブジェクトに変換。
+ * email等のプライベート情報は含めない。
+ */
 const toPublicUser = (row) => {
+  if (!row) return null;
+  return {
+    id: row.id,
+    username: row.username,
+    gender: row.gender || 'unspecified',
+    score: Number(row.score || 0),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+};
+
+/**
+ * 認証内部用: email等を含む完全なユーザー情報
+ */
+const toAuthUser = (row) => {
   if (!row) return null;
   return {
     id: row.id,
@@ -91,6 +110,7 @@ const addScore = async (userId, scoreDelta, db = pool) => {
 
 module.exports = {
   toPublicUser,
+  toAuthUser,
   findByEmail,
   findByUsername,
   findByLoginIdentifier,
