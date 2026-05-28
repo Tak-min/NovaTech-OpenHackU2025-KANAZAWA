@@ -30,11 +30,25 @@ const findByEmail = async (email, db = pool) => {
 const findByUsername = async (username, db = pool) => {
   const result = await query(
     db,
-    `SELECT id, username, email, gender, score, created_at, updated_at
+    `SELECT id, username, email, password_hash, gender, score, created_at, updated_at
      FROM users
      WHERE LOWER(username) = LOWER($1)
      LIMIT 1`,
     [username]
+  );
+  return result.rows[0] || null;
+};
+
+const findByLoginIdentifier = async (identifier, db = pool) => {
+  const result = await query(
+    db,
+    `SELECT id, username, email, password_hash, gender, score, created_at, updated_at
+     FROM users
+     WHERE LOWER(email) = LOWER($1)
+        OR LOWER(username) = LOWER($1)
+     ORDER BY CASE WHEN LOWER(email) = LOWER($1) THEN 0 ELSE 1 END
+     LIMIT 1`,
+    [identifier]
   );
   return result.rows[0] || null;
 };
@@ -79,6 +93,7 @@ module.exports = {
   toPublicUser,
   findByEmail,
   findByUsername,
+  findByLoginIdentifier,
   findById,
   createUser,
   addScore

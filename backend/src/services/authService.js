@@ -18,7 +18,7 @@ const createToken = (user) => jwt.sign(
   { expiresIn: env.jwtExpiresIn }
 );
 
-const normalizeRegistration = ({ username, email, password, gender }) => {
+const normalizeRegistration = ({ username, email, password, gender } = {}) => {
   const normalized = {
     username: String(username || '').trim(),
     email: String(email || '').trim().toLowerCase(),
@@ -47,15 +47,16 @@ const normalizeRegistration = ({ username, email, password, gender }) => {
   return normalized;
 };
 
-const normalizeLogin = ({ email, password }) => {
+const normalizeLogin = ({ email, password, username } = {}) => {
+  const identifier = String(email || username || '').trim();
   const normalized = {
-    email: String(email || '').trim().toLowerCase(),
+    identifier,
     password: String(password || '')
   };
 
   const errors = [];
-  if (!EMAIL_PATTERN.test(normalized.email)) {
-    errors.push({ field: 'email', message: '有効なメールアドレスを入力してください' });
+  if (!normalized.identifier) {
+    errors.push({ field: 'email', message: 'メールアドレスまたはユーザー名を入力してください' });
   }
   if (!normalized.password) {
     errors.push({ field: 'password', message: 'パスワードを入力してください' });
@@ -114,7 +115,7 @@ const register = async (input) => {
 
 const login = async (input) => {
   const normalized = normalizeLogin(input);
-  const user = await userRepository.findByEmail(normalized.email);
+  const user = await userRepository.findByLoginIdentifier(normalized.identifier);
 
   if (!user) {
     throw new AppError('メールアドレスまたはパスワードが正しくありません', 401, 'INVALID_CREDENTIALS');

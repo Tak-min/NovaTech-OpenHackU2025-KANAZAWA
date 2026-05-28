@@ -18,8 +18,8 @@ export const renderAuthPage = () => `
 
       <form id="login-form" class="auth-form" novalidate>
         <label>
-          <span>メールアドレス</span>
-          <input name="email" type="email" autocomplete="email" placeholder="sora@example.com" required>
+          <span>メールアドレスまたはユーザー名</span>
+          <input name="email" type="text" autocomplete="username" placeholder="sora@example.com" required>
         </label>
         <label>
           <span>パスワード</span>
