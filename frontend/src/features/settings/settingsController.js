@@ -30,10 +30,10 @@ const loadBrowserPermission = async (root) => {
   const permission = await getPermissionState();
   const label = {
     granted: 'ブラウザの位置情報は許可されています。',
-    denied: 'ブラウザの位置情報は拒否されています。記録時はブラウザ設定から許可してください。',
-    prompt: '記録ボタンを押したときに、ブラウザが位置情報の許可を確認します。',
-    unknown: 'ブラウザの位置情報許可は、記録ボタンを押したときに確認されます。'
-  }[permission] || 'ブラウザの位置情報許可は、記録時に確認されます。';
+    denied: 'ブラウザの位置情報は拒否されています。自動取得を使うにはブラウザ設定から許可してください。',
+    prompt: 'ホーム画面の自動取得が始まるときに、ブラウザが位置情報の許可を確認します。',
+    unknown: 'ブラウザの位置情報許可は、ホーム画面の自動取得時に確認されます。'
+  }[permission] || 'ブラウザの位置情報許可は、ホーム画面の自動取得時に確認されます。';
   setText(root, '#browser-permission', label);
 };
 

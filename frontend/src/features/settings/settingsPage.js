@@ -15,8 +15,8 @@ export const renderSettingsPage = () => `
         <h2>位置情報</h2>
         <label class="toggle-row">
           <div>
-            <span>天気ログを保存</span>
-            <p>ONのとき、記録ボタンを押した現在地と天気を保存して診断に使います。</p>
+            <span>位置情報と天気ログを自動保存</span>
+            <p>ONのとき、ホーム画面で1秒ごとに現在地と天気を確認して診断に使います。</p>
           </div>
           <input id="location-logging-enabled" name="location_logging_enabled" type="checkbox">
         </label>

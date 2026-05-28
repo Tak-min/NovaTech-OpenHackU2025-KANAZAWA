@@ -293,6 +293,10 @@
   line-height: 1.65;
 }
 
+.auto-location-status {
+  margin: 0;
+}
+
 .map-panel {
   height: min(64dvh, 620px);
   min-height: 420px;

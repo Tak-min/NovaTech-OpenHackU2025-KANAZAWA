@@ -76,34 +76,22 @@ const fetchWeatherWithFallback = async (coordinates) => {
 };
 
 const logCurrentLocation = async (userId, input) => {
-  const coordinates = normalizeCoordinates(input);
   const settings = await settingsRepository.getByUserId(userId);
 
   if (!settings.location_logging_enabled) {
-    // 設定OFFの場合: 天気だけ確認（エラーは無視）
-    let weather;
-    try {
-      weather = await fetchCurrentWeather(coordinates);
-    } catch (_error) {
-      weather = {
-        weatherCategory: 'unknown',
-        weatherCode: null,
-        city: null,
-        description: '天気情報取得失敗'
-      };
-    }
     const status = await getStatus(userId);
     return {
       saved: false,
       skipped: true,
       reason: 'location_logging_disabled',
-      message: '位置情報ログ設定がOFFのため、天気だけ確認しました',
-      weather,
+      message: '位置情報の取得設定がOFFのため、現在地と天気は取得しませんでした',
+      weather: null,
       scoreDelta: 0,
       status
     };
   }
 
+  const coordinates = normalizeCoordinates(input);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

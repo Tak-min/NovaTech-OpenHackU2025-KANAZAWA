@@ -134,5 +134,7 @@ module.exports = {
   categoryFromWeatherCode,
   scoreForCategory,
   calculateWeatherStats,
+  getDiagnosisTitle,
+  getDiagnosisLabel,
   buildDiagnosis
 };

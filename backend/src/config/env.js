@@ -33,7 +33,7 @@ const env = {
   frontendOrigins: Array.from(new Set([...defaultFrontendOrigins, ...configuredFrontendOrigins])),
   logLocationMinIntervalSeconds: parseInteger(
     process.env.LOG_LOCATION_MIN_INTERVAL_SECONDS,
-    300,
+    1,
     { min: 0, max: 86400 }
   ),
   locationPublicPrecisionDecimals: parseInteger(

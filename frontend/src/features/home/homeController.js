@@ -1,17 +1,27 @@
 import { getStatus } from '../../api/statusApi.js';
 import { logLocation } from '../../api/locationApi.js';
-import { getCurrentPosition } from '../../services/geolocationService.js';
+import { getSettings } from '../../api/userApi.js';
+import { setSettings, state } from '../../app/state.js';
+import { getCurrentPosition, getPermissionState } from '../../services/geolocationService.js';
 import { DIAGNOSIS_META, WEATHER_META } from '../../app/constants.js';
-import { formatDateTime, formatNumber, qs, setBusy, setText, weatherLabel } from '../../ui/components.js';
-import { showToast } from '../../ui/toast.js';
+import { formatDateTime, formatNumber, qs, setText, weatherLabel } from '../../ui/components.js';
 
+const AUTO_LOG_INTERVAL_MS = 1000;
 let statusRequestId = 0;
+let autoLogSessionId = 0;
 
 const setAlert = (root, message, type = 'info') => {
   const alert = qs(root, '#home-alert');
   if (!alert) return;
   alert.textContent = message || '';
   alert.className = `state-message state-${type}${message ? '' : ' is-hidden'}`;
+};
+
+const setAutoLocationStatus = (root, message, type = 'info') => {
+  const status = qs(root, '#auto-location-status');
+  if (!status) return;
+  status.textContent = message;
+  status.className = `auto-location-status state-message state-${type}`;
 };
 
 const updateScoreMeter = (root, score) => {
@@ -62,20 +72,40 @@ export const loadHomeStatus = async (root) => {
 };
 
 export const mountHomePage = (root) => {
-  const recordButton = qs(root, '#record-weather-button');
+  const sessionId = ++autoLogSessionId;
+  let stopped = false;
+  let intervalId = null;
+  let inFlight = false;
 
-  loadHomeStatus(root);
+  const stopAutoLogging = () => {
+    stopped = true;
+    if (intervalId) {
+      window.clearInterval(intervalId);
+      intervalId = null;
+    }
+  };
 
-  recordButton?.addEventListener('click', async () => {
-    setBusy(recordButton, true, '位置を取得中');
-    setAlert(root, 'ブラウザの位置情報許可を確認しています...', 'info');
+  const loadLocationSettings = async () => {
+    if (state.settings) return state.settings;
+    const settings = await getSettings();
+    setSettings(settings);
+    return settings;
+  };
 
+  const recordCurrentWeather = async () => {
+    if (stopped || inFlight || sessionId !== autoLogSessionId) return;
+    inFlight = true;
     try {
-      const position = await getCurrentPosition();
-      setBusy(recordButton, true, '天気を記録中');
-      setAlert(root, '現在地の天気を確認しています...', 'info');
-
+      setAutoLocationStatus(root, '現在地と天気を自動取得しています...', 'info');
+      const position = await getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 1000
+      });
+      if (stopped || sessionId !== autoLogSessionId) return;
       const result = await logLocation(position);
+      if (stopped || sessionId !== autoLogSessionId) return;
+
       if (result.status) {
         renderStatus(root, result.status);
       } else {
@@ -85,17 +115,75 @@ export const mountHomePage = (root) => {
       const category = result.weather?.weatherCategory || result.log?.weatherCategory || 'unknown';
       const delta = Number(result.scoreDelta || 0);
       const deltaText = delta > 0 ? `+${formatNumber(delta, 1)}` : formatNumber(delta, 1);
-      const message = result.saved
-        ? `${weatherLabel(category)}を記録しました。スコア ${deltaText}`
-        : result.message || '今回は保存をスキップしました';
-      setAlert(root, message, result.saved ? 'success' : 'warning');
-      showToast(message, result.saved ? 'success' : 'info');
+      const recordedAt = result.log?.recordedAt ? formatDateTime(result.log.recordedAt) : '現在';
+
+      if (result.saved) {
+        setAlert(root, '', 'info');
+        setAutoLocationStatus(
+          root,
+          `${recordedAt} / ${weatherLabel(category)}を記録しました。スコア ${deltaText}`,
+          'success'
+        );
+      } else if (result.reason === 'location_logging_disabled') {
+        const message = '設定で位置情報の取得がOFFになっているため、現在地と天気は自動取得されません。';
+        setAlert(root, message, 'warning');
+        setAutoLocationStatus(root, message, 'warning');
+        stopAutoLogging();
+      } else {
+        setAutoLocationStatus(root, result.message || '自動取得は動作中です。次の保存タイミングを待っています。', 'info');
+      }
     } catch (error) {
       const message = error.message || '位置情報または天気の取得に失敗しました。';
-      setAlert(root, message, 'error');
-      showToast(message, 'error');
+      const type = error.name === 'GeolocationError' ? 'warning' : 'error';
+      setAlert(root, message, type);
+      setAutoLocationStatus(root, message, type);
+      if (error.code === 1 || error.code === 'UNSUPPORTED') {
+        stopAutoLogging();
+      }
     } finally {
-      setBusy(recordButton, false);
+      inFlight = false;
+    }
+  };
+
+  const startAutoLogging = async () => {
+    setAutoLocationStatus(root, '自動取得の設定を確認しています。', 'info');
+    try {
+      const settings = await loadLocationSettings();
+      if (stopped || sessionId !== autoLogSessionId) return;
+
+      if (!settings.location_logging_enabled) {
+        const message = '設定で位置情報の取得がOFFになっているため、現在地と天気は自動取得されません。';
+        setAlert(root, message, 'warning');
+        setAutoLocationStatus(root, message, 'warning');
+        return;
+      }
+
+      const permission = await getPermissionState();
+      if (stopped || sessionId !== autoLogSessionId) return;
+
+      if (permission === 'denied') {
+        const message = 'ブラウザで位置情報が拒否されているため、現在地と天気は自動取得されません。';
+        setAlert(root, message, 'warning');
+        setAutoLocationStatus(root, message, 'warning');
+        return;
+      }
+
+      setAutoLocationStatus(root, '1秒ごとに現在地と天気を自動取得しています。', 'info');
+      await recordCurrentWeather();
+      if (!stopped && sessionId === autoLogSessionId) {
+        intervalId = window.setInterval(recordCurrentWeather, AUTO_LOG_INTERVAL_MS);
+      }
+    } catch (error) {
+      const message = error.message || '位置情報設定を確認できませんでした。';
+      setAlert(root, message, 'error');
+      setAutoLocationStatus(root, message, 'error');
+    }
+  };
+
+  loadHomeStatus(root).finally(() => {
+    if (!stopped && sessionId === autoLogSessionId) {
+      startAutoLogging();
     }
   });
+  return stopAutoLogging;
 };

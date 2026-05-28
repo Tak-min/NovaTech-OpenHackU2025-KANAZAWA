@@ -105,8 +105,14 @@ export const initApp = async () => {
   initToast(root.querySelector('#toast-root'));
 
   const view = root.querySelector('#app-view');
+  let cleanupCurrentRoute = null;
 
   const navigate = async (routeName) => {
+    if (typeof cleanupCurrentRoute === 'function') {
+      cleanupCurrentRoute();
+      cleanupCurrentRoute = null;
+    }
+
     const config = routeConfig[routeName] || routeConfig[ROUTES.home];
     const targetRoute = !config.public && !isAuthenticated() ? ROUTES.auth : routeName;
     const targetConfig = routeConfig[targetRoute];
@@ -117,7 +123,10 @@ export const initApp = async () => {
     view.innerHTML = targetConfig.render();
     view.scrollTo({ top: 0 });
     view.focus({ preventScroll: true });
-    await targetConfig.mount(view, { navigate });
+    const cleanup = await targetConfig.mount(view, { navigate });
+    if (state.currentRoute === targetRoute && typeof cleanup === 'function') {
+      cleanupCurrentRoute = cleanup;
+    }
   };
 
   root.addEventListener('click', (event) => {

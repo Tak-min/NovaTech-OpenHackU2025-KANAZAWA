@@ -85,11 +85,11 @@ const getLatestVisibleLocations = async (currentUserId, precisionDecimals, db = 
        s.introduction_text,
        CASE
          WHEN u.id = $1 THEN wl.latitude
-         ELSE ROUND(wl.latitude::numeric, $2)::double precision
+         ELSE ROUND(wl.latitude::numeric, $2::integer)::double precision
        END AS latitude,
        CASE
          WHEN u.id = $1 THEN wl.longitude
-         ELSE ROUND(wl.longitude::numeric, $2)::double precision
+         ELSE ROUND(wl.longitude::numeric, $2::integer)::double precision
        END AS longitude,
        wl.weather_category,
        wl.city,
@@ -98,6 +98,8 @@ const getLatestVisibleLocations = async (currentUserId, precisionDecimals, db = 
      JOIN user_settings s ON s.user_id = u.id
      JOIN weather_logs wl ON wl.user_id = u.id
      WHERE s.location_visibility_enabled = true
+       AND wl.latitude IS NOT NULL
+       AND wl.longitude IS NOT NULL
      ORDER BY u.id, wl.recorded_at DESC`,
     [currentUserId, precisionDecimals]
   );
