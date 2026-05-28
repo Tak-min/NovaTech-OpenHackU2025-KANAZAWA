@@ -8,29 +8,33 @@ const { fetchCurrentWeather } = require('./weatherService');
 const { scoreForCategory } = require('./scoreService');
 const { getStatus } = require('./statusService');
 
-const normalizeCoordinates = ({ latitude, longitude }) => {
-  const normalizedLatitude = Number(latitude);
-  const normalizedLongitude = Number(longitude);
+const parseCoordinate = (value, { field, min, max, message }) => {
+  const normalized = typeof value === 'string' && value.trim() === ''
+    ? Number.NaN
+    : Number(value);
 
-  if (
-    !Number.isFinite(normalizedLatitude) ||
-    normalizedLatitude < -90 ||
-    normalizedLatitude > 90
-  ) {
-    throw new AppError('緯度は-90から90の間で指定してください', 400, 'VALIDATION_ERROR', [
-      { field: 'latitude', message: '緯度は-90から90の間で指定してください' }
+  if (!Number.isFinite(normalized) || normalized < min || normalized > max) {
+    throw new AppError(message, 400, 'VALIDATION_ERROR', [
+      { field, message }
     ]);
   }
 
-  if (
-    !Number.isFinite(normalizedLongitude) ||
-    normalizedLongitude < -180 ||
-    normalizedLongitude > 180
-  ) {
-    throw new AppError('経度は-180から180の間で指定してください', 400, 'VALIDATION_ERROR', [
-      { field: 'longitude', message: '経度は-180から180の間で指定してください' }
-    ]);
-  }
+  return normalized;
+};
+
+const normalizeCoordinates = ({ latitude, longitude } = {}) => {
+  const normalizedLatitude = parseCoordinate(latitude, {
+    field: 'latitude',
+    min: -90,
+    max: 90,
+    message: '緯度は-90から90の間で指定してください'
+  });
+  const normalizedLongitude = parseCoordinate(longitude, {
+    field: 'longitude',
+    min: -180,
+    max: 180,
+    message: '経度は-180から180の間で指定してください'
+  });
 
   return {
     latitude: normalizedLatitude,

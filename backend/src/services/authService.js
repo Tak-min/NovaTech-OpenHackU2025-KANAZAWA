@@ -18,7 +18,7 @@ const createToken = (user) => jwt.sign(
   { expiresIn: env.jwtExpiresIn }
 );
 
-const normalizeRegistration = ({ username, email, password, gender }) => {
+const normalizeRegistration = ({ username, email, password, gender } = {}) => {
   const normalized = {
     username: String(username || '').trim(),
     email: String(email || '').trim().toLowerCase(),
@@ -47,7 +47,7 @@ const normalizeRegistration = ({ username, email, password, gender }) => {
   return normalized;
 };
 
-const normalizeLogin = ({ email, password }) => {
+const normalizeLogin = ({ email, password } = {}) => {
   const normalized = {
     email: String(email || '').trim().toLowerCase(),
     password: String(password || '')
